@@ -87,12 +87,14 @@ impl FinanzberichtExporter {
 
         let mut workbook = Workbook::new();
 
-        // Hidden translation sheet used by VLOOKUPs
-        self.build_translation_sheet(&mut workbook)?;
+        let suffix = LANG_SUFFIXES.get(language).copied().unwrap_or("");
 
-        crate::sheet_builder::recreate_sheet(&mut workbook, cfg.fb_sheet)
+        crate::sheet_builder::recreate_sheet(&mut workbook, cfg.fb_sheet, suffix, cfg.lang_val)
             .map_err(|e| anyhow::anyhow!(e))
             .context("Failed to recreate sheet template")?;
+
+        // Hidden translation sheet used by VLOOKUPs
+        self.build_translation_sheet(&mut workbook)?;
 
         let worksheet = workbook
             .worksheet_from_name(cfg.fb_sheet)
@@ -102,23 +104,12 @@ impl FinanzberichtExporter {
         // Ensure cached formula results default to empty so viewers without recalc don't show 0.
         worksheet.set_formula_result_default("");
 
-        self.apply_header(worksheet, cfg, language, config)?;
+        self.apply_header(worksheet, config)?;
 
         Ok(workbook)
     }
 
-    fn apply_header(
-        &self,
-        worksheet: &mut Worksheet,
-        cfg: &crate::language::LanguageConfig,
-        language: &str,
-        config: &ExportConfig,
-    ) -> Result<()> {
-        let suffix = LANG_SUFFIXES.get(language).copied().unwrap_or("");
-
-        worksheet.write_string(1, 1, suffix)?;
-        worksheet.write_string(1, 4, cfg.lang_val)?;
-
+    fn apply_header(&self, worksheet: &mut Worksheet, config: &ExportConfig) -> Result<()> {
         let last_row = build_dynamic_report(worksheet, &self.palette, &config.num_positions)?;
 
         if config.protect {

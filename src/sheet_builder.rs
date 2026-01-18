@@ -566,7 +566,12 @@ fn col_str_to_index(col: &str) -> Option<u16> {
 // Main Logic
 // ---------------------------------------------------------------------------
 
-pub fn recreate_sheet(workbook: &mut Workbook, sheet_name: &str) -> Result<(), XlsxError> {
+pub fn recreate_sheet(
+    workbook: &mut Workbook,
+    sheet_name: &str,
+    suffix: &str,
+    lang_val: &str,
+) -> Result<(), XlsxError> {
     let mut model = SheetModel::new();
 
     // Constants
@@ -698,7 +703,8 @@ pub fn recreate_sheet(workbook: &mut Workbook, sheet_name: &str) -> Result<(), X
         "D2",
         "=IF($E$2=\"\",\"Chose your language\",VLOOKUP($E$2,Sprachversionen!$B:$BN,27,FALSE))",
     );
-    model.set_string("E2", "deutsch");
+    model.set_string("E2", lang_val);
+    model.set_string("B2", suffix);
     model.set_formula(
         "J4",
         "=HYPERLINK(VLOOKUP($E$2,Sprachversionen!$B:$BN,62,FALSE))",
@@ -776,7 +782,7 @@ pub fn recreate_sheet(workbook: &mut Workbook, sheet_name: &str) -> Result<(), X
         ],
         fill_input,
     );
-    model.apply_fill(&["E2:E3", "E4", "J7"], fl_orange);
+    model.apply_fill(&["E2", "E3", "J7"], fl_orange);
     model.apply_fill(&["D15:D19", "J8"], fill_value);
     model.apply_fill(&["B20:H20"], fill_summary);
 
@@ -918,6 +924,9 @@ pub fn recreate_sheet(workbook: &mut Workbook, sheet_name: &str) -> Result<(), X
     let ws = workbook.add_worksheet().set_name(sheet_name)?;
     ws.set_zoom(85);
     ws.set_screen_gridlines(false);
+
+    let validation = DataValidation::new().allow_list_formula("=Sprachversionen!$B$1:$B$5".into());
+    ws.add_data_validation(1, 4, 1, 4, &validation)?;
 
     model.write_to_sheet(ws)?;
 
