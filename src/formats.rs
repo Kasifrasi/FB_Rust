@@ -29,15 +29,11 @@ impl Default for StylePalette {
 impl StylePalette {
     /// Create a new palette with all predefined formats.
     pub fn new() -> Self {
-        let font_normal = Format::new()
-            .set_font_name("Arial")
-            .set_font_size(10.0);
+        let font_normal = Format::new().set_font_name("Arial").set_font_size(10.0);
 
         let font_bold = font_normal.clone().set_bold();
 
-        let font_gray = font_normal
-            .clone()
-            .set_font_color(Color::RGB(0xBFBFBF));
+        let font_gray = font_normal.clone().set_font_color(Color::RGB(0xBFBFBF));
 
         let font_gray_bold = font_gray.clone().set_bold();
 
@@ -63,22 +59,22 @@ impl StylePalette {
 
         let fill_input = align_left
             .clone()
-            .set_background_color(Color::RGB(0xFFFAE5))
+            .set_foreground_color(Color::RGB(0xFFFAE5))
             .set_pattern(FormatPattern::Solid);
 
         let fill_value = align_right
             .clone()
-            .set_background_color(Color::RGB(0xF2F2F2))
+            .set_foreground_color(Color::RGB(0xF2F2F2))
             .set_pattern(FormatPattern::Solid);
 
         let fill_summary = align_left
             .clone()
-            .set_background_color(Color::RGB(0xD9D9D9))
+            .set_foreground_color(Color::RGB(0xD9D9D9))
             .set_pattern(FormatPattern::Solid);
 
         let fill_white = align_left
             .clone()
-            .set_background_color(Color::RGB(0xFFFFFF))
+            .set_foreground_color(Color::RGB(0xFFFFFF))
             .set_pattern(FormatPattern::Solid);
 
         Self {

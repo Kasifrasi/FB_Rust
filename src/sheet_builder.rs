@@ -491,7 +491,7 @@ fn create_format(style: &CellStyle) -> Format {
     }
 
     if let Some(c) = style.fill_color {
-        fmt = fmt.set_background_color(c);
+        fmt = fmt.set_foreground_color(c);
     }
     if let Some(p) = style.fill_pattern {
         fmt = fmt.set_pattern(p);

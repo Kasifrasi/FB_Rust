@@ -1,7 +1,9 @@
 use crate::formats::StylePalette;
 use crate::sheet_builder::{addr, hide_column, with_border};
 use anyhow::Result;
-use rust_xlsxwriter::{Color, Format, FormatAlign, FormatBorder, Formula, Worksheet};
+use rust_xlsxwriter::{
+    Color, Format, FormatAlign, FormatBorder, FormatPattern, Formula, Worksheet,
+};
 use std::collections::HashMap;
 
 const CATEGORY_BODY_START_ROW: u32 = 26; // Excel row 27
@@ -271,7 +273,7 @@ fn write_single_category_row(
     );
     if cat_num == 8 {
         fmt_c = fmt_c.set_font_color(Color::RGB(0xBFBFBF));
-        fmt_c = fmt_c.set_border_bottom(FormatBorder::Medium);
+        fmt_c = fmt_c.set_border_bottom(FormatBorder::Thin);
     }
     ws.write_formula_with_format(row, 2, category_label(cat_num), &fmt_c)?;
 
@@ -328,17 +330,15 @@ fn write_category_footer(
         ws.write_formula_with_format(row, col_idx as u16, formula, &fmt_sum)?;
     }
 
-    let fmt_percent = with_border(
-        &base
-            .clone()
-            .set_align(FormatAlign::Right)
-            .set_num_format("0%"),
+    // Simply use the base gray format with borders, no number format, no formula
+    let fmt_gray_simple = with_border(
+        &base,
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
     );
-    ws.write_string_with_format(row, 6, "", &fmt_percent)?;
+    ws.write_string_with_format(row, 6, " ", &fmt_gray_simple)?;
 
     let fmt_h = with_border(
         &base,
@@ -399,17 +399,15 @@ fn write_report_total(
         ws.write_formula_with_format(row, col_idx as u16, Formula::new(formula), &fmt_sum)?;
     }
 
-    let fmt_percent = with_border(
-        &base
-            .clone()
-            .set_align(FormatAlign::Right)
-            .set_num_format("0%"),
+    // Simply use the base gray format with borders, no number format, no formula
+    let fmt_gray_simple = with_border(
+        &base,
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Medium),
     );
-    ws.write_string_with_format(row, 6, "", &fmt_percent)?;
+    ws.write_string_with_format(row, 6, " ", &fmt_gray_simple)?;
 
     let fmt_h = with_border(
         &base.clone(),
