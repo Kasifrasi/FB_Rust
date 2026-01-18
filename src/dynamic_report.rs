@@ -48,11 +48,8 @@ pub fn build_dynamic_report(
     let mut current_row = CATEGORY_BODY_START_ROW;
     let mut sum_rows: Vec<u32> = Vec::new();
     let mut ratio_rows: Vec<u32> = Vec::new();
-    let mut extra_totals: HashMap<char, Vec<String>> = HashMap::from([
-        ('D', Vec::new()),
-        ('E', Vec::new()),
-        ('F', Vec::new()),
-    ]);
+    let mut extra_totals: HashMap<char, Vec<String>> =
+        HashMap::from([('D', Vec::new()), ('E', Vec::new()), ('F', Vec::new())]);
 
     for cat_num in 1..=8 {
         if SINGLE_LINE_CATEGORIES.contains(&cat_num) {
@@ -106,11 +103,7 @@ fn write_category_header(
     cat_num: u8,
 ) -> Result<()> {
     let fmt_b = with_border(
-        &palette
-            .align_right
-            .clone()
-            .set_bold()
-            .set_num_format("@"),
+        &palette.align_right.clone().set_bold().set_num_format("@"),
         Some(FormatBorder::Medium),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
@@ -175,10 +168,7 @@ fn write_position_row(
     pos_num: u16,
 ) -> Result<()> {
     let fmt_b = with_border(
-        &palette
-            .align_right
-            .clone()
-            .set_num_format("@"),
+        &palette.align_right.clone().set_num_format("@"),
         Some(FormatBorder::Medium),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
@@ -272,9 +262,16 @@ fn write_single_category_row(
     );
     ws.write_string_with_format(row, 1, format!("{cat_num}."), &fmt_b)?;
 
-    let mut fmt_c = palette.fill_white.clone().set_bold();
+    let mut fmt_c = with_border(
+        &palette.fill_white.clone().set_bold(),
+        Some(FormatBorder::Thin),
+        Some(FormatBorder::Thin),
+        Some(FormatBorder::Thin),
+        Some(FormatBorder::Thin),
+    );
     if cat_num == 8 {
         fmt_c = fmt_c.set_font_color(Color::RGB(0xBFBFBF));
+        fmt_c = fmt_c.set_border_bottom(FormatBorder::Medium);
     }
     ws.write_formula_with_format(row, 2, category_label(cat_num), &fmt_c)?;
 
@@ -299,12 +296,7 @@ fn write_category_footer(
         Some(FormatBorder::Thin),
     );
     let vlookup_idx = 30 + (cat_num as u32 - 1) * 2;
-    ws.write_formula_with_format(
-        row,
-        1,
-        vlookup_formula(vlookup_idx),
-        &fmt_b,
-    )?;
+    ws.write_formula_with_format(row, 1, vlookup_formula(vlookup_idx), &fmt_b)?;
 
     let fmt_c = with_border(
         &base,
@@ -333,17 +325,20 @@ fn write_category_footer(
         );
         let col_idx = col as u8 - b'A';
         let formula = Formula::new(formula_str);
-        ws.write_array_formula_with_format(row, col_idx as u16, row, col_idx as u16, &formula, &fmt_sum)?;
+        ws.write_formula_with_format(row, col_idx as u16, formula, &fmt_sum)?;
     }
 
     let fmt_percent = with_border(
-        &base.clone().set_align(FormatAlign::Right).set_num_format("0%"),
+        &base
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_num_format("0%"),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
     );
-    ws.write_blank(row, 6, &fmt_percent)?;
+    ws.write_string_with_format(row, 6, "", &fmt_percent)?;
 
     let fmt_h = with_border(
         &base,
@@ -373,12 +368,7 @@ fn write_report_total(
         Some(FormatBorder::Thin),
         Some(FormatBorder::Medium),
     );
-    ws.write_formula_with_format(
-        row,
-        1,
-        vlookup_formula(42),
-        &fmt_b,
-    )?;
+    ws.write_formula_with_format(row, 1, vlookup_formula(42), &fmt_b)?;
 
     let fmt_c = with_border(
         &base.clone(),
@@ -419,7 +409,7 @@ fn write_report_total(
         Some(FormatBorder::Thin),
         Some(FormatBorder::Medium),
     );
-    ws.write_blank(row, 6, &fmt_percent)?;
+    ws.write_string_with_format(row, 6, "", &fmt_percent)?;
 
     let fmt_h = with_border(
         &base.clone(),
@@ -439,25 +429,42 @@ fn insert_footer(
     footer_start: u32,
     total_row: u32,
 ) -> Result<u32> {
+    // Helpers for borders
+    let thin = Some(FormatBorder::Thin);
+    let border_center = with_border(&bold(&palette.align_center), thin, thin, thin, thin);
+    let border_center_wrap = with_border(&bold(&palette.align_center_wrap), thin, thin, thin, thin);
+    let border_left = with_border(&bold(&palette.align_left), thin, thin, thin, thin);
+    let border_check = with_border(&palette.align_center, thin, thin, thin, thin);
+    let border_diff = with_border(
+        &palette
+            .fill_input
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_num_format("#,##0.00"),
+        thin,
+        thin,
+        thin,
+        thin,
+    );
+    let border_ok = with_border(
+        &palette
+            .align_center
+            .clone()
+            .set_font_color(Color::RGB(0xBFBFBF)),
+        thin,
+        thin,
+        thin,
+        thin,
+    );
+    let border_cat_left = with_border(&palette.align_left, thin, thin, thin, thin);
+
     // Headline
-    ws.write_formula_with_format(
-        footer_start,
-        4,
-        vlookup_formula(44),
-        &bold(&palette.align_center),
-    )?;
+    ws.write_formula_with_format(footer_start, 4, vlookup_formula(44), &border_center)?;
 
     // Laut Fibu merged B:D
     let fibu_text = vlookup_formula(43);
-    ws.merge_range(
-        footer_start + 1,
-        1,
-        footer_start + 1,
-        3,
-        "",
-        &bold(&palette.align_center),
-    )?;
-    ws.write_formula_with_format(footer_start + 1, 1, fibu_text, &bold(&palette.align_center))?;
+    ws.merge_range(footer_start + 1, 1, footer_start + 1, 3, "", &border_center)?;
+    ws.write_formula_with_format(footer_start + 1, 1, fibu_text, &border_center)?;
 
     // E merged across two rows
     let e_text = vlookup_formula(44);
@@ -467,82 +474,71 @@ fn insert_footer(
         footer_start + 1,
         4,
         "",
-        &bold(&palette.align_center_wrap),
+        &border_center_wrap,
     )?;
-    ws.write_formula_with_format(footer_start, 4, e_text, &bold(&palette.align_center_wrap))?;
+    ws.write_formula_with_format(footer_start, 4, e_text, &border_center_wrap)?;
 
     // Reference row to B13
-    ws.merge_range(footer_start + 2, 1, footer_start + 2, 2, "", &palette.align_left)?;
+    ws.merge_range(
+        footer_start + 2,
+        1,
+        footer_start + 2,
+        2,
+        "",
+        &palette.align_left,
+    )?;
     ws.write_blank(footer_start + 2, 3, &palette.align_right)?;
-    ws.write_formula_with_format(footer_start + 2, 4, Formula::new("=B13"), &palette.align_right)?;
+    ws.write_formula_with_format(
+        footer_start + 2,
+        4,
+        Formula::new("=B13"),
+        &palette.align_right,
+    )?;
 
     // Difference check
-    ws.write_formula_with_format(
-        footer_start + 4,
-        1,
-        vlookup_formula(45),
-        &bold(&palette.align_left),
-    )?;
-    ws.write_blank(footer_start + 4, 2, &palette.align_left)?;
+    ws.write_formula_with_format(footer_start + 4, 1, vlookup_formula(45), &border_left)?;
+    // Fill gaps with border
+    ws.write_blank(footer_start + 4, 2, &border_left)?;
+
     let check_formula = format!(
         "=IF(ROUND(E{};2)=ROUND(F20-F{};2);\"\u{2713}\";\"\")",
         footer_start + 5,
         total_row + 1
     );
-    ws.write_formula_with_format(footer_start + 4, 3, Formula::new(check_formula), &palette.align_center)?;
+    ws.write_formula_with_format(
+        footer_start + 4,
+        3,
+        Formula::new(check_formula),
+        &border_check,
+    )?;
 
     let diff_formula = format!("=E20-E{}", total_row + 1);
     ws.write_formula_with_format(
         footer_start + 4,
         4,
         Formula::new(diff_formula),
-        &palette
-            .fill_input
-            .clone()
-            .set_align(FormatAlign::Right)
-            .set_num_format("#,##0.00"),
+        &border_diff,
     )?;
 
     // OK row and category sums 1-3
-    ws.write_formula_with_format(
-        footer_start + 6,
-        1,
-        vlookup_formula(46),
-        &bold(&palette.align_left),
-    )?;
-    ws.write_blank(footer_start + 6, 2, &palette.align_left)?;
-    ws.write_blank(footer_start + 6, 3, &palette.align_left)?;
+    ws.write_formula_with_format(footer_start + 6, 1, vlookup_formula(46), &border_left)?;
+    ws.write_blank(footer_start + 6, 2, &border_left)?;
+    ws.write_blank(footer_start + 6, 3, &border_left)?;
     let ok_formula = format!(
         "=IF(E{}=SUM(E{}:E{});\"OK\";\"\")",
         footer_start + 5,
         footer_start + 7,
         footer_start + 9
     );
-    ws.write_formula_with_format(
-        footer_start + 6,
-        4,
-        Formula::new(ok_formula),
-        &palette
-            .align_center
-            .clone()
-            .set_font_color(Color::RGB(0xBFBFBF)),
-    )?;
+    ws.write_formula_with_format(footer_start + 6, 4, Formula::new(ok_formula), &border_ok)?;
 
     let vlookup_indices = [47, 48, 49];
     for (i, idx) in vlookup_indices.iter().enumerate() {
         let row = footer_start + 7 + i as u32;
-        ws.write_formula_with_format(row, 1, vlookup_formula(*idx), &palette.align_left)?;
-        ws.write_blank(row, 2, &palette.align_left)?;
-        ws.write_blank(row, 3, &palette.align_left)?;
-        ws.write_blank(
-            row,
-            4,
-            &palette
-                .fill_input
-                .clone()
-                .set_align(FormatAlign::Right)
-                .set_num_format("#,##0.00"),
-        )?;
+        ws.write_formula_with_format(row, 1, vlookup_formula(*idx), &border_cat_left)?;
+        ws.write_blank(row, 2, &border_cat_left)?;
+        ws.write_blank(row, 3, &border_cat_left)?;
+        ws.write_blank(row, 4, &border_diff)?;
     }
 
     // Generic placeholders and labels
@@ -620,4 +616,3 @@ fn hide_side_columns(ws: &mut Worksheet) {
         hide_column(ws, *col);
     }
 }
-

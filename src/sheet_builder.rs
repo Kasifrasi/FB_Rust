@@ -253,16 +253,40 @@ impl SheetModel {
         let inner_h = inner_lines == "both" || inner_lines == "horizontal";
         let inner_v = inner_lines == "both" || inner_lines == "vertical";
 
+        // Precompute merge lookups to handle merged cells correctly in borders
+        let mut merge_starts = HashMap::new();
+        let mut covered_cells = std::collections::HashSet::new();
+        for (r1, c1, r2, c2) in &self.merges {
+            merge_starts.insert((*r1, *c1), (*r2, *c2));
+            for r in *r1..=*r2 {
+                for c in *c1..=*c2 {
+                    if r != *r1 || c != *c1 {
+                        covered_cells.insert((r, c));
+                    }
+                }
+            }
+        }
+
         for range in ranges {
             if let Some((r1, c1, r2, c2)) = parse_range(range) {
                 for r in r1..=r2 {
                     for c in c1..=c2 {
+                        // Skip cells that are hidden by a merge
+                        if covered_cells.contains(&(r, c)) {
+                            continue;
+                        }
+
+                        // Determine effective dimensions of this cell (it might be a merge start)
+                        let (cell_r2, cell_c2) =
+                            merge_starts.get(&(r, c)).cloned().unwrap_or((r, c));
+
                         let cell = self.get_cell_mut(r, c);
 
+                        // Is this cell block at the edges of the selection?
                         let is_top = r == r1;
-                        let is_bottom = r == r2;
+                        let is_bottom = cell_r2 == r2;
                         let is_left = c == c1;
-                        let is_right = c == c2;
+                        let is_right = cell_c2 == c2;
 
                         // Top
                         if is_top {
@@ -752,7 +776,7 @@ pub fn recreate_sheet(workbook: &mut Workbook, sheet_name: &str) -> Result<(), X
         ],
         fill_input,
     );
-    model.apply_fill(&["E2:E3", "J7"], fl_orange);
+    model.apply_fill(&["E2:E3", "E4", "J7"], fl_orange);
     model.apply_fill(&["D15:D19", "J8"], fill_value);
     model.apply_fill(&["B20:H20"], fill_summary);
 
