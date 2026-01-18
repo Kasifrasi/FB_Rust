@@ -80,14 +80,12 @@ pub fn build_dynamic_report(
         let pos_end = current_row - 1;
 
         write_category_footer(ws, palette, current_row, cat_num, pos_start, pos_end)?;
-        ratio_rows.push(current_row);
         sum_rows.push(current_row);
         current_row += 1;
     }
 
     let total_row = current_row;
     write_report_total(ws, palette, total_row, &sum_rows, &extra_totals)?;
-    ratio_rows.push(total_row);
 
     let footer_start = total_row + 4;
     let last_row = insert_footer(ws, palette, footer_start, total_row)?;
@@ -282,16 +280,20 @@ fn write_single_category_row(
 
 fn write_category_footer(
     ws: &mut Worksheet,
-    palette: &StylePalette,
+    _palette: &StylePalette,
     row: u32,
     cat_num: u8,
     start_row: u32,
     end_row: u32,
 ) -> Result<()> {
-    let base = palette.fill_summary.clone().set_bold();
+    // Explicitly construct gray base format for the entire footer row
+    let gray_base_bold = Format::new()
+        .set_foreground_color(Color::RGB(0xD9D9D9))
+        .set_pattern(FormatPattern::Solid)
+        .set_bold();
 
     let fmt_b = with_border(
-        &base,
+        &gray_base_bold,
         Some(FormatBorder::Medium),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
@@ -301,7 +303,7 @@ fn write_category_footer(
     ws.write_formula_with_format(row, 1, vlookup_formula(vlookup_idx), &fmt_b)?;
 
     let fmt_c = with_border(
-        &base,
+        &gray_base_bold,
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
@@ -310,7 +312,7 @@ fn write_category_footer(
     ws.write_blank(row, 2, &fmt_c)?;
 
     let fmt_sum = with_border(
-        &base
+        &gray_base_bold
             .clone()
             .set_align(FormatAlign::Right)
             .set_num_format("#,##0.00"),
@@ -330,18 +332,20 @@ fn write_category_footer(
         ws.write_formula_with_format(row, col_idx as u16, formula, &fmt_sum)?;
     }
 
-    // Simply use the base gray format with borders, no number format, no formula
-    let fmt_gray_simple = with_border(
-        &base,
+    let fmt_percent_gray = with_border(
+        &gray_base_bold
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_num_format("0%"),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
     );
-    ws.write_string_with_format(row, 6, " ", &fmt_gray_simple)?;
+    ws.write_formula_with_format(row, 6, Formula::new(RATIO_FORMULA), &fmt_percent_gray)?;
 
     let fmt_h = with_border(
-        &base,
+        &gray_base_bold,
         Some(FormatBorder::Thin),
         Some(FormatBorder::Medium),
         Some(FormatBorder::Thin),
@@ -354,15 +358,19 @@ fn write_category_footer(
 
 fn write_report_total(
     ws: &mut Worksheet,
-    palette: &StylePalette,
+    _palette: &StylePalette,
     row: u32,
     sum_rows: &[u32],
     extra_totals: &HashMap<char, Vec<String>>,
 ) -> Result<()> {
-    let base = palette.fill_summary.clone().set_bold();
+    // Explicitly construct gray base format for the entire total row
+    let gray_base_bold = Format::new()
+        .set_foreground_color(Color::RGB(0xD9D9D9))
+        .set_pattern(FormatPattern::Solid)
+        .set_bold();
 
     let fmt_b = with_border(
-        &base.clone(),
+        &gray_base_bold,
         Some(FormatBorder::Medium),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
@@ -371,7 +379,7 @@ fn write_report_total(
     ws.write_formula_with_format(row, 1, vlookup_formula(42), &fmt_b)?;
 
     let fmt_c = with_border(
-        &base.clone(),
+        &gray_base_bold,
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
@@ -380,7 +388,7 @@ fn write_report_total(
     ws.write_blank(row, 2, &fmt_c)?;
 
     let fmt_sum = with_border(
-        &base
+        &gray_base_bold
             .clone()
             .set_align(FormatAlign::Right)
             .set_num_format("#,##0.00"),
@@ -399,18 +407,20 @@ fn write_report_total(
         ws.write_formula_with_format(row, col_idx as u16, Formula::new(formula), &fmt_sum)?;
     }
 
-    // Simply use the base gray format with borders, no number format, no formula
-    let fmt_gray_simple = with_border(
-        &base,
+    let fmt_percent_gray = with_border(
+        &gray_base_bold
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_num_format("0%"),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Thin),
         Some(FormatBorder::Medium),
     );
-    ws.write_string_with_format(row, 6, " ", &fmt_gray_simple)?;
+    ws.write_formula_with_format(row, 6, Formula::new(RATIO_FORMULA), &fmt_percent_gray)?;
 
     let fmt_h = with_border(
-        &base.clone(),
+        &gray_base_bold,
         Some(FormatBorder::Thin),
         Some(FormatBorder::Medium),
         Some(FormatBorder::Thin),
