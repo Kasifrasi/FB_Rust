@@ -110,7 +110,6 @@ impl ReportStyles {
 
         let table_header_base = base
             .clone()
-            .set_bold()
             .set_align(FormatAlign::Center)
             .set_align(FormatAlign::VerticalCenter)
             .set_text_wrap()

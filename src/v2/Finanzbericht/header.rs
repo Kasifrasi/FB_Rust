@@ -14,6 +14,7 @@ struct LocalStyles {
     fmt_th_h: Format,
     fmt_th_side: Format,
     fmt_th_side_bold: Format,
+    fmt_th_c_top: Format,
     fmt_th_bot_side: Format,
     fmt_th_bot_right: Format,
     orange_dotted: Format,
@@ -52,11 +53,12 @@ impl LocalStyles {
             .set_num_format("mm-dd-yy")
             .set_align(FormatAlign::Left);
 
-        let fmt_th_b = s
+        let fmt_th_b = s.table_header_base.clone().set_border_left(s.border_medium);
+
+        let fmt_th_c_top = s
             .table_header_base
             .clone()
-            .set_border_left(s.border_medium)
-            .set_border_right(s.border_thin);
+            .set_border_right(s.border_medium);
 
         let fmt_th_d = s
             .table_header_base
@@ -78,16 +80,23 @@ impl LocalStyles {
             .set_align(FormatAlign::Center)
             .set_align(FormatAlign::VerticalCenter)
             .set_border_left(s.border_medium)
-            .set_border_right(s.border_thin);
+            .set_border_right(s.border_medium);
 
         let fmt_th_side_bold = fmt_th_side.clone().set_bold();
 
-        let fmt_th_bot_side = fmt_th_side.clone().set_border_bottom(s.border_thin);
+        let fmt_th_bot_side = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Center)
+            .set_align(FormatAlign::VerticalCenter)
+            .set_border_left(s.border_medium)
+            .set_border_bottom(s.border_thin);
+
         let fmt_th_bot_right = s
             .base
             .clone()
             .set_border_bottom(s.border_thin)
-            .set_border_right(s.border_thin);
+            .set_border_right(s.border_medium);
 
         let orange_dotted = s
             .base
@@ -118,6 +127,7 @@ impl LocalStyles {
             fmt_th_h,
             fmt_th_side,
             fmt_th_side_bold,
+            fmt_th_c_top,
             fmt_th_bot_side,
             fmt_th_bot_right,
             orange_dotted,
@@ -204,6 +214,10 @@ fn set_formatting(
     ws.write_blank(8, 9, &ls.input_dotted)?;
 
     // --- Row 10 (Table Header) ---
+    // B11, C11 borders
+    ws.write_blank(10, 1, &ls.fmt_th_b)?;
+    ws.write_blank(10, 2, &ls.fmt_th_c_top)?;
+
     // J11:K11 Merged
     ws.merge_range(10, 9, 10, 10, "", &styles.left_center_bold)?;
     // Q11:R11 Merged
@@ -374,13 +388,6 @@ fn set_formulas(
     ws.write_blank(8, 6, &ls.fmt_row7_date)?;
 
     // --- Row 10 (Header Table) ---
-    ws.write_formula_with_format(
-        10,
-        1,
-        "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,11,FALSE))",
-        &ls.fmt_th_b,
-    )?;
-
     // J11, Q11
     ws.write_formula_with_format(10, 9, "=B18", &styles.left_center_bold)?;
     ws.write_formula_with_format(10, 16, "=B18", &styles.left_center_bold)?;
