@@ -660,9 +660,10 @@ fn write_formatting(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxEr
         // Row 13
         (13, 1),
         (13, 2),
-        // Table Body - Input/Calc/Right columns
+        // Table Body - Input/Calc/Pct/Right columns
         (14, 4),
         (14, 5),
+        (14, 6), // G15 hat keine Formel, nur Format
         (14, 7),
         (15, 4),
         (15, 5),
