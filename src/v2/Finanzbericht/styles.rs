@@ -68,8 +68,11 @@ impl ReportStyles {
         let border_dotted = FormatBorder::Dotted;
         let border_dashed = FormatBorder::Dashed;
 
-        // Base Format (Standard: Arial 10)
-        let base = Format::new().set_font_name("Arial").set_font_size(10.0);
+        // Base Format (Standard: Arial 10, unlocked)
+        let base = Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_unlocked();
 
         // Base Alignments
         let left_center = base

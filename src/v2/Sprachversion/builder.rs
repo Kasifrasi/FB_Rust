@@ -20,6 +20,5 @@ pub fn build_sheet(workbook: &mut Workbook) -> Result<(), XlsxError> {
         }
     }
 
-    ws.set_hidden(true);
     Ok(())
 }
