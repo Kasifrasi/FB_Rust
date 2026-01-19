@@ -20,7 +20,6 @@ pub mod registry;
 pub mod sections;
 pub mod values;
 pub mod writer;
-pub mod writer_v2;
 
 // Re-exports für einfachen Zugriff
 pub use cells::{CellAddress, HeaderInputCell, InputCell, RightPanelInputCell, TableInputCell};
@@ -34,4 +33,4 @@ pub use registry::{
     FormulaCellDeps, FormulaDeps, Inputs, RegistryError, SheetRef, Sheets, StaticVal, Statics,
 };
 pub use values::{CellValue, ReportValues};
-pub use writer::write_report;
+pub use writer::write_report_v2;

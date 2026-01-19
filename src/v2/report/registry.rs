@@ -114,13 +114,21 @@ pub enum ApiKey {
     // HINWEIS: G15-G19 (IncomePercent) sind FORMELN, keine API-Eingaben!
 
     // Right Panel (mit Index 0-17 für Zeilen 14-31)
+    /// K14-K31: Nummer links
     LeftNumber(u8),
+    /// L14-L31: Datum links
     LeftDate(u8),
+    /// M14-M31: Betrag Euro links
     LeftAmountEuro(u8),
+    /// N14-N31: Betrag Lokalwährung links
     LeftAmountLocal(u8),
+    /// R14-R31: Nummer rechts
     RightNumber(u8),
+    /// S14-S31: Datum rechts
     RightDate(u8),
+    /// T14-T31: Betrag Euro rechts
     RightAmountEuro(u8),
+    /// U14-U31: Betrag Lokalwährung rechts
     RightAmountLocal(u8),
 }
 
@@ -148,16 +156,16 @@ impl ApiKey {
             Self::IncomeReason(i) => CellAddr::new(14 + *i as u32, 7),   // H
 
             // Right Panel Left: K14-K31, L14-L31, M14-M31, N14-N31
-            Self::LeftNumber(i) => CellAddr::new(13 + *i as u32, 10),
-            Self::LeftDate(i) => CellAddr::new(13 + *i as u32, 11),
-            Self::LeftAmountEuro(i) => CellAddr::new(13 + *i as u32, 12),
-            Self::LeftAmountLocal(i) => CellAddr::new(13 + *i as u32, 13),
+            Self::LeftNumber(i) => CellAddr::new(13 + *i as u32, 10), // K
+            Self::LeftDate(i) => CellAddr::new(13 + *i as u32, 11),   // L
+            Self::LeftAmountEuro(i) => CellAddr::new(13 + *i as u32, 12), // M
+            Self::LeftAmountLocal(i) => CellAddr::new(13 + *i as u32, 13), // N
 
             // Right Panel Right: R14-R31, S14-S31, T14-T31, U14-U31
-            Self::RightNumber(i) => CellAddr::new(13 + *i as u32, 17),
-            Self::RightDate(i) => CellAddr::new(13 + *i as u32, 18),
-            Self::RightAmountEuro(i) => CellAddr::new(13 + *i as u32, 19),
-            Self::RightAmountLocal(i) => CellAddr::new(13 + *i as u32, 20),
+            Self::RightNumber(i) => CellAddr::new(13 + *i as u32, 17), // R
+            Self::RightDate(i) => CellAddr::new(13 + *i as u32, 18),   // S
+            Self::RightAmountEuro(i) => CellAddr::new(13 + *i as u32, 19), // T
+            Self::RightAmountLocal(i) => CellAddr::new(13 + *i as u32, 20), // U
         }
     }
 }

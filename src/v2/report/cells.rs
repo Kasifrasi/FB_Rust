@@ -121,6 +121,10 @@ pub enum TableInputCell {
     ApprovedBudget(u8),
     /// E15-E19: Einnahmen im Berichtszeitraum (Zeile 0-4)
     IncomeReportPeriod(u8),
+    /// F15-F19: Einnahmen gesamt (Zeile 0-4)
+    IncomeTotal(u8),
+    /// H15-H19: Begründung für Abweichung (Zeile 0-4)
+    IncomeReason(u8),
 }
 
 impl TableInputCell {
@@ -128,6 +132,8 @@ impl TableInputCell {
         match self {
             Self::ApprovedBudget(row) => CellAddress::new(14 + *row as u32, 3), // D15+
             Self::IncomeReportPeriod(row) => CellAddress::new(14 + *row as u32, 4), // E15+
+            Self::IncomeTotal(row) => CellAddress::new(14 + *row as u32, 5),    // F15+
+            Self::IncomeReason(row) => CellAddress::new(14 + *row as u32, 7),   // H15+
         }
     }
 }
@@ -139,27 +145,33 @@ impl TableInputCell {
 /// Eingabezellen im Right Panel (18 Zeilen pro Seite, 2 Seiten)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RightPanelInputCell {
+    /// K14-K31: Nummer (linke Seite, Index 0-17)
+    LeftNumber(u8),
     /// L14-L31: Datum (linke Seite, Index 0-17)
     LeftDate(u8),
-    /// M14-M31: Betrag 1 (linke Seite, Index 0-17)
+    /// M14-M31: Betrag Euro (linke Seite, Index 0-17)
     LeftAmount1(u8),
-    /// N14-N31: Betrag 2 (linke Seite, Index 0-17)
+    /// N14-N31: Betrag Lokal (linke Seite, Index 0-17)
     LeftAmount2(u8),
+    /// R14-R31: Nummer (rechte Seite, Index 0-17)
+    RightNumber(u8),
     /// S14-S31: Datum (rechte Seite, Index 0-17)
     RightDate(u8),
-    /// T14-T31: Betrag 1 (rechte Seite, Index 0-17)
+    /// T14-T31: Betrag Euro (rechte Seite, Index 0-17)
     RightAmount1(u8),
-    /// U14-U31: Betrag 2 (rechte Seite, Index 0-17)
+    /// U14-U31: Betrag Lokal (rechte Seite, Index 0-17)
     RightAmount2(u8),
 }
 
 impl RightPanelInputCell {
     pub const fn address(&self) -> CellAddress {
         match self {
-            Self::LeftDate(idx) => CellAddress::new(13 + *idx as u32, 11), // L14+
+            Self::LeftNumber(idx) => CellAddress::new(13 + *idx as u32, 10), // K14+
+            Self::LeftDate(idx) => CellAddress::new(13 + *idx as u32, 11),   // L14+
             Self::LeftAmount1(idx) => CellAddress::new(13 + *idx as u32, 12), // M14+
             Self::LeftAmount2(idx) => CellAddress::new(13 + *idx as u32, 13), // N14+
-            Self::RightDate(idx) => CellAddress::new(13 + *idx as u32, 18), // S14+
+            Self::RightNumber(idx) => CellAddress::new(13 + *idx as u32, 17), // R14+
+            Self::RightDate(idx) => CellAddress::new(13 + *idx as u32, 18),  // S14+
             Self::RightAmount1(idx) => CellAddress::new(13 + *idx as u32, 19), // T14+
             Self::RightAmount2(idx) => CellAddress::new(13 + *idx as u32, 20), // U14+
         }

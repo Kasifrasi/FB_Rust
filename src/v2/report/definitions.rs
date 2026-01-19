@@ -66,13 +66,13 @@ fn register_api_cells(
 
     // Right Panel Input Cells (18 Zeilen: 0-17 für Rows 14-31)
     for i in 0..18u8 {
-        // Left Panel
+        // Left Panel: K14-K31, L14-L31, M14-M31, N14-N31
         registry.register_api(ApiKey::LeftNumber(i))?; // K14-K31
         registry.register_api(ApiKey::LeftDate(i))?; // L14-L31
         registry.register_api(ApiKey::LeftAmountEuro(i))?; // M14-M31
         registry.register_api(ApiKey::LeftAmountLocal(i))?; // N14-N31
 
-        // Right Panel
+        // Right Panel: R14-R31, S14-S31, T14-T31, U14-U31
         registry.register_api(ApiKey::RightNumber(i))?; // R14-R31
         registry.register_api(ApiKey::RightDate(i))?; // S14-S31
         registry.register_api(ApiKey::RightAmountEuro(i))?; // T14-T31

@@ -8,7 +8,7 @@ mod tests;
 pub mod Finanzbericht {
     // Modules
     pub mod header {
-        pub use crate::v2::report::writer::write_report as write_header;
+        pub use crate::v2::report::writer::write_report_v2 as write_header;
     }
     pub mod sheet_setup {
         pub use crate::v2::report::layout::setup_sheet as sheet_setup;
