@@ -143,18 +143,22 @@ impl TableInputCell {
 // ============================================================================
 
 /// Eingabezellen im Right Panel (18 Zeilen pro Seite, 2 Seiten)
+///
+/// NUR diese Zellen sind API-Eingabefelder:
+/// - L14:N31 (Datum, Euro, Lokal - linke Seite)
+/// - S14:U31 (Datum, Euro, Lokal - rechte Seite)
+///
+/// NICHT API (sind Formeln):
+/// - K14:K31 (Nummern links - Formeln!)
+/// - R14:R31 (Nummern rechts - Formeln!)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RightPanelInputCell {
-    /// K14-K31: Nummer (linke Seite, Index 0-17)
-    LeftNumber(u8),
     /// L14-L31: Datum (linke Seite, Index 0-17)
     LeftDate(u8),
     /// M14-M31: Betrag Euro (linke Seite, Index 0-17)
     LeftAmount1(u8),
     /// N14-N31: Betrag Lokal (linke Seite, Index 0-17)
     LeftAmount2(u8),
-    /// R14-R31: Nummer (rechte Seite, Index 0-17)
-    RightNumber(u8),
     /// S14-S31: Datum (rechte Seite, Index 0-17)
     RightDate(u8),
     /// T14-T31: Betrag Euro (rechte Seite, Index 0-17)
@@ -166,12 +170,10 @@ pub enum RightPanelInputCell {
 impl RightPanelInputCell {
     pub const fn address(&self) -> CellAddress {
         match self {
-            Self::LeftNumber(idx) => CellAddress::new(13 + *idx as u32, 10), // K14+
-            Self::LeftDate(idx) => CellAddress::new(13 + *idx as u32, 11),   // L14+
+            Self::LeftDate(idx) => CellAddress::new(13 + *idx as u32, 11), // L14+
             Self::LeftAmount1(idx) => CellAddress::new(13 + *idx as u32, 12), // M14+
             Self::LeftAmount2(idx) => CellAddress::new(13 + *idx as u32, 13), // N14+
-            Self::RightNumber(idx) => CellAddress::new(13 + *idx as u32, 17), // R14+
-            Self::RightDate(idx) => CellAddress::new(13 + *idx as u32, 18),  // S14+
+            Self::RightDate(idx) => CellAddress::new(13 + *idx as u32, 18), // S14+
             Self::RightAmount1(idx) => CellAddress::new(13 + *idx as u32, 19), // T14+
             Self::RightAmount2(idx) => CellAddress::new(13 + *idx as u32, 20), // U14+
         }

@@ -1,10 +1,10 @@
 //! Test: Right Panel mit vollständigen Daten (Datum + Beträge)
 //!
-//! Erstellt Testdateien mit:
-//! - L14-L31: Datumswerte
-//! - M14-M31: Beträge in Euro
-//! - N14-N31: Beträge in Lokalwährung
-//! - K14-K31, R14-R31: Nummern
+//! NUR diese Zellen sind API-Eingabefelder:
+//! - L14:N31 (Datum, Euro, Lokal - linke Seite)
+//! - S14:U31 (Datum, Euro, Lokal - rechte Seite)
+//!
+//! K14:K31 und R14:R31 sind FORMELN und dürfen NICHT befüllt werden!
 
 use kmw_fb_rust::v2::report::formats::ReportStyles;
 use kmw_fb_rust::v2::report::layout::setup_sheet;
@@ -12,7 +12,6 @@ use kmw_fb_rust::v2::report::values::ReportValues;
 use kmw_fb_rust::v2::report::writer::write_report_v2;
 use kmw_fb_rust::v2::Sprachversion::builder::build_sheet as build_trans_sheet;
 use rust_xlsxwriter::{Format, Workbook};
-use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("╔══════════════════════════════════════════════════════════════╗");
@@ -49,6 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let styles = ReportStyles::new();
 
     // 7. Prepare Values mit vollständigen Daten
+    // API-Felder: E2:E3, D5, D6, E8:E9, G8:G9, D15:F19, H15:H19, L14:N31, S14:U31
     let mut values = ReportValues::new()
         .with_language("deutsch")
         .with_currency("EUR")
@@ -57,8 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_project_start("2024-01-01")
         .with_project_end("2024-12-31")
         .with_report_start("2024-01-01")
-        .with_report_end("2024-03-31")
-        .with_exchange_rate(1.1);
+        .with_report_end("2024-03-31");
 
     // Tabellendaten setzen (D15-F19)
     use kmw_fb_rust::v2::report::cells::{RightPanelInputCell, TableInputCell};
@@ -74,10 +73,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .set(TableInputCell::IncomeTotal(i), 500.0 + i as f64 * 300.0);
     }
 
-    // Right Panel Daten setzen (K14-U31)
-    println!("📝 Setze Right Panel Daten (K14-K31, L14-L31, M14-M31, N14-N31)...");
+    // Right Panel Daten setzen - NUR L, M, N (links) und S, T, U (rechts)
+    // K14:K31 und R14:R31 sind FORMELN, nicht befüllen!
+    println!("📝 Setze Right Panel Daten (L14-N31, S14-U31)...");
+    println!("   HINWEIS: K14:K31 und R14:R31 sind Formeln - nicht befüllen!");
     for i in 0..18u8 {
-        let num = i + 1;
         let amount_eur = 100.0 + i as f64 * 250.0;
         let amount_local = 110.0 + i as f64 * 275.0;
 
@@ -87,11 +87,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let date_str = format!("2024-{:02}-{:02}", month, day);
 
         values
-            .set(RightPanelInputCell::LeftNumber(i), num.to_string())
+            // Linke Seite: L, M, N (Datum, Euro, Lokal)
             .set(RightPanelInputCell::LeftDate(i), date_str.clone())
             .set(RightPanelInputCell::LeftAmount1(i), amount_eur)
             .set(RightPanelInputCell::LeftAmount2(i), amount_local)
-            .set(RightPanelInputCell::RightNumber(i), (num + 100).to_string())
+            // Rechte Seite: S, T, U (Datum, Euro, Lokal)
             .set(RightPanelInputCell::RightDate(i), date_str)
             .set(RightPanelInputCell::RightAmount1(i), amount_eur * 1.5)
             .set(RightPanelInputCell::RightAmount2(i), amount_local * 1.5);
@@ -119,19 +119,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("═══════════════════════════════════════════════════════════════");
     println!();
 
-    println!("📊 Tabellen-Daten (D15-F19):");
-    println!("   Budget (D):  1000, 1500, 2000, 2500, 3000");
-    println!("   Einnahmen (E): 100, 300, 500, 700, 900");
-    println!("   Gesamt (F):  500, 800, 1100, 1400, 1700");
+    println!("📊 API-Felder (von außen befüllbar):");
+    println!("   E2:E3     - Sprache, Währung");
+    println!("   D5, D6    - Projektnummer, Projekttitel");
+    println!("   E8:E9     - Projektstart, Berichtszeitraum Start");
+    println!("   G8:G9     - Projektende, Berichtszeitraum Ende");
+    println!("   D15:F19   - Budget, Einnahmen Berichtszeitraum, Einnahmen Gesamt");
+    println!("   H15:H19   - Begründung");
+    println!("   L14:N31   - Datum, Euro, Lokal (linke Seite)");
+    println!("   S14:U31   - Datum, Euro, Lokal (rechte Seite)");
     println!();
 
-    println!("📊 Right Panel Daten (L14-L31 Daten, M14-M31 Euro, N14-N31 Lokal):");
-    println!("   Insgesamt 18 Zeilen mit:");
-    println!("     - Datumswerte (variierend)");
-    println!("     - Euro-Beträge (100-5450)");
-    println!("     - Lokale Beträge (110-5995)");
-    println!("   Linke Seite (K-N):  Nummern 1-18, Daten wie oben");
-    println!("   Rechte Seite (R-U): Nummern 101-118, 1.5x die linken Beträge");
+    println!("⚠️  FORMELN (NICHT von API befüllbar):");
+    println!("   J7, J8    - Wechselkurs Datum/Wert");
+    println!("   G15:G19   - Prozent (IFERROR Division)");
+    println!("   K14:K31   - Nummern links (Formeln!)");
+    println!("   R14:R31   - Nummern rechts (Formeln!)");
     println!();
 
     println!("✅ Test abgeschlossen!");

@@ -8,6 +8,12 @@ mod tests_right_panel {
     use rust_xlsxwriter::{Format, Workbook};
 
     /// Test mit vollständigen Right Panel Daten
+    ///
+    /// NUR diese Zellen sind API-Eingabefelder:
+    /// - L14:N31 (Datum, Euro, Lokal - linke Seite)
+    /// - S14:U31 (Datum, Euro, Lokal - rechte Seite)
+    ///
+    /// K14:K31 und R14:R31 sind FORMELN und dürfen NICHT von API befüllt werden!
     #[test]
     fn test_right_panel_with_complete_data() {
         let mut workbook = Workbook::new();
@@ -40,10 +46,14 @@ mod tests_right_panel {
             .with_currency("EUR")
             .with_project_number("TEST-RP-001")
             .with_project_title("Right Panel Test")
-            .with_exchange_rate(1.1);
+            .with_project_start("2024-01-01")
+            .with_project_end("2024-12-31")
+            .with_report_start("2024-01-01")
+            .with_report_end("2024-03-31");
 
         use crate::v2::report::cells::{RightPanelInputCell, TableInputCell};
 
+        // Tabellendaten (D15-F19, H15-H19)
         for i in 0..5u8 {
             values
                 .set(TableInputCell::ApprovedBudget(i), 1000.0 + i as f64 * 500.0)
@@ -54,9 +64,9 @@ mod tests_right_panel {
                 .set(TableInputCell::IncomeTotal(i), 500.0 + i as f64 * 300.0);
         }
 
-        // Right Panel Daten - alle 18 Zeilen mit Datums- und Zahlenwerten
+        // Right Panel Daten - NUR L, M, N (links) und S, T, U (rechts)
+        // K14:K31 und R14:R31 sind FORMELN, nicht befüllen!
         for i in 0..18u8 {
-            let num = i + 1;
             let amount_eur = 100.0 + i as f64 * 250.0;
             let amount_local = 110.0 + i as f64 * 275.0;
 
@@ -65,11 +75,11 @@ mod tests_right_panel {
             let date_str = format!("2024-{:02}-{:02}", month, day);
 
             values
-                .set(RightPanelInputCell::LeftNumber(i), num.to_string())
+                // Linke Seite: L, M, N (Datum, Euro, Lokal)
                 .set(RightPanelInputCell::LeftDate(i), date_str.clone())
                 .set(RightPanelInputCell::LeftAmount1(i), amount_eur)
                 .set(RightPanelInputCell::LeftAmount2(i), amount_local)
-                .set(RightPanelInputCell::RightNumber(i), (num + 100).to_string())
+                // Rechte Seite: S, T, U (Datum, Euro, Lokal)
                 .set(RightPanelInputCell::RightDate(i), date_str)
                 .set(RightPanelInputCell::RightAmount1(i), amount_eur * 1.5)
                 .set(RightPanelInputCell::RightAmount2(i), amount_local * 1.5);
@@ -85,14 +95,13 @@ mod tests_right_panel {
 
         println!("✅ Right Panel Test erfolgreich!");
         println!("   Datei: {}", path);
-        println!("   - 18 Zeilen Daten in L14-L31 (Datumswerte)");
-        println!("   - 18 Zeilen Zahlen in M14-M31 (Euro)");
-        println!("   - 18 Zeilen Zahlen in N14-N31 (Lokal)");
-        println!("   - K14-K31: Nummern 1-18");
-        println!("   - R14-R31: Nummern 101-118");
-        println!("   - S14-S31: Datumswerte (wie Spalte L)");
-        println!("   - T14-T31: 1.5x der Werte aus M");
-        println!("   - U14-U31: 1.5x der Werte aus N");
+        println!("   - L14-L31: Datumswerte");
+        println!("   - M14-M31: Euro-Beträge");
+        println!("   - N14-N31: Lokal-Beträge");
+        println!("   - S14-S31: Datumswerte");
+        println!("   - T14-T31: Euro-Beträge (1.5x)");
+        println!("   - U14-U31: Lokal-Beträge (1.5x)");
+        println!("   - K14:K31, R14:R31 bleiben als Formeln erhalten!");
     }
 
     /// Test mit variierenden Datumswerten und Beträgen
@@ -127,7 +136,10 @@ mod tests_right_panel {
             .with_currency("EUR")
             .with_project_number("TEST-RP-002")
             .with_project_title("Realistic Right Panel Data")
-            .with_exchange_rate(1.15);
+            .with_project_start("2024-01-01")
+            .with_project_end("2024-12-31")
+            .with_report_start("2024-01-01")
+            .with_report_end("2024-03-31");
 
         use crate::v2::report::cells::RightPanelInputCell;
 
@@ -139,7 +151,6 @@ mod tests_right_panel {
 
         for (idx, &amount) in realistic_amounts.iter().enumerate() {
             let i = idx as u8;
-            let num = i + 1;
             let amount_local = amount * 1.15;
 
             let date_str = match i {
@@ -149,17 +160,11 @@ mod tests_right_panel {
             };
 
             values
-                .set(
-                    RightPanelInputCell::LeftNumber(i),
-                    format!("RGG-{:03}", 100 + num),
-                )
+                // Linke Seite: L, M, N (Datum, Euro, Lokal)
                 .set(RightPanelInputCell::LeftDate(i), date_str.clone())
                 .set(RightPanelInputCell::LeftAmount1(i), amount)
                 .set(RightPanelInputCell::LeftAmount2(i), amount_local)
-                .set(
-                    RightPanelInputCell::RightNumber(i),
-                    format!("INV-{:03}", 200 + num),
-                )
+                // Rechte Seite: S, T, U (Datum, Euro, Lokal)
                 .set(RightPanelInputCell::RightDate(i), date_str)
                 .set(RightPanelInputCell::RightAmount1(i), amount * 1.25)
                 .set(RightPanelInputCell::RightAmount2(i), amount_local * 1.25);
@@ -175,9 +180,9 @@ mod tests_right_panel {
 
         println!("✅ Realistic Right Panel Test erfolgreich!");
         println!("   Datei: {}", path);
-        println!("   - Realistische Rechnungsnummern (RGG-101..118, INV-201..218)");
         println!("   - Datumswerte März-April 2024");
         println!("   - Variierte Beträge (250-1300 EUR)");
         println!("   - Lokale Währung berechnet (EUR * Wechselkurs 1.15)");
+        println!("   - K14:K31, R14:R31 bleiben als Formeln erhalten!");
     }
 }

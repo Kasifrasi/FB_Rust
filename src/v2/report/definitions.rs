@@ -51,9 +51,8 @@ fn register_api_cells(
     registry.register_api(ApiKey::ProjectEnd)?; // G8
     registry.register_api(ApiKey::ReportStart)?; // E9
     registry.register_api(ApiKey::ReportEnd)?; // G9
-    registry.register_api(ApiKey::ExchangeRateDate)?; // J7
-    registry.register_api(ApiKey::ExchangeRateValue)?; // J8
-    registry.register_api(ApiKey::ExchangeRateInput)?; // J9
+                                               // J7, J8, J9 sind KEINE API-Felder!
+                                               // J7/J8 = Formeln, J9 = Benutzereingabe im Excel
 
     // Table Input Cells (5 Zeilen: 0-4 für Rows 15-19)
     // HINWEIS: G15-G19 sind FORMELN (=IFERROR(F/D,0)), nicht API!
@@ -65,15 +64,15 @@ fn register_api_cells(
     }
 
     // Right Panel Input Cells (18 Zeilen: 0-17 für Rows 14-31)
+    // NUR L, M, N (links) und S, T, U (rechts)
+    // K14:K31 und R14:R31 sind FORMELN, nicht API!
     for i in 0..18u8 {
-        // Left Panel: K14-K31, L14-L31, M14-M31, N14-N31
-        registry.register_api(ApiKey::LeftNumber(i))?; // K14-K31
+        // Left Panel: L14-L31, M14-M31, N14-N31
         registry.register_api(ApiKey::LeftDate(i))?; // L14-L31
         registry.register_api(ApiKey::LeftAmountEuro(i))?; // M14-M31
         registry.register_api(ApiKey::LeftAmountLocal(i))?; // N14-N31
 
-        // Right Panel: R14-R31, S14-S31, T14-T31, U14-U31
-        registry.register_api(ApiKey::RightNumber(i))?; // R14-R31
+        // Right Panel: S14-S31, T14-T31, U14-U31
         registry.register_api(ApiKey::RightDate(i))?; // S14-S31
         registry.register_api(ApiKey::RightAmountEuro(i))?; // T14-T31
         registry.register_api(ApiKey::RightAmountLocal(i))?; // U14-U31
