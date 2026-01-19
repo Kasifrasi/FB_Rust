@@ -74,6 +74,24 @@ struct LocalStyles {
     input_dotted: Format,
     body_label_top: Format,
     body_label_no_h: Format,
+    // Right Panel Header (Row 11-13)
+    rp_hdr_left: Format,      // J12-J13: nur links border
+    rp_hdr_mid: Format,       // K-N: keine border
+    rp_hdr_mid_top: Format,   // L-N Row 11: nur oben border
+    rp_hdr_right: Format,     // O12-O13: nur rechts border
+    rp_hdr_right_top: Format, // O11: rechts + oben border
+    // Right Panel Body (Row 14-31) - J/K Spalten (kein innerer border)
+    rp_idx: Format,      // J14-J30: nur links border
+    rp_idx_last: Format, // J31: links + unten border
+    rp_txt: Format,      // K14-K30: nur rechts border
+    rp_txt_last: Format, // K31: rechts + unten border
+    // Right Panel Body (Row 14-31) - L-O Spalten (voller border)
+    rp_date: Format,      // L14-L30: border ohne unten
+    rp_date_last: Format, // L31: voller border
+    rp_num: Format,       // M/N 14-30: border ohne unten
+    rp_num_last: Format,  // M/N 31: voller border
+    rp_calc: Format,      // O14-O30: border ohne unten
+    rp_calc_last: Format, // O31: voller border
 }
 
 impl LocalStyles {
@@ -172,6 +190,45 @@ impl LocalStyles {
             .set_border_top(FormatBorder::None)
             .set_border_bottom(FormatBorder::None);
 
+        // === Right Panel Header Styles (Row 11-13) ===
+        let rp_hdr_left = s.base.clone().set_border_left(s.border_thin);
+        let rp_hdr_mid = s.base.clone();
+        let rp_hdr_mid_top = rp_hdr_mid.clone().set_border_top(s.border_thin);
+        let rp_hdr_right = s.base.clone().set_border_right(s.border_thin);
+        let rp_hdr_right_top = rp_hdr_right.clone().set_border_top(s.border_thin);
+
+        // === Right Panel Body Styles (Row 14-31) ===
+        // J/K Spalten: kein innerer border
+        let rp_idx = s.rp_index.clone().set_border_left(s.border_thin);
+        let rp_idx_last = rp_idx.clone().set_border_bottom(s.border_thin);
+        let rp_txt = s.rp_text.clone().set_border_right(s.border_thin);
+        let rp_txt_last = rp_txt.clone().set_border_bottom(s.border_thin);
+
+        // L-O Spalten: voller border (aber ohne bottom außer in letzter Zeile)
+        let rp_date = s
+            .rp_date
+            .clone()
+            .set_border_left(s.border_thin)
+            .set_border_right(s.border_thin)
+            .set_border_top(s.border_thin);
+        let rp_date_last = rp_date.clone().set_border_bottom(s.border_thin);
+
+        let rp_num = s
+            .rp_number
+            .clone()
+            .set_border_left(s.border_thin)
+            .set_border_right(s.border_thin)
+            .set_border_top(s.border_thin);
+        let rp_num_last = rp_num.clone().set_border_bottom(s.border_thin);
+
+        let rp_calc = s
+            .rp_calc
+            .clone()
+            .set_border_left(s.border_thin)
+            .set_border_right(s.border_thin)
+            .set_border_top(s.border_thin);
+        let rp_calc_last = rp_calc.clone().set_border_bottom(s.border_thin);
+
         Self {
             fmt_top_med,
             fmt_top_right_med,
@@ -193,6 +250,21 @@ impl LocalStyles {
             input_dotted,
             body_label_top,
             body_label_no_h,
+            rp_hdr_left,
+            rp_hdr_mid,
+            rp_hdr_mid_top,
+            rp_hdr_right,
+            rp_hdr_right_top,
+            rp_idx,
+            rp_idx_last,
+            rp_txt,
+            rp_txt_last,
+            rp_date,
+            rp_date_last,
+            rp_num,
+            rp_num_last,
+            rp_calc,
+            rp_calc_last,
         }
     }
 }
@@ -266,8 +338,7 @@ fn build_format_matrix(styles: &ReportStyles, ls: &LocalStyles) -> FormatMatrix 
     matrix.set(10, 5, &ls.fmt_th_d); // F11 (merge F11:F14)
     matrix.set(10, 6, &ls.fmt_th_d); // G11 (merge G11:G14)
     matrix.set(10, 7, &ls.fmt_th_h); // H11 (merge H11:H14)
-    matrix.set(10, 9, &styles.left_center_bold); // J11 (merge J11:K11)
-    matrix.set(10, 16, &styles.left_center_bold); // Q11 (merge Q11:R11)
+                                     // J11 und Q11 werden im Right Panel Abschnitt gesetzt
 
     // --- Row 11 ---
     matrix.set(11, 1, &ls.fmt_th_side_bold); // B12 (merge B12:C12)
@@ -320,6 +391,87 @@ fn build_format_matrix(styles: &ReportStyles, ls: &LocalStyles) -> FormatMatrix 
     matrix.set(19, 6, &styles.summary_pct); // G20
     matrix.set(19, 7, &styles.summary_right); // H20
 
+    // ========================================================================
+    // RIGHT PANEL (Row 10-30, Cols J-O und Q-V)
+    // ========================================================================
+
+    // --- Row 10 (J11-O11, Q11-V11): Header mit top border ---
+    // J11:K11 und Q11:R11 sind merged und haben bold format
+    let j11_fmt = styles
+        .left_center_bold
+        .clone()
+        .set_border_left(styles.border_thin)
+        .set_border_top(styles.border_thin);
+    let q11_fmt = styles
+        .left_center_bold
+        .clone()
+        .set_border_left(styles.border_thin)
+        .set_border_top(styles.border_thin);
+    // Linke Seite
+    matrix.set(10, 9, &j11_fmt); // J11 (merge J11:K11)
+    matrix.set(10, 11, &ls.rp_hdr_mid_top); // L11
+    matrix.set(10, 12, &ls.rp_hdr_mid_top); // M11
+    matrix.set(10, 13, &ls.rp_hdr_mid_top); // N11
+    matrix.set(10, 14, &ls.rp_hdr_right_top); // O11
+                                              // Rechte Seite
+    matrix.set(10, 16, &q11_fmt); // Q11 (merge Q11:R11)
+    matrix.set(10, 18, &ls.rp_hdr_mid_top); // S11
+    matrix.set(10, 19, &ls.rp_hdr_mid_top); // T11
+    matrix.set(10, 20, &ls.rp_hdr_mid_top); // U11
+    matrix.set(10, 21, &ls.rp_hdr_right_top); // V11
+
+    // --- Row 11-12 (J12-O13, Q12-V13): Header ohne top border ---
+    for row in 11..=12 {
+        // Linke Seite
+        matrix.set(row, 9, &ls.rp_hdr_left); // J
+        matrix.set(row, 10, &ls.rp_hdr_mid); // K
+        matrix.set(row, 11, &ls.rp_hdr_mid); // L
+        matrix.set(row, 12, &ls.rp_hdr_mid); // M
+        matrix.set(row, 13, &ls.rp_hdr_mid); // N
+        matrix.set(row, 14, &ls.rp_hdr_right); // O
+                                               // Rechte Seite
+        matrix.set(row, 16, &ls.rp_hdr_left); // Q
+        matrix.set(row, 17, &ls.rp_hdr_mid); // R
+        matrix.set(row, 18, &ls.rp_hdr_mid); // S
+        matrix.set(row, 19, &ls.rp_hdr_mid); // T
+        matrix.set(row, 20, &ls.rp_hdr_mid); // U
+        matrix.set(row, 21, &ls.rp_hdr_right); // V
+    }
+
+    // --- Row 13-29 (J14-O30, Q14-V30): Body ohne bottom border ---
+    for row in 13..=29 {
+        // Linke Seite
+        matrix.set(row, 9, &ls.rp_idx); // J: Index
+        matrix.set(row, 10, &ls.rp_txt); // K: Text (Formel)
+        matrix.set(row, 11, &ls.rp_date); // L: Date
+        matrix.set(row, 12, &ls.rp_num); // M: Number
+        matrix.set(row, 13, &ls.rp_num); // N: Number
+        matrix.set(row, 14, &ls.rp_calc); // O: Calc (Formel)
+                                          // Rechte Seite
+        matrix.set(row, 16, &ls.rp_idx); // Q: Index
+        matrix.set(row, 17, &ls.rp_txt); // R: Text (Formel)
+        matrix.set(row, 18, &ls.rp_date); // S: Date
+        matrix.set(row, 19, &ls.rp_num); // T: Number
+        matrix.set(row, 20, &ls.rp_num); // U: Number
+        matrix.set(row, 21, &ls.rp_calc); // V: Calc (Formel)
+    }
+
+    // --- Row 30 (J31-O31, Q31-V31): Body mit bottom border ---
+    // Linke Seite
+    matrix.set(30, 9, &ls.rp_idx_last); // J31
+    matrix.set(30, 10, &ls.rp_txt_last); // K31
+    matrix.set(30, 11, &ls.rp_date_last); // L31
+    matrix.set(30, 12, &ls.rp_num_last); // M31
+    matrix.set(30, 13, &ls.rp_num_last); // N31
+    matrix.set(30, 14, &ls.rp_calc_last); // O31
+                                          // Rechte Seite
+    matrix.set(30, 16, &ls.rp_idx_last); // Q31
+    matrix.set(30, 17, &ls.rp_txt_last); // R31
+    matrix.set(30, 18, &ls.rp_date_last); // S31
+    matrix.set(30, 19, &ls.rp_num_last); // T31
+    matrix.set(30, 20, &ls.rp_num_last); // U31
+    matrix.set(30, 21, &ls.rp_calc_last); // V31
+
     matrix
 }
 
@@ -345,8 +497,8 @@ pub fn write_header(
     // Durchlauf 3: Formeln (mit locked Format)
     write_formulas(ws, &fmt)?;
 
-    // Durchlauf 4: Right Panel (J14:V31)
-    write_right_panel(ws, styles)?;
+    // Durchlauf 4: Right Panel (J11:V31)
+    write_right_panel(ws, &fmt)?;
 
     // Freeze Pane: Zeilen 1-9 immer sichtbar (freeze unter Zeile 9 = Row 9)
     ws.set_freeze_panes(9, 0)?;
@@ -994,179 +1146,145 @@ fn write_formulas(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxErro
 }
 
 // ============================================================================
-// Durchlauf 4: Right Panel (J11:V31) - aus v1 übernommen
+// Durchlauf 4: Right Panel (J11:V31) - Werte und Formeln
 // ============================================================================
 
-fn write_right_panel(ws: &mut Worksheet, styles: &ReportStyles) -> Result<(), XlsxError> {
-    let border_thin = styles.border_thin;
-
+fn write_right_panel(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> {
     let f_k = "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,23,FALSE))";
 
-    // Right Panel: 21 Zeilen (Row 10-30, also Excel Row 11-31)
-    // J11:O31 und Q11:V31 haben außen thin borders
-    // J14:K31 und Q14:R31 haben KEINE inneren borders (nur außen)
-    // L14:O31 und S14:V31 haben komplett thin borders (innen + außen)
-
-    // Zeilen 11-13 (Row 10-12): Nur außen borders für den gesamten Bereich
-    for row in 10..=12u32 {
-        let is_first_row = row == 10;
-
-        // === LINKE SEITE J11:O13 ===
-        // J (außen links)
-        let mut fmt_j = styles.base.clone();
-        fmt_j = fmt_j.set_border_left(border_thin);
-        if is_first_row {
-            fmt_j = fmt_j.set_border_top(border_thin);
+    // Right Panel Header (Row 11-13): Blanks schreiben
+    // Row 11 hat J11:K11 und Q11:R11 merges mit Formeln (werden in write_formulas geschrieben)
+    // L11-O11 und S11-V11 sind blanks
+    for col in [11u16, 12, 13, 14] {
+        if let Some(format) = fmt.get(10, col) {
+            ws.write_blank(10, col, format)?;
         }
-        ws.write_blank(row, 9, &fmt_j)?;
-
-        // K-N (keine borders außer oben bei erster Zeile)
-        for col in 10..=13u16 {
-            let mut fmt = styles.base.clone();
-            if is_first_row {
-                fmt = fmt.set_border_top(border_thin);
-            }
-            ws.write_blank(row, col, &fmt)?;
+    }
+    for col in [18u16, 19, 20, 21] {
+        if let Some(format) = fmt.get(10, col) {
+            ws.write_blank(10, col, format)?;
         }
-
-        // O (außen rechts)
-        let mut fmt_o = styles.base.clone();
-        fmt_o = fmt_o.set_border_right(border_thin);
-        if is_first_row {
-            fmt_o = fmt_o.set_border_top(border_thin);
-        }
-        ws.write_blank(row, 14, &fmt_o)?;
-
-        // === RECHTE SEITE Q11:V13 ===
-        // Q (außen links)
-        let mut fmt_q = styles.base.clone();
-        fmt_q = fmt_q.set_border_left(border_thin);
-        if is_first_row {
-            fmt_q = fmt_q.set_border_top(border_thin);
-        }
-        ws.write_blank(row, 16, &fmt_q)?;
-
-        // R-U (keine borders außer oben bei erster Zeile)
-        for col in 17..=20u16 {
-            let mut fmt = styles.base.clone();
-            if is_first_row {
-                fmt = fmt.set_border_top(border_thin);
-            }
-            ws.write_blank(row, col, &fmt)?;
-        }
-
-        // V (außen rechts)
-        let mut fmt_v = styles.base.clone();
-        fmt_v = fmt_v.set_border_right(border_thin);
-        if is_first_row {
-            fmt_v = fmt_v.set_border_top(border_thin);
-        }
-        ws.write_blank(row, 21, &fmt_v)?;
     }
 
-    // Zeilen 14-31 (Row 13-30): Daten mit spezifischen borders
-    for i in 0..18 {
-        let row = 13 + i as u32;
-        let num = i + 1;
-        let is_last_row = i == 17;
-
-        // === LINKE SEITE: J, K, L, M, N, O (Spalten 9-14) ===
-
-        // J (Col 9): Index - nur außen links, unten bei letzter Zeile
-        let mut fmt_j = styles.rp_index.clone().set_border_left(border_thin);
-        if is_last_row {
-            fmt_j = fmt_j.set_border_bottom(border_thin);
+    // Row 12-13: Alle Zellen sind blanks außer L13-O13 und S13-V13 (Formeln in write_formulas)
+    for row in 11..=12u32 {
+        for col in [9u16, 10, 11, 12, 13, 14] {
+            if let Some(format) = fmt.get(row, col) {
+                ws.write_blank(row, col, format)?;
+            }
         }
-        ws.write_string_with_format(row, 9, &format!("{}. ", num), &fmt_j)?;
-
-        // K (Col 10): Text - nur außen rechts (border zu L), unten bei letzter Zeile
-        let mut fmt_k = styles
-            .rp_text
-            .clone()
-            .set_locked()
-            .set_border_right(border_thin);
-        if is_last_row {
-            fmt_k = fmt_k.set_border_bottom(border_thin);
+        for col in [16u16, 17, 18, 19, 20, 21] {
+            if let Some(format) = fmt.get(row, col) {
+                ws.write_blank(row, col, format)?;
+            }
         }
-        ws.write_formula_with_format(row, 10, f_k, &fmt_k)?;
+    }
 
-        // L (Col 11): Date - komplett thin borders
-        let mut fmt_l = styles.rp_date.clone().set_border(border_thin);
-        if !is_last_row {
-            fmt_l = fmt_l.set_border_bottom(FormatBorder::None);
-        }
-        ws.write_blank(row, 11, &fmt_l)?;
+    // Right Panel Body (Row 14-31): 18 Zeilen statisch
+    // J: Index (String), K: Text (Formel), L: Date (blank), M/N: Number (blank), O: Calc (Formel)
+    // Q: Index (String), R: Text (Formel), S: Date (blank), T/U: Number (blank), V: Calc (Formel)
 
-        // M (Col 12): Number - komplett thin borders
-        let mut fmt_m = styles.rp_number.clone().set_border(border_thin);
-        if !is_last_row {
-            fmt_m = fmt_m.set_border_bottom(FormatBorder::None);
-        }
-        ws.write_blank(row, 12, &fmt_m)?;
+    // Zeile 14 (Row 13)
+    write_rp_row(ws, fmt, 13, 1, 19, f_k)?;
+    // Zeile 15 (Row 14)
+    write_rp_row(ws, fmt, 14, 2, 20, f_k)?;
+    // Zeile 16 (Row 15)
+    write_rp_row(ws, fmt, 15, 3, 21, f_k)?;
+    // Zeile 17 (Row 16)
+    write_rp_row(ws, fmt, 16, 4, 22, f_k)?;
+    // Zeile 18 (Row 17)
+    write_rp_row(ws, fmt, 17, 5, 23, f_k)?;
+    // Zeile 19 (Row 18)
+    write_rp_row(ws, fmt, 18, 6, 24, f_k)?;
+    // Zeile 20 (Row 19)
+    write_rp_row(ws, fmt, 19, 7, 25, f_k)?;
+    // Zeile 21 (Row 20)
+    write_rp_row(ws, fmt, 20, 8, 26, f_k)?;
+    // Zeile 22 (Row 21)
+    write_rp_row(ws, fmt, 21, 9, 27, f_k)?;
+    // Zeile 23 (Row 22)
+    write_rp_row(ws, fmt, 22, 10, 28, f_k)?;
+    // Zeile 24 (Row 23)
+    write_rp_row(ws, fmt, 23, 11, 29, f_k)?;
+    // Zeile 25 (Row 24)
+    write_rp_row(ws, fmt, 24, 12, 30, f_k)?;
+    // Zeile 26 (Row 25)
+    write_rp_row(ws, fmt, 25, 13, 31, f_k)?;
+    // Zeile 27 (Row 26)
+    write_rp_row(ws, fmt, 26, 14, 32, f_k)?;
+    // Zeile 28 (Row 27)
+    write_rp_row(ws, fmt, 27, 15, 33, f_k)?;
+    // Zeile 29 (Row 28)
+    write_rp_row(ws, fmt, 28, 16, 34, f_k)?;
+    // Zeile 30 (Row 29)
+    write_rp_row(ws, fmt, 29, 17, 35, f_k)?;
+    // Zeile 31 (Row 30)
+    write_rp_row(ws, fmt, 30, 18, 36, f_k)?;
 
-        // N (Col 13): Number - komplett thin borders
-        let mut fmt_n = styles.rp_number.clone().set_border(border_thin);
-        if !is_last_row {
-            fmt_n = fmt_n.set_border_bottom(FormatBorder::None);
-        }
-        ws.write_blank(row, 13, &fmt_n)?;
+    Ok(())
+}
 
-        // O (Col 14): Calc - komplett thin borders
-        let mut fmt_o = styles.rp_calc.clone().set_locked().set_border(border_thin);
-        if !is_last_row {
-            fmt_o = fmt_o.set_border_bottom(FormatBorder::None);
-        }
-        let f_o = format!("=IF(M{}=\"\",\"\",N{}/M{})", row + 1, row + 1, row + 1);
-        ws.write_formula_with_format(row, 14, f_o.as_str(), &fmt_o)?;
+/// Schreibt eine Zeile des Right Panels
+fn write_rp_row(
+    ws: &mut Worksheet,
+    fmt: &FormatMatrix,
+    row: u32,
+    left_num: u32,
+    right_num: u32,
+    f_k: &str,
+) -> Result<(), XlsxError> {
+    // === LINKE SEITE ===
+    // J: Index
+    if let Some(format) = fmt.get(row, 9) {
+        ws.write_string_with_format(row, 9, &format!("{}. ", left_num), format)?;
+    }
+    // K: Text (Formel)
+    if let Some(format) = fmt.get_locked(row, 10) {
+        ws.write_formula_with_format(row, 10, f_k, &format)?;
+    }
+    // L: Date (blank)
+    if let Some(format) = fmt.get(row, 11) {
+        ws.write_blank(row, 11, format)?;
+    }
+    // M: Number (blank)
+    if let Some(format) = fmt.get(row, 12) {
+        ws.write_blank(row, 12, format)?;
+    }
+    // N: Number (blank)
+    if let Some(format) = fmt.get(row, 13) {
+        ws.write_blank(row, 13, format)?;
+    }
+    // O: Calc (Formel)
+    let f_o = format!("=IF(M{}=\"\",\"\",N{}/M{})", row + 1, row + 1, row + 1);
+    if let Some(format) = fmt.get_locked(row, 14) {
+        ws.write_formula_with_format(row, 14, f_o.as_str(), &format)?;
+    }
 
-        // === RECHTE SEITE: Q, R, S, T, U, V (Spalten 16-21) ===
-
-        // Q (Col 16): Index - nur außen links, unten bei letzter Zeile
-        let mut fmt_q = styles.rp_index.clone().set_border_left(border_thin);
-        if is_last_row {
-            fmt_q = fmt_q.set_border_bottom(border_thin);
-        }
-        ws.write_string_with_format(row, 16, &format!("{}. ", num + 18), &fmt_q)?;
-
-        // R (Col 17): Text - nur außen rechts (border zu S), unten bei letzter Zeile
-        let mut fmt_r = styles
-            .rp_text
-            .clone()
-            .set_locked()
-            .set_border_right(border_thin);
-        if is_last_row {
-            fmt_r = fmt_r.set_border_bottom(border_thin);
-        }
-        ws.write_formula_with_format(row, 17, f_k, &fmt_r)?;
-
-        // S (Col 18): Date - komplett thin borders
-        let mut fmt_s = styles.rp_date.clone().set_border(border_thin);
-        if !is_last_row {
-            fmt_s = fmt_s.set_border_bottom(FormatBorder::None);
-        }
-        ws.write_blank(row, 18, &fmt_s)?;
-
-        // T (Col 19): Number - komplett thin borders
-        let mut fmt_t = styles.rp_number.clone().set_border(border_thin);
-        if !is_last_row {
-            fmt_t = fmt_t.set_border_bottom(FormatBorder::None);
-        }
-        ws.write_blank(row, 19, &fmt_t)?;
-
-        // U (Col 20): Number - komplett thin borders
-        let mut fmt_u = styles.rp_number.clone().set_border(border_thin);
-        if !is_last_row {
-            fmt_u = fmt_u.set_border_bottom(FormatBorder::None);
-        }
-        ws.write_blank(row, 20, &fmt_u)?;
-
-        // V (Col 21): Calc - komplett thin borders
-        let mut fmt_v = styles.rp_calc.clone().set_locked().set_border(border_thin);
-        if !is_last_row {
-            fmt_v = fmt_v.set_border_bottom(FormatBorder::None);
-        }
-        let f_v = format!("=IF(T{}=\"\",\"\",U{}/T{})", row + 1, row + 1, row + 1);
-        ws.write_formula_with_format(row, 21, f_v.as_str(), &fmt_v)?;
+    // === RECHTE SEITE ===
+    // Q: Index
+    if let Some(format) = fmt.get(row, 16) {
+        ws.write_string_with_format(row, 16, &format!("{}. ", right_num), format)?;
+    }
+    // R: Text (Formel)
+    if let Some(format) = fmt.get_locked(row, 17) {
+        ws.write_formula_with_format(row, 17, f_k, &format)?;
+    }
+    // S: Date (blank)
+    if let Some(format) = fmt.get(row, 18) {
+        ws.write_blank(row, 18, format)?;
+    }
+    // T: Number (blank)
+    if let Some(format) = fmt.get(row, 19) {
+        ws.write_blank(row, 19, format)?;
+    }
+    // U: Number (blank)
+    if let Some(format) = fmt.get(row, 20) {
+        ws.write_blank(row, 20, format)?;
+    }
+    // V: Calc (Formel)
+    let f_v = format!("=IF(T{}=\"\",\"\",U{}/T{})", row + 1, row + 1, row + 1);
+    if let Some(format) = fmt.get_locked(row, 21) {
+        ws.write_formula_with_format(row, 21, f_v.as_str(), &format)?;
     }
 
     Ok(())
