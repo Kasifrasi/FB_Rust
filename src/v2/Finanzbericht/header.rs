@@ -23,23 +23,29 @@ struct LocalStyles {
 
 impl LocalStyles {
     fn new(s: &ReportStyles) -> Self {
-        let fmt_top_med = Format::new().set_border_top(s.border_medium);
-        let fmt_top_right_med = Format::new()
+        let fmt_top_med = s.base.clone().set_border_top(s.border_medium);
+        let fmt_top_right_med = s
+            .base
+            .clone()
             .set_border_top(s.border_medium)
             .set_border_right(s.border_medium);
 
-        let fmt_d5 = Format::new()
+        let fmt_d5 = s
+            .base
+            .clone()
             .set_background_color(s.fill_input)
             .set_border_bottom(s.border_thin);
 
-        let fmt_d6 = Format::new()
+        let fmt_d6 = s
+            .base
+            .clone()
             .set_background_color(s.fill_input)
             .set_align(FormatAlign::Left)
             .set_align(FormatAlign::Top)
             .set_text_wrap()
             .set_border_bottom(s.border_thin);
 
-        let fmt_row7_base = Format::new().set_border_bottom(s.border_thin);
+        let fmt_row7_base = s.base.clone().set_border_bottom(s.border_thin);
         let fmt_row7_date = fmt_row7_base
             .clone()
             .set_background_color(s.fill_input)
@@ -66,7 +72,9 @@ impl LocalStyles {
             .set_border_left(s.border_thin)
             .set_border_right(s.border_medium);
 
-        let fmt_th_side = Format::new()
+        let fmt_th_side = s
+            .base
+            .clone()
             .set_align(FormatAlign::Center)
             .set_align(FormatAlign::VerticalCenter)
             .set_border_left(s.border_medium)
@@ -75,17 +83,25 @@ impl LocalStyles {
         let fmt_th_side_bold = fmt_th_side.clone().set_bold();
 
         let fmt_th_bot_side = fmt_th_side.clone().set_border_bottom(s.border_thin);
-        let fmt_th_bot_right = Format::new()
+        let fmt_th_bot_right = s
+            .base
+            .clone()
             .set_border_bottom(s.border_thin)
             .set_border_right(s.border_thin);
 
-        let orange_dotted = Format::new()
+        let orange_dotted = s
+            .base
+            .clone()
             .set_background_color(s.fl_orange)
             .set_border(s.border_dotted);
-        let value_dotted = Format::new()
+        let value_dotted = s
+            .base
+            .clone()
             .set_background_color(s.fill_value)
             .set_border(s.border_dotted);
-        let input_dotted = Format::new()
+        let input_dotted = s
+            .base
+            .clone()
             .set_background_color(s.fill_input)
             .set_border(s.border_dotted);
 
@@ -353,9 +369,9 @@ fn set_formulas(
         &styles.left_center,
     )?;
     ws.write_formula_with_format(8, 3, "=D8", &ls.fmt_row7_base)?;
-    ws.write_formula_with_format(8, 4, "=E8", &ls.fmt_row7_date)?;
+    ws.write_blank(8, 4, &ls.fmt_row7_date)?;
     ws.write_formula_with_format(8, 5, "=F8", &ls.fmt_row7_base)?;
-    ws.write_formula_with_format(8, 6, "=G8", &ls.fmt_row7_date)?;
+    ws.write_blank(8, 6, &ls.fmt_row7_date)?;
 
     // --- Row 10 (Header Table) ---
     ws.write_formula_with_format(

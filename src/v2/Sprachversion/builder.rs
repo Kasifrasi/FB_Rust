@@ -1,12 +1,13 @@
 use super::data::{CURRENCIES, TEXT_MATRIX};
-use rust_xlsxwriter::{Workbook, XlsxError};
+use rust_xlsxwriter::{Format, Workbook, XlsxError};
 
 pub fn build_sheet(workbook: &mut Workbook) -> Result<(), XlsxError> {
     let ws = workbook.add_worksheet().set_name("Sprachversionen")?;
+    let arial = Format::new().set_font_name("Arial").set_font_size(10.0);
 
     // Column A (0): Currencies
     for (row_idx, currency) in CURRENCIES.iter().enumerate() {
-        ws.write_string(row_idx as u32, 0, *currency)?;
+        ws.write_string_with_format(row_idx as u32, 0, *currency, &arial)?;
     }
 
     // Columns B onwards (1+): Text Matrix (Languages)
@@ -15,7 +16,7 @@ pub fn build_sheet(workbook: &mut Workbook) -> Result<(), XlsxError> {
     // We map TEXT_MATRIX[lang_idx][term_idx] to Sheet[Row = lang_idx][Col = term_idx + 1]
     for (row_idx, row) in TEXT_MATRIX.iter().enumerate() {
         for (col_idx, value) in row.iter().enumerate() {
-            ws.write_string(row_idx as u32, (col_idx + 1) as u16, *value)?;
+            ws.write_string_with_format(row_idx as u32, (col_idx + 1) as u16, *value, &arial)?;
         }
     }
 

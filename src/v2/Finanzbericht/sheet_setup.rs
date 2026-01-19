@@ -2,6 +2,7 @@ use rust_xlsxwriter::{Worksheet, XlsxError};
 
 pub fn sheet_setup(ws: &mut Worksheet) -> Result<(), XlsxError> {
     // --- Page Setup ---
+    ws.set_active(true);
     ws.set_zoom(85);
     ws.set_screen_gridlines(false);
 

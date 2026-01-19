@@ -33,6 +33,10 @@ pub struct ReportStyles {
     // The table header (Row 10-13) has complex borders.
     // We define the base style (Center, VCenter, Wrap, Top Medium).
     pub table_header_base: Format,
+
+    // --- Base ---
+    // Exposed so local styles can derive from it
+    pub base: Format,
 }
 
 impl ReportStyles {
@@ -50,20 +54,26 @@ impl ReportStyles {
         let border_dotted = FormatBorder::Dotted;
         let border_dashed = FormatBorder::Dashed;
 
+        // Base Format (Standard: Arial 10)
+        let base = Format::new().set_font_name("Arial").set_font_size(10.0);
+
         // Base Alignments
-        let left_center = Format::new()
+        let left_center = base
+            .clone()
             .set_align(FormatAlign::Left)
             .set_align(FormatAlign::VerticalCenter);
 
         let left_center_bold = left_center.clone().set_bold();
 
-        let center_center = Format::new()
+        let center_center = base
+            .clone()
             .set_align(FormatAlign::Center)
             .set_align(FormatAlign::VerticalCenter);
 
         let center_center_bold = center_center.clone().set_bold();
 
-        let left_top_wrap = Format::new()
+        let left_top_wrap = base
+            .clone()
             .set_align(FormatAlign::Left)
             .set_align(FormatAlign::Top)
             .set_text_wrap();
@@ -78,7 +88,8 @@ impl ReportStyles {
             .set_background_color(fl_orange)
             .set_border_bottom(border_dashed);
 
-        let header_right_box_top = Format::new()
+        let header_right_box_top = base
+            .clone()
             .set_bold()
             .set_align(FormatAlign::Left)
             .set_border_top(border_medium)
@@ -89,14 +100,16 @@ impl ReportStyles {
             .set_border_left(border_medium)
             .set_border_right(border_medium);
 
-        let link_style = Format::new()
+        let link_style = base
+            .clone()
             .set_align(FormatAlign::Left)
             .set_font_color(blue_link)
             .set_border_left(border_medium)
             .set_border_right(border_medium)
             .set_border_bottom(border_medium);
 
-        let table_header_base = Format::new()
+        let table_header_base = base
+            .clone()
             .set_bold()
             .set_align(FormatAlign::Center)
             .set_align(FormatAlign::VerticalCenter)
@@ -125,6 +138,7 @@ impl ReportStyles {
             header_right_box_body,
             link_style,
             table_header_base,
+            base,
         }
     }
 }
