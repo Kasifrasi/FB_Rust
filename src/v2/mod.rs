@@ -2,6 +2,7 @@ pub mod common;
 pub mod lang;
 pub mod report;
 mod tests;
+mod tests_right_panel;
 
 // Legacy re-exports (für Abwärtskompatibilität während Übergang)
 #[allow(non_snake_case)]
