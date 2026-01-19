@@ -6,7 +6,7 @@
 //! - Min/Max/Median
 //! - Standardabweichung
 
-use kmw_fb_rust::v2::Finanzbericht::header::{write_header, write_unlocked_base};
+use kmw_fb_rust::v2::Finanzbericht::header::write_header;
 use kmw_fb_rust::v2::Finanzbericht::sheet_setup::sheet_setup;
 use kmw_fb_rust::v2::Finanzbericht::styles::ReportStyles;
 use kmw_fb_rust::v2::Sprachversion::builder::build_sheet as build_trans_sheet;
@@ -32,24 +32,22 @@ fn generate_single_file(index: usize) -> Result<Duration, Box<dyn std::error::Er
     // 3. Get Target Sheet back
     let ws = workbook.worksheet_from_name(sheet_name)?;
 
-    // 4. Set ALL cells to unlocked first (1000 rows x 30 cols)
-    write_unlocked_base(ws, 1000, 30)?;
-
-    // 5. Setup sheet
+    // 4. Setup sheet
     sheet_setup(ws)?;
 
-    // 6. Prepare Styles
+    // 5. Prepare Styles
     let styles = ReportStyles::new();
 
-    // 7. Write Header
+    // 6. Write Header
     let suffix = "_de";
     let lang_val = "deutsch";
     write_header(ws, &styles, suffix, lang_val)?;
 
-    // 8. Protect worksheet
+    // 7. Protect worksheet and unprotect editable range
     ws.protect();
+    ws.unprotect_range(0, 0, 9999, 9999)?;
 
-    // 9. Save to file
+    // 8. Save to file
     let path = format!("/tmp/benchmark_test/file_{:04}.xlsx", index);
     workbook.save(&path)?;
 

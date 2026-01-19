@@ -1,20 +1,16 @@
 //! Vergleich verschiedener Konfigurationen und Threading-Strategien
 
-use kmw_fb_rust::v2::Finanzbericht::header::{write_header, write_unlocked_base};
+use kmw_fb_rust::v2::Finanzbericht::header::write_header;
 use kmw_fb_rust::v2::Finanzbericht::sheet_setup::sheet_setup;
 use kmw_fb_rust::v2::Finanzbericht::styles::ReportStyles;
 use kmw_fb_rust::v2::Sprachversion::builder::build_sheet as build_trans_sheet;
 use rust_xlsxwriter::Workbook;
-use std::time::{Duration, Instant};
 use std::fs;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::{Duration, Instant};
 
-fn generate_single_file(
-    index: usize,
-    rows: u32,
-    cols: u16,
-) -> Result<Duration, Box<dyn std::error::Error>> {
+fn generate_single_file(index: usize) -> Result<Duration, Box<dyn std::error::Error>> {
     let start = Instant::now();
 
     let mut workbook = Workbook::new();
@@ -23,12 +19,12 @@ fn generate_single_file(
     build_trans_sheet(&mut workbook)?;
 
     let ws = workbook.worksheet_from_name(sheet_name)?;
-    write_unlocked_base(ws, rows, cols)?;
     sheet_setup(ws)?;
 
     let styles = ReportStyles::new();
     write_header(ws, &styles, "_de", "deutsch")?;
     ws.protect();
+    ws.unprotect_range(0, 0, 9999, 9999)?;
 
     let path = format!("/tmp/benchmark_compare/file_{:04}.xlsx", index);
     workbook.save(&path)?;
@@ -36,20 +32,15 @@ fn generate_single_file(
     Ok(start.elapsed())
 }
 
-fn benchmark_config(
-    name: &str,
-    rows: u32,
-    cols: u16,
-    num_files: usize,
-) -> (Duration, Duration) {
-    println!("\n📊 Test: {} ({} x {})", name, rows, cols);
+fn benchmark_config(name: &str, num_files: usize) -> (Duration, Duration) {
+    println!("\n📊 Test: {}", name);
     println!("   Generiere {} Dateien...", num_files);
 
     let total_start = Instant::now();
     let mut durations: Vec<Duration> = Vec::new();
 
     for i in 0..num_files {
-        if let Ok(dur) = generate_single_file(i, rows, cols) {
+        if let Ok(dur) = generate_single_file(i) {
             durations.push(dur);
         }
         if (i + 1) % 10 == 0 {
@@ -68,12 +59,10 @@ fn benchmark_config(
 
 fn benchmark_config_threaded(
     name: &str,
-    rows: u32,
-    cols: u16,
     num_files: usize,
     num_threads: usize,
 ) -> (Duration, Duration) {
-    println!("\n📊 Test (THREADED): {} ({} x {}) - {} Threads", name, rows, cols, num_threads);
+    println!("\n📊 Test (THREADED): {} - {} Threads", name, num_threads);
     println!("   Generiere {} Dateien...", num_files);
 
     let total_start = Instant::now();
@@ -96,7 +85,7 @@ fn benchmark_config_threaded(
         let handle = thread::spawn(move || {
             let mut thread_durations = Vec::new();
             for i in start_idx..end_idx {
-                if let Ok(dur) = generate_single_file(i, rows, cols) {
+                if let Ok(dur) = generate_single_file(i) {
                     thread_durations.push(dur);
                 }
                 print!(".");
@@ -134,31 +123,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🔥 SINGLE-THREADED TESTS:");
     println!("══════════════════════════════════════════════════════════════");
 
-    let (total_1000_30, avg_1000_30) = benchmark_config("1000x30", 1000, 30, NUM_FILES);
-    let (total_10000_100, avg_10000_100) = benchmark_config("10000x100", 10000, 100, NUM_FILES);
+    let (total_1000_30, avg_1000_30) = benchmark_config("Single-threaded", NUM_FILES);
 
-    println!("\n🔥 MULTI-THREADED TESTS (mit 1000x30):");
+    println!("\n🔥 MULTI-THREADED TESTS (mit unprotect_range 10000x10000):");
     println!("══════════════════════════════════════════════════════════════");
 
-    let (total_threads_2, avg_threads_2) = benchmark_config_threaded("1000x30 MT", 1000, 30, NUM_FILES, 2);
-    let (total_threads_4, avg_threads_4) = benchmark_config_threaded("1000x30 MT", 1000, 30, NUM_FILES, 4);
-    let (total_threads_8, avg_threads_8) = benchmark_config_threaded("1000x30 MT", 1000, 30, NUM_FILES, 8);
+    let (total_threads_2, avg_threads_2) =
+        benchmark_config_threaded("Multi-threaded", NUM_FILES, 2);
+    let (total_threads_4, avg_threads_4) =
+        benchmark_config_threaded("Multi-threaded", NUM_FILES, 4);
+    let (total_threads_8, avg_threads_8) =
+        benchmark_config_threaded("Multi-threaded", NUM_FILES, 8);
 
     println!("\n\n═══════════════════════════════════════════════════════════════");
     println!("                    VERGLEICHSTABELLE");
     println!("═══════════════════════════════════════════════════════════════");
 
     println!("\n📋 Single-Threaded:");
-    println!("  1000x30     : Gesamt: {:?} | Ø: {:?}", total_1000_30, avg_1000_30);
-    println!("  10000x100   : Gesamt: {:?} | Ø: {:?}", total_10000_100, avg_10000_100);
+    println!(
+        "  Single-threaded : Gesamt: {:?} | Ø: {:?}",
+        total_1000_30, avg_1000_30
+    );
 
-    let diff_percent = ((total_10000_100.as_secs_f64() - total_1000_30.as_secs_f64()) 
-        / total_1000_30.as_secs_f64()) * 100.0;
-    println!("\n  → 10000x100 ist {:.1}% {}er", 
-        diff_percent.abs(), 
-        if diff_percent > 0.0 { "langsam" } else { "schnell" });
-
-    println!("\n📋 Multi-Threaded (1000x30):");
+    println!("\n📋 Multi-Threaded (unprotect_range 10000x10000):");
     println!("  2 Threads   : Gesamt: {:?}", total_threads_2);
     println!("  4 Threads   : Gesamt: {:?}", total_threads_4);
     println!("  8 Threads   : Gesamt: {:?}", total_threads_8);
@@ -172,12 +159,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  → Speedup mit 8 Threads: {:.2}x", speedup_8);
 
     println!("\n💡 ANALYSE:");
-    if diff_percent > 0.0 {
-        println!("   ⚠️  10000x100 ist LANGSAMER - lohnt sich also NICHT!");
-    } else {
-        println!("   ✅ 10000x100 ist SCHNELLER - könnte sich lohnen!");
-    }
-
     if speedup_2 > 1.3 {
         println!("   ✅ Threading bringt SIGNIFIKANTE Speedups!");
     } else {

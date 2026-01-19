@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::v2::Finanzbericht::header::{write_header, write_unlocked_base};
+    use crate::v2::Finanzbericht::header::write_header;
     use crate::v2::Finanzbericht::sheet_setup::sheet_setup;
     use crate::v2::Finanzbericht::styles::ReportStyles;
     use crate::v2::Sprachversion::builder::build_sheet as build_trans_sheet;
@@ -22,24 +22,23 @@ mod tests {
             .worksheet_from_name(sheet_name)
             .expect("Sheet not found");
 
-        // 4. Set ALL cells to unlocked first (1000 rows x 30 cols)
-        write_unlocked_base(ws, 1000, 30).expect("Failed to write unlocked base");
-
-        // 5. Setup sheet (column widths, etc.)
+        // 4. Setup sheet (column widths, etc.)
         sheet_setup(ws).expect("Failed to setup sheet");
 
-        // 6. Prepare Styles
+        // 5. Prepare Styles
         let styles = ReportStyles::new();
 
-        // 7. Write Header
+        // 6. Write Header
         let suffix = "_de";
         let lang_val = "deutsch";
         write_header(ws, &styles, suffix, lang_val).expect("Failed to write header");
 
-        // 8. Protect worksheet (damit locked/unlocked wirksam wird)
+        // 7. Protect worksheet and unprotect editable range
         ws.protect();
+        ws.unprotect_range(0, 0, 9999, 9999)
+            .expect("Failed to unprotect range");
 
-        // 9. Save to file for inspection
+        // 8. Save to file for inspection
         let path = "src/v2/tests/header_test.xlsx";
         workbook
             .save(path)

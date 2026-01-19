@@ -3,30 +3,6 @@ use rust_xlsxwriter::{DataValidation, Format, FormatAlign, FormatBorder, Workshe
 use std::collections::HashMap;
 
 // ============================================================================
-// Unlocked Base: Setzt alle Zellen im Bereich auf unlocked
-// ============================================================================
-
-/// Setzt alle Zellen im angegebenen Bereich auf unlocked (Arial 10)
-/// Muss VOR allen anderen Schreiboperationen aufgerufen werden!
-pub fn write_unlocked_base(
-    ws: &mut Worksheet,
-    max_row: u32,
-    max_col: u16,
-) -> Result<(), XlsxError> {
-    let unlocked = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_unlocked();
-
-    for row in 0..max_row {
-        for col in 0..max_col {
-            ws.write_blank(row, col, &unlocked)?;
-        }
-    }
-    Ok(())
-}
-
-// ============================================================================
 // Format-Matrix: Zentrale Speicherung aller Zellformate
 // ============================================================================
 
