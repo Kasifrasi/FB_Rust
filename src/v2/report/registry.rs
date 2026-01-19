@@ -103,11 +103,15 @@ pub enum ApiKey {
     ExchangeRateInput,
 
     // Table (mit Index 0-4 für Zeilen 15-19)
+    /// D15-D19: Bewilligtes Budget
     ApprovedBudget(u8),
+    /// E15-E19: Einnahmen im Berichtszeitraum
     IncomeReportPeriod(u8),
+    /// F15-F19: Einnahmen gesamt
     IncomeTotal(u8),
-    IncomePercent(u8),
+    /// H15-H19: Begründung (Freitext)
     IncomeReason(u8),
+    // HINWEIS: G15-G19 (IncomePercent) sind FORMELN, keine API-Eingaben!
 
     // Right Panel (mit Index 0-17 für Zeilen 14-31)
     LeftNumber(u8),
@@ -136,12 +140,12 @@ impl ApiKey {
             Self::ExchangeRateValue => addr::J8,
             Self::ExchangeRateInput => addr::J9,
 
-            // Table: D15-D19, E15-E19, F15-F19, G15-G19, H15-H19
-            Self::ApprovedBudget(i) => CellAddr::new(14 + *i as u32, 3),
-            Self::IncomeReportPeriod(i) => CellAddr::new(14 + *i as u32, 4),
-            Self::IncomeTotal(i) => CellAddr::new(14 + *i as u32, 5),
-            Self::IncomePercent(i) => CellAddr::new(14 + *i as u32, 6),
-            Self::IncomeReason(i) => CellAddr::new(14 + *i as u32, 7),
+            // Table: D15-D19, E15-E19, F15-F19, H15-H19
+            // (G15-G19 sind Formeln, nicht hier)
+            Self::ApprovedBudget(i) => CellAddr::new(14 + *i as u32, 3), // D
+            Self::IncomeReportPeriod(i) => CellAddr::new(14 + *i as u32, 4), // E
+            Self::IncomeTotal(i) => CellAddr::new(14 + *i as u32, 5),    // F
+            Self::IncomeReason(i) => CellAddr::new(14 + *i as u32, 7),   // H
 
             // Right Panel Left: K14-K31, L14-L31, M14-M31, N14-N31
             Self::LeftNumber(i) => CellAddr::new(13 + *i as u32, 10),

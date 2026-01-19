@@ -56,11 +56,11 @@ fn register_api_cells(
     registry.register_api(ApiKey::ExchangeRateInput)?; // J9
 
     // Table Input Cells (5 Zeilen: 0-4 für Rows 15-19)
+    // HINWEIS: G15-G19 sind FORMELN (=IFERROR(F/D,0)), nicht API!
     for i in 0..5u8 {
         registry.register_api(ApiKey::ApprovedBudget(i))?; // D15-D19
         registry.register_api(ApiKey::IncomeReportPeriod(i))?; // E15-E19
         registry.register_api(ApiKey::IncomeTotal(i))?; // F15-F19
-        registry.register_api(ApiKey::IncomePercent(i))?; // G15-G19
         registry.register_api(ApiKey::IncomeReason(i))?; // H15-H19
     }
 
@@ -192,10 +192,57 @@ fn register_formula_cells(
     register_text_lookup(registry, CellAddr::new(18, 1), 20)?; // B19: Zinserträge
 
     // ========================================================================
-    // Row 19: B20 (GESAMT)
+    // Row 15-19: G16-G19 (Prozent-Formeln) - IFERROR(F/D,0)
+    // HINWEIS: G15 ist leer oder auch Formel - hier nur G16-G19
+    // ========================================================================
+
+    for i in 1..5u8 {
+        // G16-G19 (rows 15-18, col 6)
+        register_iferror_division(
+            registry,
+            CellAddr::new(14 + i as u32, 6), // G16-G19
+            CellAddr::new(14 + i as u32, 5), // F16-F19 (numerator)
+            CellAddr::new(14 + i as u32, 3), // D16-D19 (denominator)
+        )?;
+    }
+
+    // ========================================================================
+    // Row 19: B20 (GESAMT), D20-G20 (Summen und Prozent)
     // ========================================================================
 
     register_text_lookup(registry, CellAddr::new(19, 1), 21)?; // B20
+
+    // D20: =SUMPRODUCT(ROUND(D15:D19,2))
+    register_sumproduct_round(
+        registry,
+        CellAddr::new(19, 3), // D20
+        CellAddr::new(14, 3), // D15
+        CellAddr::new(18, 3), // D19
+    )?;
+
+    // E20: =SUMPRODUCT(ROUND(E15:E19,2))
+    register_sumproduct_round(
+        registry,
+        CellAddr::new(19, 4), // E20
+        CellAddr::new(14, 4), // E15
+        CellAddr::new(18, 4), // E19
+    )?;
+
+    // F20: =SUMPRODUCT(ROUND(F15:F19,2))
+    register_sumproduct_round(
+        registry,
+        CellAddr::new(19, 5), // F20
+        CellAddr::new(14, 5), // F15
+        CellAddr::new(18, 5), // F19
+    )?;
+
+    // G20: =IFERROR(F20/D20,0) - hängt von D20 und F20 ab (beides Formeln!)
+    register_iferror_division_formula_deps(
+        registry,
+        CellAddr::new(19, 6), // G20
+        CellAddr::new(19, 5), // F20 (numerator) - ist Formel!
+        CellAddr::new(19, 3), // D20 (denominator) - ist Formel!
+    )?;
 
     // ========================================================================
     // Right Panel: O14-O31, V14-V31 (Berechnete Wechselkurs-Spalten)
@@ -308,6 +355,124 @@ fn register_currency_or_lookup(
         .sheets(Sheets::lang_table())
         .formula_deps(FormulaCellDeps::none())
         .eval(move |ctx| evaluate_currency_or_lookup(ctx, index))
+        .build();
+
+    registry.register_formula(addr, wrap_formula(formula))
+}
+
+/// Registriert eine IFERROR Division Formel: =IFERROR(numerator/denominator,0)
+/// Verwendet wenn numerator und denominator API-Zellen sind
+fn register_iferror_division(
+    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+    addr: CellAddr,
+    numerator: CellAddr,
+    denominator: CellAddr,
+) -> Result<(), RegistryError> {
+    let excel = Box::leak(
+        format!(
+            "=IFERROR({}/{},0)",
+            numerator.to_excel(),
+            denominator.to_excel()
+        )
+        .into_boxed_str(),
+    );
+
+    let (addr, formula) = FormulaBuilder::new(addr, excel)
+        .inputs(Inputs::many(vec![numerator, denominator]))
+        .statics(Statics::none())
+        .sheets(Sheets::none())
+        .formula_deps(FormulaCellDeps::none())
+        .eval(move |ctx| {
+            let num = ctx.cell(numerator).as_number();
+            let denom = ctx.cell(denominator).as_number();
+
+            match (num, denom) {
+                (Some(n), Some(d)) if d != 0.0 => CellValue::Number(n / d),
+                _ => CellValue::Number(0.0), // IFERROR returns 0
+            }
+        })
+        .build();
+
+    registry.register_formula(addr, wrap_formula(formula))
+}
+
+/// Registriert eine IFERROR Division Formel wo numerator/denominator selbst Formeln sind
+fn register_iferror_division_formula_deps(
+    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+    addr: CellAddr,
+    numerator: CellAddr,
+    denominator: CellAddr,
+) -> Result<(), RegistryError> {
+    let excel = Box::leak(
+        format!(
+            "=IFERROR({}/{},0)",
+            numerator.to_excel(),
+            denominator.to_excel()
+        )
+        .into_boxed_str(),
+    );
+
+    let (addr, formula) = FormulaBuilder::new(addr, excel)
+        .inputs(Inputs::none()) // Keine direkten API-Inputs
+        .statics(Statics::none())
+        .sheets(Sheets::none())
+        .formula_deps(FormulaCellDeps::many(vec![numerator, denominator])) // Abhängig von anderen Formeln!
+        .eval(move |ctx| {
+            let num = ctx.cell(numerator).as_number();
+            let denom = ctx.cell(denominator).as_number();
+
+            match (num, denom) {
+                (Some(n), Some(d)) if d != 0.0 => CellValue::Number(n / d),
+                _ => CellValue::Number(0.0), // IFERROR returns 0
+            }
+        })
+        .build();
+
+    registry.register_formula(addr, wrap_formula(formula))
+}
+
+/// Registriert eine SUMPRODUCT(ROUND(...,2)) Formel
+fn register_sumproduct_round(
+    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+    addr: CellAddr,
+    range_start: CellAddr,
+    range_end: CellAddr,
+) -> Result<(), RegistryError> {
+    let excel = Box::leak(
+        format!(
+            "=SUMPRODUCT(ROUND({}:{},2))",
+            range_start.to_excel(),
+            range_end.to_excel()
+        )
+        .into_boxed_str(),
+    );
+
+    // Sammle alle Zellen im Bereich als Inputs
+    let mut inputs = Vec::new();
+    for row in range_start.row..=range_end.row {
+        inputs.push(CellAddr::new(row, range_start.col));
+    }
+
+    let start_row = range_start.row;
+    let end_row = range_end.row;
+    let col = range_start.col;
+
+    let (addr, formula) = FormulaBuilder::new(addr, excel)
+        .inputs(Inputs::many(inputs))
+        .statics(Statics::none())
+        .sheets(Sheets::none())
+        .formula_deps(FormulaCellDeps::none())
+        .eval(move |ctx| {
+            let mut sum = 0.0;
+            for row in start_row..=end_row {
+                let cell_addr = CellAddr::new(row, col);
+                if let Some(n) = ctx.cell(cell_addr).as_number() {
+                    // ROUND to 2 decimal places
+                    sum += (n * 100.0).round() / 100.0;
+                }
+            }
+            CellValue::Number(sum)
+        })
         .build();
 
     registry.register_formula(addr, wrap_formula(formula))
