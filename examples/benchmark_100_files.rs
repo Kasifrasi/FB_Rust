@@ -1,16 +1,14 @@
-//! Präzises Benchmark für die Generierung von 100 Excel-Dateien
+//! Performance-Benchmark: 100 Excel-Dateien mit Testdaten generieren
 //!
-//! Misst:
-//! - Gesamtzeit für 100 Dateien
-//! - Durchschnittliche Zeit pro Datei
-//! - Min/Max/Median
-//! - Standardabweichung
+//! Nutzt die neue V2 API mit write_report_v2()
+//! Misst die Generierungszeit mit vollständigen API-Werten
 
-use kmw_fb_rust::v2::Finanzbericht::header::write_header;
-use kmw_fb_rust::v2::Finanzbericht::sheet_setup::sheet_setup;
-use kmw_fb_rust::v2::Finanzbericht::styles::ReportStyles;
+use kmw_fb_rust::v2::report::formats::ReportStyles;
+use kmw_fb_rust::v2::report::layout::setup_sheet;
+use kmw_fb_rust::v2::report::values::ReportValues;
+use kmw_fb_rust::v2::report::writer::write_report_v2;
 use kmw_fb_rust::v2::Sprachversion::builder::build_sheet as build_trans_sheet;
-use rust_xlsxwriter::Workbook;
+use rust_xlsxwriter::{Format, Workbook};
 use std::fs;
 use std::time::{Duration, Instant};
 
@@ -32,22 +30,56 @@ fn generate_single_file(index: usize) -> Result<Duration, Box<dyn std::error::Er
     // 3. Get Target Sheet back
     let ws = workbook.worksheet_from_name(sheet_name)?;
 
-    // 4. Setup sheet
-    sheet_setup(ws)?;
+    // 4. Set column format to unlocked for all columns
+    let unlocked = Format::new()
+        .set_font_name("Arial")
+        .set_font_size(10.0)
+        .set_unlocked();
 
-    // 5. Prepare Styles
+    for col in 0..1000u16 {
+        ws.set_column_format(col, &unlocked)?;
+    }
+
+    // 5. Setup sheet
+    setup_sheet(ws)?;
+
+    // 6. Prepare Styles
     let styles = ReportStyles::new();
 
-    // 6. Write Header
+    // 7. Prepare Values mit Testdaten
+    let mut values = ReportValues::new()
+        .with_language("deutsch")
+        .with_currency("EUR")
+        .with_project_number(&format!("PROJ-{:05}", index))
+        .with_project_title(&format!("Test Projekt Nr. {}", index))
+        .with_project_start("2024-01-01")
+        .with_project_end("2024-12-31")
+        .with_report_start("2024-01-01")
+        .with_report_end("2024-03-31")
+        .with_exchange_rate(1.0);
+
+    // Tabellendaten setzen (D15-F19)
+    use kmw_fb_rust::v2::report::cells::TableInputCell;
+
+    for i in 0..5u8 {
+        let budget = 1000.0 + i as f64 * 500.0;
+        let income_period = 100.0 + i as f64 * 200.0;
+        let income_total = 500.0 + i as f64 * 300.0;
+
+        values
+            .set(TableInputCell::ApprovedBudget(i), budget)
+            .set(TableInputCell::IncomeReportPeriod(i), income_period)
+            .set(TableInputCell::IncomeTotal(i), income_total);
+    }
+
+    // 8. Write Report mit V2 Writer
     let suffix = "_de";
-    let lang_val = "deutsch";
-    write_header(ws, &styles, suffix, lang_val)?;
+    write_report_v2(ws, &styles, suffix, &values)?;
 
-    // 7. Protect worksheet and unprotect editable range
+    // 9. Protect worksheet
     ws.protect();
-    ws.unprotect_range(0, 0, 9999, 9999)?;
 
-    // 8. Save to file
+    // 10. Save to file
     let path = format!("/tmp/benchmark_test/file_{:04}.xlsx", index);
     workbook.save(&path)?;
 
@@ -82,7 +114,7 @@ fn calculate_statistics(durations: &[Duration]) -> (Duration, Duration, Duration
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("╔══════════════════════════════════════════════════════════════╗");
-    println!("║     BENCHMARK: 100 Excel-Dateien generieren                  ║");
+    println!("║   BENCHMARK: 100 Excel-Dateien mit Testdaten generieren      ║");
     println!("╚══════════════════════════════════════════════════════════════╝");
     println!();
 
@@ -117,7 +149,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Fortschritt alle 10 Dateien
         if (i + 1) % 10 == 0 {
-            println!("   {} / {} Dateien generiert...", i + 1, NUM_FILES);
+            println!("   {} / 100 Dateien generiert...", i + 1);
         }
     }
 

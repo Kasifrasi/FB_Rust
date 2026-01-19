@@ -1,32 +1,30 @@
-//! Benchmark: Führe test_header_generation() 100 mal aus
+//! Performance-Benchmark: 100 Test-Durchläufe mit variabler Dateigröße
+//!
+//! Generiert multiple Dateien sequenziell und misst die Performance
 
-use kmw_fb_rust::v2::Finanzbericht::header::write_header;
-use kmw_fb_rust::v2::Finanzbericht::sheet_setup::sheet_setup;
-use kmw_fb_rust::v2::Finanzbericht::styles::ReportStyles;
+use kmw_fb_rust::v2::report::formats::ReportStyles;
+use kmw_fb_rust::v2::report::layout::setup_sheet;
+use kmw_fb_rust::v2::report::values::ReportValues;
+use kmw_fb_rust::v2::report::writer::write_report_v2;
 use kmw_fb_rust::v2::Sprachversion::builder::build_sheet as build_trans_sheet;
 use rust_xlsxwriter::{Format, Workbook};
 use std::fs;
 use std::time::{Duration, Instant};
 
-fn test_header_generation(index: usize) -> Result<Duration, Box<dyn std::error::Error>> {
+fn generate_file(
+    index: usize,
+    num_data_rows: usize,
+) -> Result<Duration, Box<dyn std::error::Error>> {
     let start = Instant::now();
 
     let mut workbook = Workbook::new();
-
-    // 1. Add Target Sheet (Finanzbericht) - must be first to be on left
     let sheet_name = "Finanzbericht";
     let _ = workbook.add_worksheet().set_name(sheet_name)?;
 
-    // 2. Build Translation Sheet (Reference for VLOOKUPs)
     build_trans_sheet(&mut workbook)?;
 
-    // 3. Get Target Sheet back
-    let ws = workbook
-        .worksheet_from_name(sheet_name)
-        .expect("Sheet not found");
+    let ws = workbook.worksheet_from_name(sheet_name)?;
 
-    // 4. Set column format to unlocked for 1000 columns
-    // This makes all cells in these columns unlocked by default
     let unlocked = Format::new()
         .set_font_name("Arial")
         .set_font_size(10.0)
@@ -36,25 +34,33 @@ fn test_header_generation(index: usize) -> Result<Duration, Box<dyn std::error::
         ws.set_column_format(col, &unlocked)?;
     }
 
-    // 5. Setup sheet (column widths, etc.)
-    sheet_setup(ws)?;
-
-    // 6. Prepare Styles
+    setup_sheet(ws)?;
     let styles = ReportStyles::new();
 
-    // 7. Write Header
-    let suffix = "_de";
-    let lang_val = "deutsch";
-    write_header(ws, &styles, suffix, lang_val)?;
+    let mut values = ReportValues::new()
+        .with_language("deutsch")
+        .with_currency("EUR")
+        .with_project_number(&format!("TEST-{}", index))
+        .with_project_title(&format!("Test {}", index))
+        .with_exchange_rate(1.0);
 
-    // 8. Protect worksheet
-    // All cells are unlocked by set_column_format()
-    // Formulas are locked by write_formulas() which uses fmt.get_locked()
+    // Variiere die Datengröße
+    use kmw_fb_rust::v2::report::cells::TableInputCell;
+    let max_rows = std::cmp::min(num_data_rows, 5);
+    for i in 0..max_rows as u8 {
+        values
+            .set(TableInputCell::ApprovedBudget(i), 1000.0 + i as f64 * 500.0)
+            .set(
+                TableInputCell::IncomeReportPeriod(i),
+                100.0 + i as f64 * 200.0,
+            )
+            .set(TableInputCell::IncomeTotal(i), 500.0 + i as f64 * 300.0);
+    }
+
+    write_report_v2(ws, &styles, "_de", &values)?;
     ws.protect();
 
-    // 9. Save to file for inspection
-    let path = format!("/tmp/benchmark_100_runs/header_test_{:04}.xlsx", index);
-    fs::create_dir_all("/tmp/benchmark_100_runs")?;
+    let path = format!("/tmp/benchmark_runs/file_{:04}.xlsx", index);
     workbook.save(&path)?;
 
     Ok(start.elapsed())
@@ -62,90 +68,65 @@ fn test_header_generation(index: usize) -> Result<Duration, Box<dyn std::error::
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("╔══════════════════════════════════════════════════════════════╗");
-    println!("║   BENCHMARK: test_header_generation() 100 mal ausführen      ║");
-    println!("╚══════════════════════════════════════════════════════════════╝\n");
+    println!("║     BENCHMARK: 100 Test-Durchläufe mit Variationen           ║");
+    println!("╚══════════════════════════════════════════════════════════════╝");
+    println!();
 
-    fs::create_dir_all("/tmp/benchmark_100_runs")?;
+    let temp_dir = "/tmp/benchmark_runs";
+    fs::create_dir_all(temp_dir)?;
 
-    const NUM_RUNS: usize = 100;
+    println!("📊 Starte Tests...");
+    println!();
 
-    println!("🔥 Starten 100 Test-Durchläufe...\n");
-    println!("   Generiere {} Dateien...", NUM_RUNS);
-
-    let total_start = Instant::now();
     let mut durations: Vec<Duration> = Vec::new();
+    let total_start = Instant::now();
 
-    for i in 0..NUM_RUNS {
-        if let Ok(dur) = test_header_generation(i) {
-            durations.push(dur);
-        }
-        if (i + 1) % 10 == 0 {
-            print!(".");
-            std::io::Write::flush(&mut std::io::stdout())?;
+    for i in 0..100 {
+        let num_rows = (i % 5) + 1;
+        let duration = generate_file(i, num_rows)?;
+        durations.push(duration);
+
+        if (i + 1) % 20 == 0 {
+            println!("   {}/100 Tests abgeschlossen...", i + 1);
         }
     }
 
     let total_duration = total_start.elapsed();
-    println!("\n");
 
-    // Berechne Statistiken
-    durations.sort();
-    let min = durations.first().unwrap();
-    let max = durations.last().unwrap();
-    let median = durations[durations.len() / 2];
-    let avg = durations.iter().sum::<Duration>() / durations.len() as u32;
-
-    // Standardabweichung
-    let avg_nanos = avg.as_nanos() as f64;
-    let variance: f64 = durations
-        .iter()
-        .map(|d| {
-            let diff = d.as_nanos() as f64 - avg_nanos;
-            diff * diff
-        })
-        .sum::<f64>()
-        / durations.len() as f64;
-    let std_dev = variance.sqrt() / 1_000_000.0; // in ms
-
+    println!();
     println!("═══════════════════════════════════════════════════════════════");
     println!("                        ERGEBNISSE");
-    println!("═══════════════════════════════════════════════════════════════\n");
+    println!("═══════════════════════════════════════════════════════════════");
+    println!();
 
-    println!("📁 Anzahl Test-Durchläufe: {}", NUM_RUNS);
+    let mut sorted = durations.clone();
+    sorted.sort();
+    let min = sorted[0];
+    let max = sorted[99];
+    let median = sorted[50];
+    let avg = total_duration / 100u32;
+
+    println!("📊 Tests:                 100");
+    println!("⏱️  GESAMTZEIT:            {:?}", total_duration);
     println!();
-    println!("⏱️  GESAMTZEIT:             {:?}", total_duration);
-    println!();
-    println!("📈 Pro Test-Durchlauf:");
+    println!("📈 Pro Test:");
     println!("   Minimum:               {:?}", min);
     println!("   Maximum:               {:?}", max);
     println!("   Median:                {:?}", median);
     println!("   Durchschnitt:          {:?}", avg);
-    println!("   Standardabweichung:    {:.2} ms", std_dev);
     println!();
     println!(
         "🚀 Durchsatz:             {:.2} Tests/Sekunde",
-        NUM_RUNS as f64 / total_duration.as_secs_f64()
+        100.0 / total_duration.as_secs_f64()
     );
+    println!();
 
-    println!("\n📊 ANALYSE:");
-    if avg.as_millis() < 10 {
-        println!("   ✅ Super schnell! ({:.2} ms pro Test)", avg.as_millis());
-    } else if avg.as_millis() < 20 {
-        println!("   ✅ Schnell! ({:.2} ms pro Test)", avg.as_millis());
-    } else {
-        println!("   ⚠️  Etwas langsam... ({:.2} ms pro Test)", avg.as_millis());
+    println!("🧹 Räume auf...");
+    for i in 0..100 {
+        let path = format!("{}/file_{:04}.xlsx", temp_dir, i);
+        let _ = fs::remove_file(&path);
     }
-
-    // Cleanup
-    println!("\n🧹 Räume auf...");
-    for entry in fs::read_dir("/tmp/benchmark_100_runs")? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_file() {
-            fs::remove_file(&path)?;
-        }
-    }
-    fs::remove_dir("/tmp/benchmark_100_runs")?;
+    let _ = fs::remove_dir(temp_dir);
 
     println!("✅ Fertig!");
 
