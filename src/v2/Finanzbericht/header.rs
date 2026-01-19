@@ -809,6 +809,8 @@ fn write_formatting(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxEr
         (0, 12),
         (0, 13),
         (0, 14),
+        // Row 2
+        (2, 4), // E3 - mit Formatierung (keine Formel, nur Validierung)
         // Row 4
         (4, 3),
         // Row 6
