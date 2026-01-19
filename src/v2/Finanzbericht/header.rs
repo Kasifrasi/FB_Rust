@@ -1,6 +1,10 @@
+use super::formulas::{evaluate_formula, FormulaCache, HEADER_FORMULAS};
 use super::styles::ReportStyles;
+use super::values::{CellValue, ReportValues};
 use crate::v2::Sprachversion::data::CURRENCIES;
-use rust_xlsxwriter::{DataValidation, Format, FormatAlign, FormatBorder, Worksheet, XlsxError};
+use rust_xlsxwriter::{
+    DataValidation, Format, FormatAlign, FormatBorder, Formula, Worksheet, XlsxError,
+};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -483,10 +487,13 @@ pub fn write_header(
     ws: &mut Worksheet,
     styles: &ReportStyles,
     suffix: &str,
-    lang_val: &str,
+    values: &ReportValues,
 ) -> Result<(), XlsxError> {
     let ls = LocalStyles::new(styles);
     let fmt = build_format_matrix(styles, &ls);
+
+    // Hole lang_val aus ReportValues für write_values
+    let lang_val = values.language().unwrap_or("");
 
     // Durchlauf 1: Formatierung (Merges und leere Zellen)
     write_formatting(ws, &fmt)?;
@@ -494,11 +501,11 @@ pub fn write_header(
     // Durchlauf 2: Werte
     write_values(ws, &fmt, suffix, lang_val)?;
 
-    // Durchlauf 3: Formeln (mit locked Format)
-    write_formulas(ws, &fmt)?;
+    // Durchlauf 3: Formeln (mit locked Format und ausgewerteten Ergebnissen)
+    write_formulas(ws, &fmt, values)?;
 
     // Durchlauf 4: Right Panel (J11:V31)
-    write_right_panel(ws, &fmt)?;
+    write_right_panel(ws, &fmt, values)?;
 
     // Freeze Pane: Zeilen 1-9 immer sichtbar (freeze unter Zeile 9 = Row 9)
     ws.set_freeze_panes(9, 0)?;
@@ -912,37 +919,64 @@ fn write_values(
 }
 
 // ============================================================================
-// Durchlauf 3: Formeln (mit locked Format)
+// Durchlauf 3: Formeln (mit locked Format und ausgewerteten Ergebnissen)
 // ============================================================================
 
-fn write_formulas(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> {
-    use super::formulas::HEADER_FORMULAS;
+fn write_formulas(
+    ws: &mut Worksheet,
+    fmt: &FormatMatrix,
+    values: &ReportValues,
+) -> Result<(), XlsxError> {
+    // Cache für Formelauswertungen
+    let mut cache = FormulaCache::new();
 
     // Alle Formeln aus der zentralen HEADER_FORMULAS Definition schreiben
     for formula_def in HEADER_FORMULAS.iter() {
         let row = formula_def.address.row;
         let col = formula_def.address.col;
 
+        // Formel auswerten
+        let result = evaluate_formula(formula_def, values, &mut cache);
+
+        // Formula mit Result erstellen
+        let formula_with_result =
+            Formula::new(&formula_def.excel_formula).set_result(cell_value_to_string(&result));
+
         // Formel-Zellen werden mit locked Format geschrieben
-        let formula = formula_def.excel_formula.as_str();
         if let Some(format) = fmt.get_locked(row, col) {
-            ws.write_formula_with_format(row, col, formula, &format)?;
+            ws.write_formula_with_format(row, col, formula_with_result, &format)?;
         } else {
             // Fallback: locked Format ohne spezielle Formatierung
             let locked_format = Format::new().set_locked();
-            ws.write_formula_with_format(row, col, formula, &locked_format)?;
+            ws.write_formula_with_format(row, col, formula_with_result, &locked_format)?;
         }
     }
 
     Ok(())
 }
 
+/// Konvertiert CellValue zu String für Formula::set_result
+fn cell_value_to_string(value: &CellValue) -> String {
+    match value {
+        CellValue::Empty => String::new(),
+        CellValue::Text(s) => s.clone(),
+        CellValue::Number(n) => n.to_string(),
+        CellValue::Date(d) => d.clone(),
+    }
+}
+
 // ============================================================================
 // Durchlauf 4: Right Panel (J11:V31) - Werte und Formeln
 // ============================================================================
 
-fn write_right_panel(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> {
+fn write_right_panel(
+    ws: &mut Worksheet,
+    fmt: &FormatMatrix,
+    values: &ReportValues,
+) -> Result<(), XlsxError> {
     let f_k = "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,23,FALSE))";
+    // Auswertung des Text-Lookups für K/R Spalten (Index 23)
+    let text_result = evaluate_text_lookup_23(values);
 
     // Right Panel Header (Row 11-13): Blanks schreiben
     // Row 11 hat J11:K11 und Q11:R11 merges mit Formeln (werden in write_formulas geschrieben)
@@ -977,43 +1011,66 @@ fn write_right_panel(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxE
     // Q: Index (String), R: Text (Formel), S: Date (blank), T/U: Number (blank), V: Calc (Formel)
 
     // Zeile 14 (Row 13)
-    write_rp_row(ws, fmt, 13, 1, 19, f_k)?;
+    write_rp_row(ws, fmt, 13, 1, 19, f_k, &text_result)?;
     // Zeile 15 (Row 14)
-    write_rp_row(ws, fmt, 14, 2, 20, f_k)?;
+    write_rp_row(ws, fmt, 14, 2, 20, f_k, &text_result)?;
     // Zeile 16 (Row 15)
-    write_rp_row(ws, fmt, 15, 3, 21, f_k)?;
+    write_rp_row(ws, fmt, 15, 3, 21, f_k, &text_result)?;
     // Zeile 17 (Row 16)
-    write_rp_row(ws, fmt, 16, 4, 22, f_k)?;
+    write_rp_row(ws, fmt, 16, 4, 22, f_k, &text_result)?;
     // Zeile 18 (Row 17)
-    write_rp_row(ws, fmt, 17, 5, 23, f_k)?;
+    write_rp_row(ws, fmt, 17, 5, 23, f_k, &text_result)?;
     // Zeile 19 (Row 18)
-    write_rp_row(ws, fmt, 18, 6, 24, f_k)?;
+    write_rp_row(ws, fmt, 18, 6, 24, f_k, &text_result)?;
     // Zeile 20 (Row 19)
-    write_rp_row(ws, fmt, 19, 7, 25, f_k)?;
+    write_rp_row(ws, fmt, 19, 7, 25, f_k, &text_result)?;
     // Zeile 21 (Row 20)
-    write_rp_row(ws, fmt, 20, 8, 26, f_k)?;
+    write_rp_row(ws, fmt, 20, 8, 26, f_k, &text_result)?;
     // Zeile 22 (Row 21)
-    write_rp_row(ws, fmt, 21, 9, 27, f_k)?;
+    write_rp_row(ws, fmt, 21, 9, 27, f_k, &text_result)?;
     // Zeile 23 (Row 22)
-    write_rp_row(ws, fmt, 22, 10, 28, f_k)?;
+    write_rp_row(ws, fmt, 22, 10, 28, f_k, &text_result)?;
     // Zeile 24 (Row 23)
-    write_rp_row(ws, fmt, 23, 11, 29, f_k)?;
+    write_rp_row(ws, fmt, 23, 11, 29, f_k, &text_result)?;
     // Zeile 25 (Row 24)
-    write_rp_row(ws, fmt, 24, 12, 30, f_k)?;
+    write_rp_row(ws, fmt, 24, 12, 30, f_k, &text_result)?;
     // Zeile 26 (Row 25)
-    write_rp_row(ws, fmt, 25, 13, 31, f_k)?;
+    write_rp_row(ws, fmt, 25, 13, 31, f_k, &text_result)?;
     // Zeile 27 (Row 26)
-    write_rp_row(ws, fmt, 26, 14, 32, f_k)?;
+    write_rp_row(ws, fmt, 26, 14, 32, f_k, &text_result)?;
     // Zeile 28 (Row 27)
-    write_rp_row(ws, fmt, 27, 15, 33, f_k)?;
+    write_rp_row(ws, fmt, 27, 15, 33, f_k, &text_result)?;
     // Zeile 29 (Row 28)
-    write_rp_row(ws, fmt, 28, 16, 34, f_k)?;
+    write_rp_row(ws, fmt, 28, 16, 34, f_k, &text_result)?;
     // Zeile 30 (Row 29)
-    write_rp_row(ws, fmt, 29, 17, 35, f_k)?;
+    write_rp_row(ws, fmt, 29, 17, 35, f_k, &text_result)?;
     // Zeile 31 (Row 30)
-    write_rp_row(ws, fmt, 30, 18, 36, f_k)?;
+    write_rp_row(ws, fmt, 30, 18, 36, f_k, &text_result)?;
 
     Ok(())
+}
+
+/// Evaluiert Text-Lookup für Index 23 (Right Panel K/R Spalten)
+fn evaluate_text_lookup_23(values: &ReportValues) -> String {
+    use crate::v2::Sprachversion::data::TEXT_MATRIX;
+
+    let language = match values.language() {
+        Some(lang) if !lang.is_empty() => lang,
+        _ => return String::new(),
+    };
+
+    let lang_idx = TEXT_MATRIX
+        .iter()
+        .position(|row| !row.is_empty() && row[0].eq_ignore_ascii_case(language));
+
+    match lang_idx {
+        Some(idx) => TEXT_MATRIX
+            .get(idx)
+            .and_then(|row| row.get(22)) // Index 23 in Excel = Index 22 in 0-basiertem Array
+            .map(|s| s.to_string())
+            .unwrap_or_default(),
+        None => String::new(),
+    }
 }
 
 /// Schreibt eine Zeile des Right Panels
@@ -1024,15 +1081,17 @@ fn write_rp_row(
     left_num: u32,
     right_num: u32,
     f_k: &str,
+    text_result: &str,
 ) -> Result<(), XlsxError> {
     // === LINKE SEITE ===
     // J: Index
     if let Some(format) = fmt.get(row, 9) {
         ws.write_string_with_format(row, 9, &format!("{}. ", left_num), format)?;
     }
-    // K: Text (Formel)
+    // K: Text (Formel mit ausgewertetem Ergebnis)
+    let formula_k = Formula::new(f_k).set_result(text_result);
     if let Some(format) = fmt.get_locked(row, 10) {
-        ws.write_formula_with_format(row, 10, f_k, &format)?;
+        ws.write_formula_with_format(row, 10, formula_k, &format)?;
     }
     // L: Date (blank)
     if let Some(format) = fmt.get(row, 11) {
@@ -1046,10 +1105,11 @@ fn write_rp_row(
     if let Some(format) = fmt.get(row, 13) {
         ws.write_blank(row, 13, format)?;
     }
-    // O: Calc (Formel)
+    // O: Calc (Formel - Ergebnis ist leer da M leer)
     let f_o = format!("=IF(M{}=\"\",\"\",N{}/M{})", row + 1, row + 1, row + 1);
+    let formula_o = Formula::new(&f_o).set_result("");
     if let Some(format) = fmt.get_locked(row, 14) {
-        ws.write_formula_with_format(row, 14, f_o.as_str(), &format)?;
+        ws.write_formula_with_format(row, 14, formula_o, &format)?;
     }
 
     // === RECHTE SEITE ===
@@ -1057,9 +1117,10 @@ fn write_rp_row(
     if let Some(format) = fmt.get(row, 16) {
         ws.write_string_with_format(row, 16, &format!("{}. ", right_num), format)?;
     }
-    // R: Text (Formel)
+    // R: Text (Formel mit ausgewertetem Ergebnis)
+    let formula_r = Formula::new(f_k).set_result(text_result);
     if let Some(format) = fmt.get_locked(row, 17) {
-        ws.write_formula_with_format(row, 17, f_k, &format)?;
+        ws.write_formula_with_format(row, 17, formula_r, &format)?;
     }
     // S: Date (blank)
     if let Some(format) = fmt.get(row, 18) {
@@ -1073,10 +1134,11 @@ fn write_rp_row(
     if let Some(format) = fmt.get(row, 20) {
         ws.write_blank(row, 20, format)?;
     }
-    // V: Calc (Formel)
+    // V: Calc (Formel - Ergebnis ist leer da T leer)
     let f_v = format!("=IF(T{}=\"\",\"\",U{}/T{})", row + 1, row + 1, row + 1);
+    let formula_v = Formula::new(&f_v).set_result("");
     if let Some(format) = fmt.get_locked(row, 21) {
-        ws.write_formula_with_format(row, 21, f_v.as_str(), &format)?;
+        ws.write_formula_with_format(row, 21, formula_v, &format)?;
     }
 
     Ok(())

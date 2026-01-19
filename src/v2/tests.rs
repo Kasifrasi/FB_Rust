@@ -3,6 +3,7 @@ mod tests {
     use crate::v2::Finanzbericht::header::write_header;
     use crate::v2::Finanzbericht::sheet_setup::sheet_setup;
     use crate::v2::Finanzbericht::styles::ReportStyles;
+    use crate::v2::Finanzbericht::values::ReportValues;
     use crate::v2::Sprachversion::builder::build_sheet as build_trans_sheet;
     use rust_xlsxwriter::{Format, Workbook};
 
@@ -40,17 +41,19 @@ mod tests {
         // 6. Prepare Styles
         let styles = ReportStyles::new();
 
-        // 7. Write Header
-        let suffix = "_de";
-        let lang_val = "deutsch";
-        write_header(ws, &styles, suffix, lang_val).expect("Failed to write header");
+        // 7. Prepare Values with language set to "deutsch"
+        let values = ReportValues::new().with_language("deutsch");
 
-        // 8. Protect worksheet
+        // 8. Write Header
+        let suffix = "_de";
+        write_header(ws, &styles, suffix, &values).expect("Failed to write header");
+
+        // 9. Protect worksheet
         // All cells are unlocked by set_row_format()
         // Formulas are locked by write_formulas() which uses fmt.get_locked()
         ws.protect();
 
-        // 9. Save to file for inspection
+        // 10. Save to file for inspection
         let path = "src/v2/tests/header_test.xlsx";
         workbook
             .save(path)
