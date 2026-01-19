@@ -1,5 +1,5 @@
 use super::styles::ReportStyles;
-use rust_xlsxwriter::{DataValidation, Format, FormatAlign, Worksheet, XlsxError};
+use rust_xlsxwriter::{DataValidation, Format, FormatAlign, FormatBorder, Worksheet, XlsxError};
 
 struct LocalStyles {
     fmt_top_med: Format,
@@ -55,10 +55,7 @@ impl LocalStyles {
 
         let fmt_th_b = s.table_header_base.clone().set_border_left(s.border_medium);
 
-        let fmt_th_c_top = s
-            .table_header_base
-            .clone()
-            .set_border_right(s.border_medium);
+        let fmt_th_c_top = s.table_header_base.clone().set_border_right(s.border_thin);
 
         let fmt_th_d = s
             .table_header_base
@@ -80,7 +77,7 @@ impl LocalStyles {
             .set_align(FormatAlign::Center)
             .set_align(FormatAlign::VerticalCenter)
             .set_border_left(s.border_medium)
-            .set_border_right(s.border_medium);
+            .set_border_right(s.border_thin);
 
         let fmt_th_side_bold = fmt_th_side.clone().set_bold();
 
@@ -96,7 +93,7 @@ impl LocalStyles {
             .base
             .clone()
             .set_border_bottom(s.border_thin)
-            .set_border_right(s.border_medium);
+            .set_border_right(s.border_thin);
 
         let orange_dotted = s
             .base
@@ -148,6 +145,98 @@ pub fn write_header(
     set_formatting(ws, styles, &local_styles)?;
     set_values(ws, styles, suffix, lang_val)?;
     set_formulas(ws, styles, &local_styles)?;
+    write_table_body(ws, styles)?;
+
+    Ok(())
+}
+
+fn write_table_body(ws: &mut Worksheet, styles: &ReportStyles) -> Result<(), XlsxError> {
+    let vlookup_indices = [16, 17, 18, 19, 20];
+    let body_label_no_h = styles
+        .body_label
+        .clone()
+        .set_border_top(FormatBorder::None)
+        .set_border_bottom(FormatBorder::None);
+
+    let body_label_top = styles
+        .body_label
+        .clone()
+        .set_border_bottom(FormatBorder::None);
+
+    for (i, v_idx) in vlookup_indices.iter().enumerate() {
+        let row = 14 + i as u32;
+        let style = if i == 0 {
+            &body_label_top
+        } else {
+            &body_label_no_h
+        };
+
+        // B:C Merged Label
+        ws.merge_range(row, 1, row, 2, "", style)?;
+        let formula_b = format!(
+            "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))",
+            v_idx
+        );
+        ws.write_formula_with_format(row, 1, formula_b.as_str(), style)?;
+
+        // D: Value
+        ws.write_number_with_format(row, 3, 0.0, &styles.body_value)?;
+
+        // E: Input
+        ws.write_blank(row, 4, &styles.body_input)?;
+
+        // F: Calc
+        ws.write_blank(row, 5, &styles.body_calc)?;
+
+        // G: %
+        if row >= 15 {
+            let formula_g = format!("=IFERROR(F{}/D{},0)", row + 1, row + 1);
+            ws.write_formula_with_format(row, 6, formula_g.as_str(), &styles.body_pct)?;
+        } else {
+            ws.write_blank(row, 6, &styles.body_pct)?;
+        }
+
+        // H: Right
+        ws.write_blank(row, 7, &styles.body_right)?;
+    }
+
+    // --- Summary Row (19) ---
+    let row = 19;
+    ws.merge_range(row, 1, row, 2, "", &styles.summary_label)?;
+    ws.write_formula_with_format(
+        row,
+        1,
+        "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,21,FALSE))",
+        &styles.summary_label,
+    )?;
+
+    ws.write_formula_with_format(
+        row,
+        3,
+        "=SUMPRODUCT(ROUND(D15:D19, 2))",
+        &styles.summary_value,
+    )?;
+    ws.write_formula_with_format(
+        row,
+        4,
+        "=SUMPRODUCT(ROUND(E15:E19, 2))",
+        &styles.summary_value,
+    )?;
+    ws.write_formula_with_format(
+        row,
+        5,
+        "=SUMPRODUCT(ROUND(F15:F19, 2))",
+        &styles.summary_value,
+    )?;
+
+    ws.write_formula_with_format(
+        row,
+        6,
+        "=IFERROR(INDEX($F$1:$F$1001,ROW())/INDEX($D$1:$D$1001,ROW()),0)",
+        &styles.summary_pct,
+    )?;
+
+    ws.write_blank(row, 7, &styles.summary_right)?;
 
     Ok(())
 }

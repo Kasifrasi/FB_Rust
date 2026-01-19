@@ -37,6 +37,20 @@ pub struct ReportStyles {
     // --- Base ---
     // Exposed so local styles can derive from it
     pub base: Format,
+
+    // --- Body ---
+    pub body_label: Format,
+    pub body_value: Format,
+    pub body_input: Format,
+    pub body_calc: Format,
+    pub body_pct: Format,
+    pub body_right: Format,
+
+    // --- Summary Row ---
+    pub summary_label: Format,
+    pub summary_value: Format,
+    pub summary_pct: Format,
+    pub summary_right: Format,
 }
 
 impl ReportStyles {
@@ -115,6 +129,74 @@ impl ReportStyles {
             .set_text_wrap()
             .set_border_top(border_medium);
 
+        // --- Body Styles ---
+        let body_label = base
+            .clone()
+            .set_bold()
+            .set_align(FormatAlign::Left)
+            .set_border_left(border_medium)
+            .set_border_right(border_thin)
+            .set_border_top(border_thin)
+            .set_border_bottom(border_thin);
+
+        let body_value = base
+            .clone()
+            .set_border(border_thin)
+            .set_background_color(fill_value)
+            .set_num_format("#,##0.00");
+
+        let body_input = base
+            .clone()
+            .set_border(border_thin)
+            .set_background_color(fill_input)
+            .set_num_format("#,##0.00");
+
+        let body_calc = base
+            .clone()
+            .set_border(border_thin)
+            .set_num_format("#,##0.00");
+
+        let body_pct = base.clone().set_border(border_thin).set_num_format("0%");
+
+        let body_right = base
+            .clone()
+            .set_border(border_thin)
+            .set_background_color(fill_input)
+            .set_border_right(border_medium);
+
+        // --- Summary Styles ---
+        let summary_label = base
+            .clone()
+            .set_background_color(fill_summary)
+            .set_bold()
+            .set_align(FormatAlign::Left)
+            .set_border_left(border_medium)
+            .set_border_right(border_thin)
+            .set_border_top(border_thin)
+            .set_border_bottom(border_medium);
+
+        let summary_value = base
+            .clone()
+            .set_background_color(fill_summary)
+            .set_border(border_thin)
+            .set_border_bottom(border_medium)
+            .set_num_format("#,##0.00");
+
+        let summary_pct = base
+            .clone()
+            .set_background_color(fill_summary)
+            .set_border(border_thin)
+            .set_border_bottom(border_medium)
+            .set_num_format("0%");
+
+        let summary_right = base
+            .clone()
+            .set_background_color(fill_summary)
+            .set_border(border_thin)
+            .set_border_bottom(border_medium)
+            .set_border_right(border_medium)
+            .set_num_format("#,##0.00");
+
         Self {
             fill_input,
             fill_value,
@@ -138,6 +220,16 @@ impl ReportStyles {
             link_style,
             table_header_base,
             base,
+            body_label,
+            body_value,
+            body_input,
+            body_calc,
+            body_pct,
+            body_right,
+            summary_label,
+            summary_value,
+            summary_pct,
+            summary_right,
         }
     }
 }

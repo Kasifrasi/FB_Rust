@@ -35,8 +35,15 @@ pub fn sheet_setup(ws: &mut Worksheet) -> Result<(), XlsxError> {
     ws.set_column_width(24, 10.85)?; // Y
 
     // --- Row Heights (Header) ---
+    ws.set_row_height(1, 15.0)?;
+    ws.set_row_height(2, 15.0)?;
     ws.set_row_height(3, 12.75)?;
-    ws.set_row_height(4, 12.0)?;
+    ws.set_row_height(3, 12.0)?;
+    ws.set_row_height(4, 15.0)?;
+    ws.set_row_height(5, 15.0)?;
+    ws.set_row_height(6, 15.0)?;
+    ws.set_row_height(7, 15.0)?;
+    ws.set_row_height(8, 15.0)?;
     ws.set_row_height(9, 13.5)?;
     ws.set_row_height(10, 12.6)?;
 
