@@ -51,6 +51,13 @@ pub struct ReportStyles {
     pub summary_value: Format,
     pub summary_pct: Format,
     pub summary_right: Format,
+
+    // --- Right Panel (J11:V31) ---
+    pub rp_index: Format,  // J/Q: Index rechts ausgerichtet
+    pub rp_text: Format,   // K/R: Text links ausgerichtet
+    pub rp_date: Format,   // L/S: Datum zentriert
+    pub rp_number: Format, // M/N/T/U: Zahlen rechts
+    pub rp_calc: Format,   // O/V: Berechnete Werte
 }
 
 impl ReportStyles {
@@ -201,6 +208,28 @@ impl ReportStyles {
             .set_border_right(border_medium)
             .set_num_format("#,##0.00");
 
+        // --- Right Panel Styles ---
+        let rp_index = base.clone().set_align(FormatAlign::Right);
+
+        let rp_text = base.clone().set_align(FormatAlign::Left);
+
+        let rp_date = base
+            .clone()
+            .set_align(FormatAlign::Center)
+            .set_num_format("mm-dd-yy")
+            .set_background_color(fill_input);
+
+        let rp_number = base
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_num_format("#,##0.00")
+            .set_background_color(fill_input);
+
+        let rp_calc = base
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_num_format("0.0000");
+
         Self {
             fill_input,
             fill_value,
@@ -234,6 +263,11 @@ impl ReportStyles {
             summary_value,
             summary_pct,
             summary_right,
+            rp_index,
+            rp_text,
+            rp_date,
+            rp_number,
+            rp_calc,
         }
     }
 }

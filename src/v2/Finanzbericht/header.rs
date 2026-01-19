@@ -838,11 +838,28 @@ fn write_formulas(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxErro
             1,
             "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,6,FALSE))",
         ),
-        (8, 3, "=D8"),
-        (8, 5, "=F8"),
-        // Row 10
-        (10, 9, "=B18"),
-        (10, 16, "=B18"),
+        // D9 und F9 zeigen auf D8/F8 - verwende die gleiche VLOOKUP Formel
+        (
+            8,
+            3,
+            "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,7,FALSE))",
+        ),
+        (
+            8,
+            5,
+            "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,8,FALSE))",
+        ),
+        // Row 10 - J11 und Q11 mit VLOOKUP Formel (zeigt auf B18 Formel-Inhalt)
+        (
+            10,
+            9,
+            "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,19,FALSE))",
+        ),
+        (
+            10,
+            16,
+            "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,19,FALSE))",
+        ),
         (
             10,
             3,
@@ -977,78 +994,179 @@ fn write_formulas(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxErro
 }
 
 // ============================================================================
-// Durchlauf 4: Right Panel (J14:V31) - aus v1 übernommen
+// Durchlauf 4: Right Panel (J11:V31) - aus v1 übernommen
 // ============================================================================
 
 fn write_right_panel(ws: &mut Worksheet, styles: &ReportStyles) -> Result<(), XlsxError> {
-    let border_thin = FormatBorder::Thin;
-
-    // Formate für Right Panel
-    let fmt_rp_idx = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_align(FormatAlign::Right)
-        .set_border(border_thin);
-
-    let fmt_rp_txt = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_align(FormatAlign::Left)
-        .set_border(border_thin)
-        .set_locked();
-
-    let fmt_rp_date = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_align(FormatAlign::Center)
-        .set_num_format("mm-dd-yy")
-        .set_border(border_thin)
-        .set_background_color(styles.fill_input);
-
-    let fmt_rp_num = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_align(FormatAlign::Right)
-        .set_num_format("#,##0.00")
-        .set_border(border_thin)
-        .set_background_color(styles.fill_input);
-
-    let fmt_rp_calc = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_align(FormatAlign::Right)
-        .set_num_format("0.0000")
-        .set_border(border_thin)
-        .set_locked();
+    let border_thin = styles.border_thin;
 
     let f_k = "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,23,FALSE))";
 
-    // Right Panel: 18 Zeilen (Row 13-30, also Excel Row 14-31)
+    // Right Panel: 21 Zeilen (Row 10-30, also Excel Row 11-31)
+    // J11:O31 und Q11:V31 haben außen thin borders
+    // J14:K31 und Q14:R31 haben KEINE inneren borders (nur außen)
+    // L14:O31 und S14:V31 haben komplett thin borders (innen + außen)
+
+    // Zeilen 11-13 (Row 10-12): Nur außen borders für den gesamten Bereich
+    for row in 10..=12u32 {
+        let is_first_row = row == 10;
+
+        // === LINKE SEITE J11:O13 ===
+        // J (außen links)
+        let mut fmt_j = styles.base.clone();
+        fmt_j = fmt_j.set_border_left(border_thin);
+        if is_first_row {
+            fmt_j = fmt_j.set_border_top(border_thin);
+        }
+        ws.write_blank(row, 9, &fmt_j)?;
+
+        // K-N (keine borders außer oben bei erster Zeile)
+        for col in 10..=13u16 {
+            let mut fmt = styles.base.clone();
+            if is_first_row {
+                fmt = fmt.set_border_top(border_thin);
+            }
+            ws.write_blank(row, col, &fmt)?;
+        }
+
+        // O (außen rechts)
+        let mut fmt_o = styles.base.clone();
+        fmt_o = fmt_o.set_border_right(border_thin);
+        if is_first_row {
+            fmt_o = fmt_o.set_border_top(border_thin);
+        }
+        ws.write_blank(row, 14, &fmt_o)?;
+
+        // === RECHTE SEITE Q11:V13 ===
+        // Q (außen links)
+        let mut fmt_q = styles.base.clone();
+        fmt_q = fmt_q.set_border_left(border_thin);
+        if is_first_row {
+            fmt_q = fmt_q.set_border_top(border_thin);
+        }
+        ws.write_blank(row, 16, &fmt_q)?;
+
+        // R-U (keine borders außer oben bei erster Zeile)
+        for col in 17..=20u16 {
+            let mut fmt = styles.base.clone();
+            if is_first_row {
+                fmt = fmt.set_border_top(border_thin);
+            }
+            ws.write_blank(row, col, &fmt)?;
+        }
+
+        // V (außen rechts)
+        let mut fmt_v = styles.base.clone();
+        fmt_v = fmt_v.set_border_right(border_thin);
+        if is_first_row {
+            fmt_v = fmt_v.set_border_top(border_thin);
+        }
+        ws.write_blank(row, 21, &fmt_v)?;
+    }
+
+    // Zeilen 14-31 (Row 13-30): Daten mit spezifischen borders
     for i in 0..18 {
         let row = 13 + i as u32;
         let num = i + 1;
+        let is_last_row = i == 17;
 
-        // Linke Seite: J, K, L, M, N, O (Spalten 9-14)
-        ws.write_string_with_format(row, 9, &format!("{}. ", num), &fmt_rp_idx)?; // J
-        ws.write_formula_with_format(row, 10, f_k, &fmt_rp_txt)?; // K
-        ws.write_blank(row, 11, &fmt_rp_date)?; // L
-        ws.write_blank(row, 12, &fmt_rp_num)?; // M
-        ws.write_blank(row, 13, &fmt_rp_num)?; // N
+        // === LINKE SEITE: J, K, L, M, N, O (Spalten 9-14) ===
 
-        // O: Ratio N/M
+        // J (Col 9): Index - nur außen links, unten bei letzter Zeile
+        let mut fmt_j = styles.rp_index.clone().set_border_left(border_thin);
+        if is_last_row {
+            fmt_j = fmt_j.set_border_bottom(border_thin);
+        }
+        ws.write_string_with_format(row, 9, &format!("{}. ", num), &fmt_j)?;
+
+        // K (Col 10): Text - nur außen rechts (border zu L), unten bei letzter Zeile
+        let mut fmt_k = styles
+            .rp_text
+            .clone()
+            .set_locked()
+            .set_border_right(border_thin);
+        if is_last_row {
+            fmt_k = fmt_k.set_border_bottom(border_thin);
+        }
+        ws.write_formula_with_format(row, 10, f_k, &fmt_k)?;
+
+        // L (Col 11): Date - komplett thin borders
+        let mut fmt_l = styles.rp_date.clone().set_border(border_thin);
+        if !is_last_row {
+            fmt_l = fmt_l.set_border_bottom(FormatBorder::None);
+        }
+        ws.write_blank(row, 11, &fmt_l)?;
+
+        // M (Col 12): Number - komplett thin borders
+        let mut fmt_m = styles.rp_number.clone().set_border(border_thin);
+        if !is_last_row {
+            fmt_m = fmt_m.set_border_bottom(FormatBorder::None);
+        }
+        ws.write_blank(row, 12, &fmt_m)?;
+
+        // N (Col 13): Number - komplett thin borders
+        let mut fmt_n = styles.rp_number.clone().set_border(border_thin);
+        if !is_last_row {
+            fmt_n = fmt_n.set_border_bottom(FormatBorder::None);
+        }
+        ws.write_blank(row, 13, &fmt_n)?;
+
+        // O (Col 14): Calc - komplett thin borders
+        let mut fmt_o = styles.rp_calc.clone().set_locked().set_border(border_thin);
+        if !is_last_row {
+            fmt_o = fmt_o.set_border_bottom(FormatBorder::None);
+        }
         let f_o = format!("=IF(M{}=\"\",\"\",N{}/M{})", row + 1, row + 1, row + 1);
-        ws.write_formula_with_format(row, 14, f_o.as_str(), &fmt_rp_calc)?;
+        ws.write_formula_with_format(row, 14, f_o.as_str(), &fmt_o)?;
 
-        // Rechte Seite: Q, R, S, T, U, V (Spalten 16-21)
-        ws.write_string_with_format(row, 16, &format!("{}. ", num + 18), &fmt_rp_idx)?; // Q
-        ws.write_formula_with_format(row, 17, f_k, &fmt_rp_txt)?; // R
-        ws.write_blank(row, 18, &fmt_rp_date)?; // S
-        ws.write_blank(row, 19, &fmt_rp_num)?; // T
-        ws.write_blank(row, 20, &fmt_rp_num)?; // U
+        // === RECHTE SEITE: Q, R, S, T, U, V (Spalten 16-21) ===
 
-        // V: Ratio U/T
+        // Q (Col 16): Index - nur außen links, unten bei letzter Zeile
+        let mut fmt_q = styles.rp_index.clone().set_border_left(border_thin);
+        if is_last_row {
+            fmt_q = fmt_q.set_border_bottom(border_thin);
+        }
+        ws.write_string_with_format(row, 16, &format!("{}. ", num + 18), &fmt_q)?;
+
+        // R (Col 17): Text - nur außen rechts (border zu S), unten bei letzter Zeile
+        let mut fmt_r = styles
+            .rp_text
+            .clone()
+            .set_locked()
+            .set_border_right(border_thin);
+        if is_last_row {
+            fmt_r = fmt_r.set_border_bottom(border_thin);
+        }
+        ws.write_formula_with_format(row, 17, f_k, &fmt_r)?;
+
+        // S (Col 18): Date - komplett thin borders
+        let mut fmt_s = styles.rp_date.clone().set_border(border_thin);
+        if !is_last_row {
+            fmt_s = fmt_s.set_border_bottom(FormatBorder::None);
+        }
+        ws.write_blank(row, 18, &fmt_s)?;
+
+        // T (Col 19): Number - komplett thin borders
+        let mut fmt_t = styles.rp_number.clone().set_border(border_thin);
+        if !is_last_row {
+            fmt_t = fmt_t.set_border_bottom(FormatBorder::None);
+        }
+        ws.write_blank(row, 19, &fmt_t)?;
+
+        // U (Col 20): Number - komplett thin borders
+        let mut fmt_u = styles.rp_number.clone().set_border(border_thin);
+        if !is_last_row {
+            fmt_u = fmt_u.set_border_bottom(FormatBorder::None);
+        }
+        ws.write_blank(row, 20, &fmt_u)?;
+
+        // V (Col 21): Calc - komplett thin borders
+        let mut fmt_v = styles.rp_calc.clone().set_locked().set_border(border_thin);
+        if !is_last_row {
+            fmt_v = fmt_v.set_border_bottom(FormatBorder::None);
+        }
         let f_v = format!("=IF(T{}=\"\",\"\",U{}/T{})", row + 1, row + 1, row + 1);
-        ws.write_formula_with_format(row, 21, f_v.as_str(), &fmt_rp_calc)?;
+        ws.write_formula_with_format(row, 21, f_v.as_str(), &fmt_v)?;
     }
 
     Ok(())
