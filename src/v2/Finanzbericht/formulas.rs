@@ -109,19 +109,6 @@ fn hyperlink_lookup(row: u32, col: u16, index: usize) -> FormulaDefinition {
     }
 }
 
-/// Erstellt eine Währung-oder-Lookup Formel
-fn currency_or_lookup(row: u32, col: u16, index: usize) -> FormulaDefinition {
-    FormulaDefinition {
-        address: CellAddress::new(row, col),
-        excel_formula: format!(
-            r#"=IF(E3="",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE),E3)"#,
-            index
-        ),
-        dependencies: vec![E2, E3],
-        formula_type: FormulaType::CurrencyOrLookup { index },
-    }
-}
-
 /// Erstellt eine IFERROR Division Formel
 fn division_error(
     row: u32,
@@ -170,6 +157,47 @@ fn sum_product_round(
             range_start: start,
             range_end: end,
         },
+    }
+}
+
+/// Erstellt Right Panel Header Formel für L13, S13: =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,22,FALSE))
+fn rp_header_date_lookup(row: u32, col: u16) -> FormulaDefinition {
+    FormulaDefinition {
+        address: CellAddress::new(row, col),
+        excel_formula: r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,22,FALSE))"#
+            .to_string(),
+        dependencies: vec![E2],
+        formula_type: FormulaType::TextLookup { index: 22 },
+    }
+}
+
+/// Erstellt Right Panel Header Formel für M13, T13: =VLOOKUP($E$2,Sprachversionen!$B:$BN,63,FALSE) (Index für Euro)
+fn rp_header_euro_lookup(row: u32, col: u16) -> FormulaDefinition {
+    FormulaDefinition {
+        address: CellAddress::new(row, col),
+        excel_formula: r#"=VLOOKUP($E$2,Sprachversionen!$B:$BN,63,FALSE)"#.to_string(),
+        dependencies: vec![E2],
+        formula_type: FormulaType::TextLookup { index: 63 },
+    }
+}
+
+/// Erstellt Right Panel Header Formel für N13, U13: =IF(E3="",VLOOKUP($E$2,Sprachversionen!$B:$BN,28,FALSE),E3)
+fn rp_header_currency_or_lookup(row: u32, col: u16) -> FormulaDefinition {
+    FormulaDefinition {
+        address: CellAddress::new(row, col),
+        excel_formula: r#"=IF(E3="",VLOOKUP($E$2,Sprachversionen!$B:$BN,28,FALSE),E3)"#.to_string(),
+        dependencies: vec![E2, E3],
+        formula_type: FormulaType::CurrencyOrLookup { index: 28 },
+    }
+}
+
+/// Erstellt Right Panel Header Formel für O13, V13: =VLOOKUP($E$2,Sprachversionen!$B:$BN,58,FALSE)
+fn rp_header_exchange_rate_lookup(row: u32, col: u16) -> FormulaDefinition {
+    FormulaDefinition {
+        address: CellAddress::new(row, col),
+        excel_formula: r#"=VLOOKUP($E$2,Sprachversionen!$B:$BN,58,FALSE)"#.to_string(),
+        dependencies: vec![E2],
+        formula_type: FormulaType::TextLookup { index: 58 },
     }
 }
 
@@ -410,14 +438,16 @@ pub static HEADER_FORMULAS: Lazy<Vec<FormulaDefinition>> = Lazy::new(|| {
         text_lookup(10, 7, 15),  // H11: Begründung
         // Row 11 (B12)
         text_lookup(11, 1, 9), // B12: EINNAHMEN
-        // Row 12 (B13, L13, N13, O13, S13, U13, V13)
-        text_lookup(12, 1, 10),         // B13: (in lokaler Währung)
-        text_lookup(12, 11, 22),        // L13: Datum
-        currency_or_lookup(12, 13, 28), // N13: Währung
-        text_lookup(12, 14, 58),        // O13: Wechselkurs
-        text_lookup(12, 18, 22),        // S13: Datum
-        currency_or_lookup(12, 20, 28), // U13: Währung
-        text_lookup(12, 21, 58),        // V13: Wechselkurs
+        // Row 12 (B13, L13, M13, N13, O13, S13, T13, U13, V13) - Right Panel Header
+        text_lookup(12, 1, 10),                 // B13: (in lokaler Währung)
+        rp_header_date_lookup(12, 11),          // L13: Datum mit IF
+        rp_header_euro_lookup(12, 12),          // M13: Euro (Index 65)
+        rp_header_currency_or_lookup(12, 13),   // N13: Währung oder Lookup
+        rp_header_exchange_rate_lookup(12, 14), // O13: Wechselkurs
+        rp_header_date_lookup(12, 18),          // S13: Datum mit IF
+        rp_header_euro_lookup(12, 19),          // T13: Euro (Index 65)
+        rp_header_currency_or_lookup(12, 20),   // U13: Währung oder Lookup
+        rp_header_exchange_rate_lookup(12, 21), // V13: Wechselkurs
         // Table Body Labels (B15-B19)
         text_lookup(14, 1, 16), // B15: Saldovortrag
         text_lookup(15, 1, 17), // B16: Lokale Eigenleistung

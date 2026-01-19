@@ -65,6 +65,7 @@ pub static TEXT_MATRIX: Lazy<Vec<Vec<&'static str>>> = Lazy::new(|| {
             "Tipp:",
             "Bitte nutzen Sie zum ausfüllen des Finanzberichts unsere Ausfüllhilfe auf unserer Webseite:",
             "https://www.kindermissionswerk.org/fuer-partner/service",
+            "Euro",
         ],
         vec![
             "english",
@@ -129,6 +130,7 @@ pub static TEXT_MATRIX: Lazy<Vec<Vec<&'static str>>> = Lazy::new(|| {
             "Tip:",
             "Please use our completion guide on our website to fill out the financial report.",
             "https://www.kindermissionswerk.org/en/partners/service",
+            "Euro",
         ],
         vec![
             "français",
@@ -193,6 +195,7 @@ pub static TEXT_MATRIX: Lazy<Vec<Vec<&'static str>>> = Lazy::new(|| {
             "Astuce :",
             "Veuillez utiliser notre aide à la saisie disponible sur notre site web pour remplir le rapport financier:",
             "https://www.kindermissionswerk.org/fr/pour-les-partenaires/services",
+            "Euro",
         ],
         vec![
             "español",
@@ -257,6 +260,7 @@ pub static TEXT_MATRIX: Lazy<Vec<Vec<&'static str>>> = Lazy::new(|| {
             "Consejo:",
             "Por favor, utilice nuestra guía para completar el informe financiero, disponible en nuestro sitio web:",
             "https://www.kindermissionswerk.org/es/para-contrapartes-de-proyectos/servicios",
+            "Euro",
         ],
         vec![
             "português",
@@ -321,6 +325,7 @@ pub static TEXT_MATRIX: Lazy<Vec<Vec<&'static str>>> = Lazy::new(|| {
             "Dica:",
             "Por favor, utilize nosso guia de preenchimento disponível em nosso site para preencher o relatório financeiro:",
             "https://www.kindermissionswerk.org/pt/para-os-parceiros/servico",
+            "Euro",
         ],
     ]
 });

@@ -424,23 +424,29 @@ fn build_format_matrix(styles: &ReportStyles, ls: &LocalStyles) -> FormatMatrix 
     matrix.set(10, 20, &ls.rp_hdr_mid_top); // U11
     matrix.set(10, 21, &ls.rp_hdr_right_top); // V11
 
-    // --- Row 11-12 (J12-O13, Q12-V13): Header ohne top border ---
-    for row in 11..=12 {
-        // Linke Seite
-        matrix.set(row, 9, &ls.rp_hdr_left); // J
-        matrix.set(row, 10, &ls.rp_hdr_mid); // K
-        matrix.set(row, 11, &ls.rp_hdr_mid); // L
-        matrix.set(row, 12, &ls.rp_hdr_mid); // M
-        matrix.set(row, 13, &ls.rp_hdr_mid); // N
-        matrix.set(row, 14, &ls.rp_hdr_right); // O
-                                               // Rechte Seite
-        matrix.set(row, 16, &ls.rp_hdr_left); // Q
-        matrix.set(row, 17, &ls.rp_hdr_mid); // R
-        matrix.set(row, 18, &ls.rp_hdr_mid); // S
-        matrix.set(row, 19, &ls.rp_hdr_mid); // T
-        matrix.set(row, 20, &ls.rp_hdr_mid); // U
-        matrix.set(row, 21, &ls.rp_hdr_right); // V
-    }
+    // --- Row 11 (J12-O12, Q12-V12): Header ohne top border ---
+    // Linke Seite
+    matrix.set(11, 9, &ls.rp_hdr_left); // J12
+    matrix.set(11, 10, &ls.rp_hdr_mid); // K12
+    matrix.set(11, 11, &ls.rp_hdr_mid); // L12
+    matrix.set(11, 12, &ls.rp_hdr_mid); // M12
+    matrix.set(11, 13, &ls.rp_hdr_mid); // N12
+    matrix.set(11, 14, &ls.rp_hdr_right); // O12
+                                          // Rechte Seite
+    matrix.set(11, 16, &ls.rp_hdr_left); // Q12
+    matrix.set(11, 17, &ls.rp_hdr_mid); // R12
+    matrix.set(11, 18, &ls.rp_hdr_mid); // S12
+    matrix.set(11, 19, &ls.rp_hdr_mid); // T12
+    matrix.set(11, 20, &ls.rp_hdr_mid); // U12
+    matrix.set(11, 21, &ls.rp_hdr_right); // V12
+
+    // --- Row 12 (J13-O13, Q13-V13): Header mit Formeln - nur J13, K13, Q13, R13 sind blanks ---
+    // J13, K13 und Q13, R13 sind blanks (werden in write_right_panel geschrieben)
+    matrix.set(12, 9, &ls.rp_hdr_left); // J13
+    matrix.set(12, 10, &ls.rp_hdr_mid); // K13
+    matrix.set(12, 16, &ls.rp_hdr_left); // Q13
+    matrix.set(12, 17, &ls.rp_hdr_mid); // R13
+                                        // L13, M13, N13, O13 und S13, T13, U13, V13 haben center_center_bold (bereits oben gesetzt)
 
     // --- Row 13-29 (J14-O30, Q14-V30): Body ohne bottom border ---
     for row in 13..=29 {
@@ -992,17 +998,27 @@ fn write_right_panel(
         }
     }
 
-    // Row 12-13: Alle Zellen sind blanks außer L13-O13 und S13-V13 (Formeln in write_formulas)
-    for row in 11..=12u32 {
-        for col in [9u16, 10, 11, 12, 13, 14] {
-            if let Some(format) = fmt.get(row, col) {
-                ws.write_blank(row, col, format)?;
-            }
+    // Row 12 (Index 11): Alle Zellen J12-O12 und Q12-V12 sind blanks
+    for col in [9u16, 10, 11, 12, 13, 14] {
+        if let Some(format) = fmt.get(11, col) {
+            ws.write_blank(11, col, format)?;
         }
-        for col in [16u16, 17, 18, 19, 20, 21] {
-            if let Some(format) = fmt.get(row, col) {
-                ws.write_blank(row, col, format)?;
-            }
+    }
+    for col in [16u16, 17, 18, 19, 20, 21] {
+        if let Some(format) = fmt.get(11, col) {
+            ws.write_blank(11, col, format)?;
+        }
+    }
+
+    // Row 13 (Index 12): Nur J13 und Q13 sind blanks, L13-O13 und S13-V13 haben Formeln (in write_formulas)
+    for col in [9u16, 10] {
+        if let Some(format) = fmt.get(12, col) {
+            ws.write_blank(12, col, format)?;
+        }
+    }
+    for col in [16u16, 17] {
+        if let Some(format) = fmt.get(12, col) {
+            ws.write_blank(12, col, format)?;
         }
     }
 
