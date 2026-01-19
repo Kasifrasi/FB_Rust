@@ -7,26 +7,41 @@ use std::collections::HashMap;
 // ============================================================================
 
 /// Zentrale Matrix für alle Zellformate
-/// Zugriff über (row, col) -> Format
-struct FormatMatrix<'a> {
-    formats: HashMap<(u32, u16), &'a Format>,
+/// Speichert unlocked (Standard) und locked (für Formeln) Versionen
+struct FormatMatrix {
+    /// Unlocked Formate (für Blanks und Werte)
+    unlocked: HashMap<(u32, u16), Format>,
+    /// Locked Formate (für Formeln)
+    locked: HashMap<(u32, u16), Format>,
 }
 
-impl<'a> FormatMatrix<'a> {
+impl FormatMatrix {
     fn new() -> Self {
         Self {
-            formats: HashMap::new(),
+            unlocked: HashMap::new(),
+            locked: HashMap::new(),
         }
     }
 
-    /// Setzt das Format für eine Zelle
-    fn set(&mut self, row: u32, col: u16, format: &'a Format) {
-        self.formats.insert((row, col), format);
+    /// Setzt das Format für eine Zelle (erstellt unlocked und locked Version)
+    fn set(&mut self, row: u32, col: u16, format: &Format) {
+        // Unlocked Version (Standard für Nicht-Formel-Zellen)
+        let unlocked_format = format.clone().set_unlocked();
+        self.unlocked.insert((row, col), unlocked_format);
+
+        // Locked Version (für Formel-Zellen)
+        let locked_format = format.clone().set_locked();
+        self.locked.insert((row, col), locked_format);
     }
 
-    /// Holt das Format für eine Zelle
-    fn get(&self, row: u32, col: u16) -> Option<&&'a Format> {
-        self.formats.get(&(row, col))
+    /// Holt das unlocked Format für eine Zelle (für Blanks und Werte)
+    fn get_unlocked(&self, row: u32, col: u16) -> Option<&Format> {
+        self.unlocked.get(&(row, col))
+    }
+
+    /// Holt das locked Format für eine Zelle (für Formeln)
+    fn get_locked(&self, row: u32, col: u16) -> Option<&Format> {
+        self.locked.get(&(row, col))
     }
 }
 
@@ -193,7 +208,7 @@ impl LocalStyles {
 // Format-Matrix Builder: Zentrale Definition aller Zellformate
 // ============================================================================
 
-fn build_format_matrix<'a>(styles: &'a ReportStyles, ls: &'a LocalStyles) -> FormatMatrix<'a> {
+fn build_format_matrix(styles: &ReportStyles, ls: &LocalStyles) -> FormatMatrix {
     let mut matrix = FormatMatrix::new();
 
     // ========================================================================
@@ -328,24 +343,24 @@ pub fn write_header(
     let ls = LocalStyles::new(styles);
     let fmt = build_format_matrix(styles, &ls);
 
-    // Durchlauf 1: Formatierung (Merges und leere Zellen)
+    // Durchlauf 1: Formatierung (Merges und leere Zellen) - UNLOCKED
     write_formatting(ws, &fmt)?;
 
-    // Durchlauf 2: Werte
+    // Durchlauf 2: Werte - UNLOCKED
     write_values(ws, &fmt, suffix, lang_val)?;
 
-    // Durchlauf 3: Formeln
+    // Durchlauf 3: Formeln - LOCKED
     write_formulas(ws, &fmt)?;
 
     Ok(())
 }
 
 // ============================================================================
-// Durchlauf 1: Formatierung
+// Durchlauf 1: Formatierung (Merges und Blanks) - UNLOCKED
 // ============================================================================
 
 fn write_formatting(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> {
-    // Alle Merge-Bereiche
+    // Alle Merge-Bereiche (verwenden unlocked Formate)
     let merges: Vec<(MergeRange, u32, u16)> = vec![
         // (MergeRange, format_row, format_col) - Format wird aus Matrix geholt
         (
@@ -623,7 +638,7 @@ fn write_formatting(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxEr
     ];
 
     for (range, fmt_row, fmt_col) in &merges {
-        if let Some(format) = fmt.get(*fmt_row, *fmt_col) {
+        if let Some(format) = fmt.get_unlocked(*fmt_row, *fmt_col) {
             ws.merge_range(
                 range.first_row,
                 range.first_col,
@@ -635,7 +650,7 @@ fn write_formatting(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxEr
         }
     }
 
-    // Leere formatierte Zellen (nur Format, kein Inhalt)
+    // Leere formatierte Zellen (nur Format, kein Inhalt) - UNLOCKED
     let blank_cells: Vec<(u32, u16)> = vec![
         // Row 0
         (0, 10),
@@ -663,7 +678,7 @@ fn write_formatting(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxEr
         // Table Body - Input/Calc/Pct/Right columns
         (14, 4),
         (14, 5),
-        (14, 6), // G15 hat keine Formel, nur Format
+        (14, 6),
         (14, 7),
         (15, 4),
         (15, 5),
@@ -682,7 +697,7 @@ fn write_formatting(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxEr
     ];
 
     for (row, col) in &blank_cells {
-        if let Some(format) = fmt.get(*row, *col) {
+        if let Some(format) = fmt.get_unlocked(*row, *col) {
             ws.write_blank(*row, *col, format)?;
         }
     }
@@ -691,7 +706,7 @@ fn write_formatting(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxEr
 }
 
 // ============================================================================
-// Durchlauf 2: Werte
+// Durchlauf 2: Werte - UNLOCKED
 // ============================================================================
 
 fn write_values(
@@ -700,7 +715,7 @@ fn write_values(
     suffix: &str,
     lang_val: &str,
 ) -> Result<(), XlsxError> {
-    // String-Werte: (row, col, value)
+    // String-Werte: (row, col, value) - UNLOCKED
     let string_values: Vec<(u32, u16, &str)> = vec![
         (1, 1, suffix),
         (1, 4, lang_val),
@@ -709,12 +724,12 @@ fn write_values(
     ];
 
     for (row, col, value) in &string_values {
-        if let Some(format) = fmt.get(*row, *col) {
+        if let Some(format) = fmt.get_unlocked(*row, *col) {
             ws.write_string_with_format(*row, *col, *value, format)?;
         }
     }
 
-    // Zahlen-Werte: (row, col, value)
+    // Zahlen-Werte: (row, col, value) - UNLOCKED
     let number_values: Vec<(u32, u16, f64)> = vec![
         (14, 3, 0.0),
         (15, 3, 0.0),
@@ -724,7 +739,7 @@ fn write_values(
     ];
 
     for (row, col, value) in &number_values {
-        if let Some(format) = fmt.get(*row, *col) {
+        if let Some(format) = fmt.get_unlocked(*row, *col) {
             ws.write_number_with_format(*row, *col, *value, format)?;
         }
     }
@@ -737,11 +752,11 @@ fn write_values(
 }
 
 // ============================================================================
-// Durchlauf 3: Formeln
+// Durchlauf 3: Formeln - LOCKED
 // ============================================================================
 
 fn write_formulas(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> {
-    // Statische Formeln: (row, col, formula)
+    // Alle Formeln: (row, col, formula) - LOCKED
     let formulas: Vec<(u32, u16, &str)> = vec![
         // Row 0
         (
@@ -941,7 +956,7 @@ fn write_formulas(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxErro
     ];
 
     for (row, col, formula) in &formulas {
-        if let Some(format) = fmt.get(*row, *col) {
+        if let Some(format) = fmt.get_locked(*row, *col) {
             ws.write_formula_with_format(*row, *col, *formula, format)?;
         }
     }

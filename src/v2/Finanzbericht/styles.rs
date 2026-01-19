@@ -1,4 +1,4 @@
-use rust_xlsxwriter::{Color, Format, FormatAlign, FormatBorder, FormatPattern};
+use rust_xlsxwriter::{Color, Format, FormatAlign, FormatBorder};
 
 pub struct ReportStyles {
     // --- Colors ---
@@ -154,6 +154,7 @@ impl ReportStyles {
         let body_calc = base
             .clone()
             .set_border(border_thin)
+            .set_background_color(fill_input)
             .set_num_format("#,##0.00");
 
         let body_pct = base.clone().set_border(border_thin).set_num_format("0%");
