@@ -1,4 +1,5 @@
 use super::styles::ReportStyles;
+use crate::v2::Sprachversion::data::CURRENCIES;
 use rust_xlsxwriter::{DataValidation, Format, FormatAlign, FormatBorder, Worksheet, XlsxError};
 use std::collections::HashMap;
 
@@ -343,6 +344,12 @@ pub fn write_header(
 
     // Durchlauf 3: Formeln (mit locked Format)
     write_formulas(ws, &fmt)?;
+
+    // Durchlauf 4: Right Panel (J14:V31)
+    write_right_panel(ws, styles)?;
+
+    // Freeze Pane: Zeilen 1-9 immer sichtbar (freeze unter Zeile 9 = Row 9)
+    ws.set_freeze_panes(9, 0)?;
 
     Ok(())
 }
@@ -736,9 +743,16 @@ fn write_values(
         }
     }
 
-    // Data Validation für E2
+    // Data Validation für E2 (Sprache)
     let validation = DataValidation::new().allow_list_formula("=Sprachversionen!$B$1:$B$5".into());
     ws.add_data_validation(1, 4, 1, 4, &validation)?;
+
+    // Data Validation für E3 (Währung) - dynamisch basierend auf CURRENCIES Vector
+    let currency_count = CURRENCIES.len();
+    let currency_formula = format!("=Sprachversionen!$A$1:$A${}", currency_count);
+    let currency_validation =
+        DataValidation::new().allow_list_formula(currency_formula.as_str().into());
+    ws.add_data_validation(2, 4, 2, 4, &currency_validation)?;
 
     Ok(())
 }
@@ -783,11 +797,7 @@ fn write_formulas(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxErro
             3,
             "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,28,FALSE))",
         ),
-        (
-            2,
-            4,
-            "=IF($E$2=\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,28,FALSE),E3)",
-        ),
+        // E3 (2, 4) - keine Formel mehr, stattdessen Currency-Validierung in write_values()
         // Row 3
         (
             3,
@@ -962,6 +972,84 @@ fn write_formulas(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxErro
         "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,59,FALSE))",
         &locked_format,
     )?;
+
+    Ok(())
+}
+
+// ============================================================================
+// Durchlauf 4: Right Panel (J14:V31) - aus v1 übernommen
+// ============================================================================
+
+fn write_right_panel(ws: &mut Worksheet, styles: &ReportStyles) -> Result<(), XlsxError> {
+    let border_thin = FormatBorder::Thin;
+
+    // Formate für Right Panel
+    let fmt_rp_idx = Format::new()
+        .set_font_name("Arial")
+        .set_font_size(10.0)
+        .set_align(FormatAlign::Right)
+        .set_border(border_thin);
+
+    let fmt_rp_txt = Format::new()
+        .set_font_name("Arial")
+        .set_font_size(10.0)
+        .set_align(FormatAlign::Left)
+        .set_border(border_thin)
+        .set_locked();
+
+    let fmt_rp_date = Format::new()
+        .set_font_name("Arial")
+        .set_font_size(10.0)
+        .set_align(FormatAlign::Center)
+        .set_num_format("mm-dd-yy")
+        .set_border(border_thin)
+        .set_background_color(styles.fill_input);
+
+    let fmt_rp_num = Format::new()
+        .set_font_name("Arial")
+        .set_font_size(10.0)
+        .set_align(FormatAlign::Right)
+        .set_num_format("#,##0.00")
+        .set_border(border_thin)
+        .set_background_color(styles.fill_input);
+
+    let fmt_rp_calc = Format::new()
+        .set_font_name("Arial")
+        .set_font_size(10.0)
+        .set_align(FormatAlign::Right)
+        .set_num_format("0.0000")
+        .set_border(border_thin)
+        .set_locked();
+
+    let f_k = "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,23,FALSE))";
+
+    // Right Panel: 18 Zeilen (Row 13-30, also Excel Row 14-31)
+    for i in 0..18 {
+        let row = 13 + i as u32;
+        let num = i + 1;
+
+        // Linke Seite: J, K, L, M, N, O (Spalten 9-14)
+        ws.write_string_with_format(row, 9, &format!("{}. ", num), &fmt_rp_idx)?; // J
+        ws.write_formula_with_format(row, 10, f_k, &fmt_rp_txt)?; // K
+        ws.write_blank(row, 11, &fmt_rp_date)?; // L
+        ws.write_blank(row, 12, &fmt_rp_num)?; // M
+        ws.write_blank(row, 13, &fmt_rp_num)?; // N
+
+        // O: Ratio N/M
+        let f_o = format!("=IF(M{}=\"\",\"\",N{}/M{})", row + 1, row + 1, row + 1);
+        ws.write_formula_with_format(row, 14, f_o.as_str(), &fmt_rp_calc)?;
+
+        // Rechte Seite: Q, R, S, T, U, V (Spalten 16-21)
+        ws.write_string_with_format(row, 16, &format!("{}. ", num + 18), &fmt_rp_idx)?; // Q
+        ws.write_formula_with_format(row, 17, f_k, &fmt_rp_txt)?; // R
+        ws.write_blank(row, 18, &fmt_rp_date)?; // S
+        ws.write_blank(row, 19, &fmt_rp_num)?; // T
+        ws.write_blank(row, 20, &fmt_rp_num)?; // U
+
+        // V: Ratio U/T
+        let f_v = format!("=IF(T{}=\"\",\"\",U{}/T{})", row + 1, row + 1, row + 1);
+        ws.write_formula_with_format(row, 21, f_v.as_str(), &fmt_rp_calc)?;
+    }
 
     Ok(())
 }
