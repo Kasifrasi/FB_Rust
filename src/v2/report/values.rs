@@ -2,7 +2,7 @@
 //!
 //! Dieses Modul speichert alle Eingabewerte und berechneten Werte.
 
-use super::cells::{HeaderInputCell, InputCell, TableInputCell};
+use super::cells::{HeaderInputCell, InputCell};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -129,11 +129,6 @@ impl ReportValues {
         self.get(HeaderInputCell::ProjectTitle).as_text()
     }
 
-    /// Gibt den Wechselkurs zurück (J9)
-    pub fn exchange_rate(&self) -> Option<f64> {
-        self.get(HeaderInputCell::ExchangeRateInput).as_number()
-    }
-
     // ========================================================================
     // Convenience Setter (Builder-Pattern)
     // ========================================================================
@@ -159,12 +154,6 @@ impl ReportValues {
     /// Setzt den Projekttitel (D6)
     pub fn with_project_title(mut self, title: &str) -> Self {
         self.set(HeaderInputCell::ProjectTitle, title);
-        self
-    }
-
-    /// Setzt den Wechselkurs (J9)
-    pub fn with_exchange_rate(mut self, rate: f64) -> Self {
-        self.set(HeaderInputCell::ExchangeRateInput, rate);
         self
     }
 
@@ -218,28 +207,21 @@ mod tests {
         let values = ReportValues::new()
             .with_language("deutsch")
             .with_currency("EUR")
-            .with_project_number("12345")
-            .with_exchange_rate(1.0);
+            .with_project_number("12345");
 
         assert_eq!(values.language(), Some("deutsch"));
         assert_eq!(values.currency(), Some("EUR"));
         assert_eq!(values.project_number(), Some("12345"));
-        assert_eq!(values.exchange_rate(), Some(1.0));
     }
 
     #[test]
     fn test_generic_set_get() {
         let mut values = ReportValues::new();
         values.set(HeaderInputCell::Language, "english");
-        values.set(TableInputCell::ApprovedBudget(0), 1000.0);
 
         assert_eq!(
             values.get(HeaderInputCell::Language).as_text(),
             Some("english")
-        );
-        assert_eq!(
-            values.get(TableInputCell::ApprovedBudget(0)).as_number(),
-            Some(1000.0)
         );
     }
 }

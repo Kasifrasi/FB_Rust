@@ -66,12 +66,6 @@ pub enum HeaderInputCell {
     ReportPeriodStart,
     /// G9:H9: Berichtszeitraum Ende (merged)
     ReportPeriodEnd,
-    /// J7: Wechselkurs-Datum (orange)
-    ExchangeRateDate,
-    /// J8: Wechselkurs-Wert (grau)
-    ExchangeRateValue,
-    /// J9: Wechselkurs-Eingabe (gelb)
-    ExchangeRateInput,
 }
 
 impl HeaderInputCell {
@@ -86,9 +80,6 @@ impl HeaderInputCell {
             Self::ProjectEndDate => CellAddress::new(7, 6),    // G8
             Self::ReportPeriodStart => CellAddress::new(8, 4), // E9
             Self::ReportPeriodEnd => CellAddress::new(8, 6),   // G9
-            Self::ExchangeRateDate => CellAddress::new(6, 9),  // J7
-            Self::ExchangeRateValue => CellAddress::new(7, 9), // J8
-            Self::ExchangeRateInput => CellAddress::new(8, 9), // J9
         }
     }
 
@@ -103,9 +94,6 @@ impl HeaderInputCell {
             Self::ProjectEndDate,
             Self::ReportPeriodStart,
             Self::ReportPeriodEnd,
-            Self::ExchangeRateDate,
-            Self::ExchangeRateValue,
-            Self::ExchangeRateInput,
         ]
     }
 }

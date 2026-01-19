@@ -77,9 +77,6 @@ pub mod addr {
     pub const G8: CellAddr = CellAddr::new(7, 6); // Projektende
     pub const E9: CellAddr = CellAddr::new(8, 4); // Berichtszeitraum Start
     pub const G9: CellAddr = CellAddr::new(8, 6); // Berichtszeitraum Ende
-    pub const J7: CellAddr = CellAddr::new(6, 9); // Wechselkurs Datum
-    pub const J8: CellAddr = CellAddr::new(7, 9); // Wechselkurs Wert
-    pub const J9: CellAddr = CellAddr::new(8, 9); // Wechselkurs Eingabe
 }
 
 // ============================================================================
@@ -97,9 +94,8 @@ pub mod addr {
 /// - L14:N31 (Datum, Euro, Lokal - linke Seite)
 /// - S14:U31 (Datum, Euro, Lokal - rechte Seite)
 ///
-/// NICHT API (sind Formeln):
-/// - J7, J8 (Wechselkurs Datum/Wert - Formeln!)
-/// - J9 wird NICHT von API befüllt (ist Benutzereingabe im Excel)
+/// NICHT API (sind Formeln oder Benutzereingaben):
+/// - J7, J8, J9 (Wechselkurs - sind Formeln/Benutzereingaben im Excel, NICHT von API!)
 /// - K14:K31, R14:R31 (Nummern - sind Formeln!)
 /// - G15:G19 (Prozent - sind Formeln!)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
