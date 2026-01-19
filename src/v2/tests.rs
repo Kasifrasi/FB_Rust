@@ -4,7 +4,7 @@ mod tests {
     use crate::v2::Finanzbericht::sheet_setup::sheet_setup;
     use crate::v2::Finanzbericht::styles::ReportStyles;
     use crate::v2::Sprachversion::builder::build_sheet as build_trans_sheet;
-    use rust_xlsxwriter::Workbook;
+    use rust_xlsxwriter::{Format, Workbook};
 
     #[test]
     fn test_header_generation() {
@@ -22,23 +22,35 @@ mod tests {
             .worksheet_from_name(sheet_name)
             .expect("Sheet not found");
 
-        // 4. Setup sheet (column widths, etc.)
+        // 4. Set column format to unlocked for 1000 columns
+        // This makes all cells in these columns unlocked by default
+        let unlocked = Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_unlocked();
+
+        for col in 0..1000u16 {
+            ws.set_column_format(col, &unlocked)
+                .expect("Failed to set column format");
+        }
+
+        // 5. Setup sheet (column widths, etc.)
         sheet_setup(ws).expect("Failed to setup sheet");
 
-        // 5. Prepare Styles
+        // 6. Prepare Styles
         let styles = ReportStyles::new();
 
-        // 6. Write Header
+        // 7. Write Header
         let suffix = "_de";
         let lang_val = "deutsch";
         write_header(ws, &styles, suffix, lang_val).expect("Failed to write header");
 
-        // 7. Protect worksheet and unprotect editable range
+        // 8. Protect worksheet
+        // All cells are unlocked by set_row_format()
+        // Formulas are locked by write_formulas() which uses fmt.get_locked()
         ws.protect();
-        ws.unprotect_range(0, 0, 9999, 9999)
-            .expect("Failed to unprotect range");
 
-        // 8. Save to file for inspection
+        // 9. Save to file for inspection
         let path = "src/v2/tests/header_test.xlsx";
         workbook
             .save(path)
