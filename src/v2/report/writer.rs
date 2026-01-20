@@ -89,7 +89,7 @@ pub fn write_report_v2_with_body(
     write_header_section(ws, &fmt, suffix, lang_val)?;
     write_table_section(ws, &fmt)?;
     write_panel_section(ws, &fmt, values)?;
-    write_prebody_section(ws, styles)?;
+    write_prebody_section(ws, styles, values.language())?;
 
     // 6. Statische Zellen aus Registry schreiben
     write_cells_from_registry(ws, &registry, &computed, &fmt)?;
@@ -100,12 +100,23 @@ pub fn write_report_v2_with_body(
     // 8. Footer schreiben (3 Zeilen nach Total)
     // income_row = 19 (0-indexed, Zeile 20 in Excel)
     let income_row = 19u32;
+
+    // F20 (Einnahmen-Summe) aus computed holen für Check-Formel Evaluierung
+    let f_income = computed
+        .get(&CellAddr::new(19, 5))
+        .and_then(|v| v.as_number());
+
     let footer_layout = write_footer(
         ws,
         styles,
         body_result.layout.total_row,
         income_row,
         values.language(),
+        f_income,
+        body_result.f_total,
+        values.footer_bank(),
+        values.footer_kasse(),
+        values.footer_sonstiges(),
     )?;
 
     // 9. Footer-Werte schreiben (Bank, Kasse, Sonstiges)

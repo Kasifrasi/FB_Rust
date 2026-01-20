@@ -65,6 +65,11 @@ impl FooterLayout {
 /// * `total_row` - Die Total-Zeile des Body (0-indexed)
 /// * `income_row` - Die Einnahmen-Zeile (Zeile 20, 0-indexed = 19)
 /// * `language` - Die Sprache für VLOOKUP-Evaluierung (z.B. Some("deutsch"))
+/// * `f_income` - F-Spalte Einnahmen (für Check-Formel)
+/// * `f_total` - F-Spalte Total (für Check-Formel)
+/// * `bank` - Bank-Wert (für OK-Formel)
+/// * `kasse` - Kasse-Wert (für OK-Formel)
+/// * `sonstiges` - Sonstiges-Wert (für OK-Formel)
 ///
 /// # Returns
 /// Das berechnete Footer-Layout
@@ -74,6 +79,11 @@ pub fn write_footer(
     total_row: u32,
     income_row: u32,
     language: Option<&str>,
+    f_income: Option<f64>,
+    f_total: Option<f64>,
+    bank: Option<f64>,
+    kasse: Option<f64>,
+    sonstiges: Option<f64>,
 ) -> Result<FooterLayout, XlsxError> {
     let layout = FooterLayout::compute(total_row);
     let s = layout.start_row;
@@ -181,12 +191,12 @@ pub fn write_footer(
     let fmt_d_s2 = normal.clone().set_border_right(border_thin);
     ws.write_blank(s + 2, 3, &fmt_d_s2)?;
 
-    // E: =B13, right border, left thin, zentriert
+    // E: VLOOKUP(10) (Währung), right border, left thin, zentriert
     let fmt_e_s2 = center
         .clone()
         .set_border_right(border_medium)
         .set_border_left(border_thin);
-    ws.write_formula_with_format(s + 2, 4, "=B13", &fmt_e_s2)?;
+    write_vlookup_formula(ws, s + 2, 4, 10, &fmt_e_s2, language)?;
 
     // =========================================================================
     // ZEILE 3 (s+3): Leer
@@ -227,13 +237,31 @@ pub fn write_footer(
         .clone()
         .set_border_top(border_thin)
         .set_border_bottom(border_thin);
-    let check_formula = format!(
+    let check_formula_str = format!(
         "=IF(ROUND(E{},2)=(ROUND(F{}-F{},2)),\"✓\",\"\")",
         s + 4 + 1,      // E saldo (1-indexed)
         income_row + 1, // F20 (1-indexed)
         total_row + 1   // F total (1-indexed)
     );
-    ws.write_formula_with_format(s + 4, 3, check_formula.as_str(), &fmt_d_s4)?;
+    // Evaluiere Check-Formel: Wenn E_saldo == F_income - F_total → "✓"
+    let check_result = match (f_income, f_total, bank, kasse, sonstiges) {
+        (Some(f_inc), Some(f_tot), Some(b), Some(k), Some(so)) => {
+            let e_saldo = b + k + so; // E saldo = Bank + Kasse + Sonstiges
+            let f_diff = f_inc - f_tot;
+            if (e_saldo * 100.0).round() / 100.0 == (f_diff * 100.0).round() / 100.0 {
+                Some("✓".to_string())
+            } else {
+                Some(String::new())
+            }
+        }
+        _ => None,
+    };
+    let check_formula = if let Some(result) = check_result {
+        Formula::new(&check_formula_str).set_result(result)
+    } else {
+        Formula::new(&check_formula_str)
+    };
+    ws.write_formula_with_format(s + 4, 3, check_formula, &fmt_d_s4)?;
 
     // E: Differenz-Formel, right+top+bottom border (KEIN left border!)
     let fmt_e_s4 = number_right
@@ -273,13 +301,26 @@ pub fn write_footer(
 
     // E: OK-Check, grau zentriert, right border only (KEIN left border!)
     let fmt_e_s6 = gray_center.clone().set_border_right(border_medium);
-    let ok_formula = format!(
+    let ok_formula_str = format!(
         "=IF(E{}=SUM(E{}:E{}),\"OK\",\"\")",
         s + 4 + 1, // saldo row (1-indexed)
         s + 7 + 1, // bank row (1-indexed)
         s + 9 + 1  // sonstiges row (1-indexed)
     );
-    ws.write_formula_with_format(s + 6, 4, ok_formula.as_str(), &fmt_e_s6)?;
+    // Evaluiere OK-Formel: Wenn E_saldo == SUM(E_bank:E_sonstiges) → "OK"
+    // E_saldo = Bank + Kasse + Sonstiges (aus Differenz-Formel)
+    // SUM(E_bank:E_sonstiges) = Bank + Kasse + Sonstiges
+    // Diese sind per Definition gleich, also immer "OK" wenn alle Werte vorhanden
+    let ok_result = match (bank, kasse, sonstiges) {
+        (Some(_), Some(_), Some(_)) => Some("OK".to_string()),
+        _ => None,
+    };
+    let ok_formula = if let Some(result) = ok_result {
+        Formula::new(&ok_formula_str).set_result(result)
+    } else {
+        Formula::new(&ok_formula_str)
+    };
+    ws.write_formula_with_format(s + 6, 4, ok_formula, &fmt_e_s6)?;
 
     // =========================================================================
     // ZEILEN 7-8 (s+7 bis s+8): Bank, Kasse

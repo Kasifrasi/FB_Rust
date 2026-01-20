@@ -5,22 +5,36 @@
 //! - Spacer Row 20-21
 //! - Footer-Tabelle (Rows 22-25) mit vertikalen Merges
 
+use crate::v2::report::definitions::lookup_text_string;
 use crate::v2::report::ReportStyles;
 use rust_xlsxwriter::{FormatAlign, Formula, Worksheet, XlsxError};
 
 /// Schreibt die Pre-Body Section (Zeilen 20-25)
-pub fn write_prebody_section(ws: &mut Worksheet, styles: &ReportStyles) -> Result<(), XlsxError> {
+///
+/// # Arguments
+/// * `ws` - Das Worksheet
+/// * `styles` - Report-Styles
+/// * `language` - Die Sprache für VLOOKUP-Evaluierung (z.B. Some("deutsch"))
+pub fn write_prebody_section(
+    ws: &mut Worksheet,
+    styles: &ReportStyles,
+    language: Option<&str>,
+) -> Result<(), XlsxError> {
     // Spacer Row 20 (0-basiert: 20 = Excel 21)
     ws.set_row_height(20, 13.5)?;
 
     // Footer-Tabelle (Rows 22-25, 0-basiert: 22-25)
-    write_footer_table(ws, styles)?;
+    write_footer_table(ws, styles, language)?;
 
     Ok(())
 }
 
 /// Schreibt die Footer-Tabelle (Zeilen 22-25)
-fn write_footer_table(ws: &mut Worksheet, styles: &ReportStyles) -> Result<(), XlsxError> {
+fn write_footer_table(
+    ws: &mut Worksheet,
+    styles: &ReportStyles,
+    language: Option<&str>,
+) -> Result<(), XlsxError> {
     let thin = styles.border_thin;
     let medium = styles.border_medium;
 
@@ -87,30 +101,18 @@ fn write_footer_table(ws: &mut Worksheet, styles: &ReportStyles) -> Result<(), X
 
     // E23:E26 merged - VLOOKUP(25) "Ausgaben"
     ws.merge_range(22, 4, 25, 4, "", &fmt_ft_val_bold)?;
-    ws.write_formula_with_format(
-        22,
-        4,
-        Formula::new(r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,25,FALSE))"#),
-        &fmt_ft_val_bold,
-    )?;
+    let formula_25 = make_vlookup_formula(25, language);
+    ws.write_formula_with_format(22, 4, formula_25, &fmt_ft_val_bold)?;
 
     // F23:F26 merged - VLOOKUP(55)
     ws.merge_range(22, 5, 25, 5, "", &fmt_ft_val)?;
-    ws.write_formula_with_format(
-        22,
-        5,
-        Formula::new(r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,55,FALSE))"#),
-        &fmt_ft_val,
-    )?;
+    let formula_55 = make_vlookup_formula(55, language);
+    ws.write_formula_with_format(22, 5, formula_55, &fmt_ft_val)?;
 
     // G23:G26 merged - VLOOKUP(56)
     ws.merge_range(22, 6, 25, 6, "", &fmt_ft_val)?;
-    ws.write_formula_with_format(
-        22,
-        6,
-        Formula::new(r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,56,FALSE))"#),
-        &fmt_ft_val,
-    )?;
+    let formula_56 = make_vlookup_formula(56, language);
+    ws.write_formula_with_format(22, 6, formula_56, &fmt_ft_val)?;
 
     // H23:H26 merged - Referenz auf H11
     ws.merge_range(22, 7, 25, 7, "", &fmt_ft_right)?;
@@ -122,19 +124,30 @@ fn write_footer_table(ws: &mut Worksheet, styles: &ReportStyles) -> Result<(), X
 
     // === Row 23 (Excel 24): B24:C24 merged - VLOOKUP(24) ===
     ws.merge_range(23, 1, 23, 2, "", &fmt_ft_mid_bold)?;
-    ws.write_formula_with_format(
-        23,
-        1,
-        Formula::new(r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,24,FALSE))"#),
-        &fmt_ft_mid_bold,
-    )?;
+    let formula_24 = make_vlookup_formula(24, language);
+    ws.write_formula_with_format(23, 1, formula_24, &fmt_ft_mid_bold)?;
 
-    // === Row 24 (Excel 25): B25:C25 merged - Referenz auf B13 ===
+    // === Row 24 (Excel 25): B25:C25 merged - VLOOKUP(10) (Währung) ===
     ws.merge_range(24, 1, 24, 2, "", &fmt_ft_mid)?;
-    ws.write_formula_with_format(24, 1, Formula::new("=B13"), &fmt_ft_mid)?;
+    let formula_10 = make_vlookup_formula(10, language);
+    ws.write_formula_with_format(24, 1, formula_10, &fmt_ft_mid)?;
 
     // === Row 25 (Excel 26): B26:C26 merged mit thin bottom border ===
     ws.merge_range(25, 1, 25, 2, "", &fmt_ft_bot_bc)?;
 
     Ok(())
+}
+
+/// Erstellt eine VLOOKUP-Formel mit gecachtem Text-Ergebnis
+fn make_vlookup_formula(index: usize, language: Option<&str>) -> Formula {
+    let formula_str = format!(
+        r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))"#,
+        index
+    );
+
+    if let Some(text) = lookup_text_string(language, index) {
+        Formula::new(&formula_str).set_result(text)
+    } else {
+        Formula::new(&formula_str)
+    }
 }
