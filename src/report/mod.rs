@@ -9,6 +9,7 @@
 //! - `sections`: Static sections (header, table, panel)
 //! - `body`: Dynamic cost position sections
 //! - `protection`: Sheet protection and data validation
+//! - `types`: Type-safe input types (Language, Currency, Category, Date)
 //! - `writer`: Main entry points
 
 pub mod api;
@@ -22,6 +23,7 @@ pub mod layout;
 pub mod protection;
 pub mod registry;
 pub mod sections;
+pub mod types;
 pub mod values;
 pub mod writer;
 
@@ -44,6 +46,7 @@ pub use registry::{
     CellAddr, CellEvaluator, CellKind, CellRegistry, EvalContext, FormulaCell, FormulaCellDeps,
     FormulaDeps, Inputs, RegistryError, SheetRef, Sheets, StaticVal, Statics,
 };
+pub use types::{Category, Currency, DateError, Language, ReportDate};
 pub use values::{CellValue, ReportValues};
 pub use writer::{
     apply_report_options, write_report, write_report_with_body, write_report_with_options,

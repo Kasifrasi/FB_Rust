@@ -4,6 +4,7 @@
 //! Nutzt direkt `ApiKey` als Schlüssel - keine redundanten Enums.
 
 use super::api::{ApiKey, FooterField, PositionField};
+use super::types::{Category, Currency, Language, ReportDate};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -229,6 +230,70 @@ impl ReportValues {
     }
 
     // ========================================================================
+    // Typsichere Setter (empfohlen)
+    // ========================================================================
+
+    /// Setzt die Sprache typsicher (E2)
+    ///
+    /// Verwendet das `Language` enum für Compile-Zeit-Sicherheit.
+    ///
+    /// # Beispiel
+    /// ```ignore
+    /// use kmw_fb_rust::report::types::Language;
+    ///
+    /// let values = ReportValues::new()
+    ///     .with_lang(Language::English);
+    /// ```
+    pub fn with_lang(mut self, lang: Language) -> Self {
+        self.set(ApiKey::Language, lang.as_str());
+        self
+    }
+
+    /// Setzt die Währung typsicher (E3)
+    ///
+    /// Verwendet den validierten `Currency` Typ.
+    ///
+    /// # Beispiel
+    /// ```ignore
+    /// use kmw_fb_rust::report::types::Currency;
+    ///
+    /// let values = ReportValues::new()
+    ///     .with_curr(Currency::eur());
+    /// // Oder mit Validierung:
+    ///     .with_curr(Currency::new("USD").unwrap());
+    /// ```
+    pub fn with_curr(mut self, currency: Currency) -> Self {
+        self.set(ApiKey::Currency, currency.as_str());
+        self
+    }
+
+    /// Setzt Projektstart-Datum typsicher (E8)
+    ///
+    /// Verwendet das validierte `ReportDate`.
+    pub fn with_project_start_date(mut self, date: ReportDate) -> Self {
+        self.set(ApiKey::ProjectStart, CellValue::Date(date.format_de()));
+        self
+    }
+
+    /// Setzt Projektende-Datum typsicher (G8)
+    pub fn with_project_end_date(mut self, date: ReportDate) -> Self {
+        self.set(ApiKey::ProjectEnd, CellValue::Date(date.format_de()));
+        self
+    }
+
+    /// Setzt Berichtszeitraum Start typsicher (E9)
+    pub fn with_report_start_date(mut self, date: ReportDate) -> Self {
+        self.set(ApiKey::ReportStart, CellValue::Date(date.format_de()));
+        self
+    }
+
+    /// Setzt Berichtszeitraum Ende typsicher (G9)
+    pub fn with_report_end_date(mut self, date: ReportDate) -> Self {
+        self.set(ApiKey::ReportEnd, CellValue::Date(date.format_de()));
+        self
+    }
+
+    // ========================================================================
     // Positions-Methoden (Dynamische Kostenpositionen)
     // ========================================================================
 
@@ -350,6 +415,90 @@ impl ReportValues {
             position,
             field,
         })
+    }
+
+    // ========================================================================
+    // Typsichere Positions-Methoden mit Category enum
+    // ========================================================================
+
+    /// Setzt ein einzelnes Positions-Feld typsicher
+    ///
+    /// Verwendet das `Category` enum für Compile-Zeit-Sicherheit.
+    ///
+    /// # Beispiel
+    /// ```ignore
+    /// use kmw_fb_rust::report::types::Category;
+    ///
+    /// values.set_cat_position(Category::Personal, 1, PositionField::Approved, 5000.0);
+    /// ```
+    pub fn set_cat_position(
+        &mut self,
+        category: Category,
+        position: u16,
+        field: PositionField,
+        value: impl Into<CellValue>,
+    ) -> &mut Self {
+        self.set_position(category.index(), position, field, value)
+    }
+
+    /// Setzt eine komplette Positions-Zeile typsicher
+    ///
+    /// # Beispiel
+    /// ```ignore
+    /// use kmw_fb_rust::report::types::Category;
+    ///
+    /// values.set_cat_position_row(
+    ///     Category::Personal, 1,
+    ///     "Projektleiter", 60000.0, 30000.0, 30000.0, ""
+    /// );
+    /// ```
+    pub fn set_cat_position_row(
+        &mut self,
+        category: Category,
+        position: u16,
+        description: impl Into<CellValue>,
+        approved: impl Into<CellValue>,
+        income_report: impl Into<CellValue>,
+        income_total: impl Into<CellValue>,
+        remark: impl Into<CellValue>,
+    ) -> &mut Self {
+        self.set_position_row(
+            category.index(),
+            position,
+            description,
+            approved,
+            income_report,
+            income_total,
+            remark,
+        )
+    }
+
+    /// Setzt Header-Eingabe typsicher
+    ///
+    /// # Beispiel
+    /// ```ignore
+    /// use kmw_fb_rust::report::types::Category;
+    ///
+    /// values.set_cat_header_input(
+    ///     Category::Projektverwaltung,
+    ///     8000.0, 4000.0, 4000.0, "Verwaltungskosten"
+    /// );
+    /// ```
+    pub fn set_cat_header_input(
+        &mut self,
+        category: Category,
+        approved: impl Into<CellValue>,
+        income_report: impl Into<CellValue>,
+        income_total: impl Into<CellValue>,
+        remark: impl Into<CellValue>,
+    ) -> &mut Self {
+        self.set_header_input(
+            category.index(),
+            approved,
+            income_report,
+            income_total,
+            remark,
+        )
     }
 
     // ========================================================================

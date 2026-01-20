@@ -718,4 +718,128 @@ mod report_tests {
 
         println!("Spezielle Kategorien: tests/output/test_special_categories.xlsx");
     }
+
+    // ========================================================================
+    // Test 6: Typsichere API - Demonstriert die neuen typsicheren Typen
+    // ========================================================================
+    #[test]
+    fn test_typesafe_api() {
+        use crate::report::types::{Category, Currency, Language, ReportDate};
+
+        let sheet_name = "Finanzbericht";
+        let mut workbook = create_workbook_with_sheet(sheet_name);
+        setup_worksheet(&mut workbook, sheet_name);
+
+        let ws = workbook.worksheet_from_name(sheet_name).unwrap();
+        let styles = ReportStyles::new();
+
+        // Typsichere API - Compile-Zeit-Fehler bei falschen Werten!
+        let mut values = ReportValues::new()
+            // Language enum statt String - kein Typo moeglich
+            .with_lang(Language::Deutsch)
+            // Currency validiert gegen CURRENCIES
+            .with_curr(Currency::eur())
+            .with_project_number("KMW-2024-SAFE")
+            .with_project_title("Typsicheres Projekt")
+            // ReportDate validiert Datum
+            .with_project_start_date(ReportDate::new(2024, 1, 1).unwrap())
+            .with_project_end_date(ReportDate::new(2024, 12, 31).unwrap())
+            .with_report_start_date(ReportDate::new(2024, 1, 1).unwrap())
+            .with_report_end_date(ReportDate::new(2024, 6, 30).unwrap());
+
+        // Tabellen-Daten
+        for i in 0..5u8 {
+            values
+                .set(ApiKey::ApprovedBudget(i), 20000.0 + i as f64 * 5000.0)
+                .set(ApiKey::IncomeReportPeriod(i), 10000.0 + i as f64 * 2500.0)
+                .set(ApiKey::IncomeTotal(i), 10000.0 + i as f64 * 2500.0)
+                .set(ApiKey::IncomeReason(i), format!("Quelle {}", i + 1));
+        }
+
+        // Right Panel
+        for i in 0..18u8 {
+            let amount = 1000.0 + i as f64 * 150.0;
+            let date = ReportDate::new(2024, ((i / 6) % 12) as u8 + 1, ((i % 6) * 5) as u8 + 1)
+                .unwrap_or(ReportDate::new(2024, 1, 1).unwrap());
+            values
+                .set(ApiKey::LeftDate(i), date.format_de())
+                .set(ApiKey::LeftAmountEuro(i), amount)
+                .set(ApiKey::LeftAmountLocal(i), amount)
+                .set(ApiKey::RightDate(i), date.format_de())
+                .set(ApiKey::RightAmountEuro(i), amount * 1.1)
+                .set(ApiKey::RightAmountLocal(i), amount * 1.1);
+        }
+
+        // Typsichere Category-Methoden - Compile-Zeit-Fehler bei falscher Kategorie!
+        values.set_cat_position_row(
+            Category::Personal,
+            1,
+            "Projektleiter",
+            50000.0,
+            25000.0,
+            25000.0,
+            "",
+        );
+        values.set_cat_position_row(
+            Category::Personal,
+            2,
+            "Wissenschaftler",
+            40000.0,
+            20000.0,
+            20000.0,
+            "",
+        );
+        values.set_cat_position_row(
+            Category::Sachkosten,
+            1,
+            "Laborausstattung",
+            15000.0,
+            7500.0,
+            7500.0,
+            "",
+        );
+        values.set_cat_position_row(
+            Category::Reisekosten,
+            1,
+            "Konferenz",
+            5000.0,
+            2500.0,
+            2500.0,
+            "",
+        );
+
+        // Header-Input mit Category enum
+        values.set_cat_header_input(Category::Investitionen, 10000.0, 5000.0, 5000.0, "");
+        values.set_cat_header_input(Category::Sonstige, 3000.0, 1500.0, 1500.0, "");
+        values.set_cat_header_input(Category::Projektverwaltung, 5000.0, 2500.0, 2500.0, "Admin");
+        values.set_cat_header_input(Category::Evaluierung, 2000.0, 1000.0, 1000.0, "");
+        values.set_cat_header_input(Category::Reserve, 1000.0, 500.0, 500.0, "Notfall");
+
+        values
+            .set_footer_bank(10000.0)
+            .set_footer_kasse(1500.0)
+            .set_footer_sonstiges(200.0);
+
+        // Typsichere BodyConfig mit Category enum
+        let body_config = BodyConfig::new()
+            .with_cat_positions(Category::Personal, 2)
+            .with_cat_positions(Category::Sachkosten, 1)
+            .with_cat_positions(Category::Reisekosten, 1)
+            .with_cat_positions(Category::Investitionen, 0) // Header-Input
+            .with_cat_positions(Category::Sonstige, 0)
+            .with_cat_positions(Category::Projektverwaltung, 0)
+            .with_cat_positions(Category::Evaluierung, 0)
+            .with_cat_positions(Category::Reserve, 0);
+
+        let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
+
+        write_report_with_options(ws, &styles, "_de", &values, &body_config, &options)
+            .expect("Failed to write report");
+
+        workbook
+            .save("tests/output/test_typesafe_api.xlsx")
+            .expect("Failed to save");
+
+        println!("Typsichere API: tests/output/test_typesafe_api.xlsx");
+    }
 }

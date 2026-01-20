@@ -16,6 +16,7 @@
 //!   - N Positions-Zeilen (Eingabe)
 //!   - Footer-Zeile (Summen)
 
+use crate::report::types::Category;
 use std::collections::HashMap;
 
 /// Start-Zeile für den dynamischen Body (0-basiert)
@@ -56,6 +57,20 @@ impl BodyConfig {
             self.positions.insert(category, count);
         }
         self
+    }
+
+    /// Setzt die Anzahl Positionen typsicher mit Category enum
+    ///
+    /// # Beispiel
+    /// ```ignore
+    /// use kmw_fb_rust::report::types::Category;
+    ///
+    /// let config = BodyConfig::new()
+    ///     .with_cat_positions(Category::Personal, 10)
+    ///     .with_cat_positions(Category::Projektverwaltung, 0);  // Header-Eingabe
+    /// ```
+    pub fn with_cat_positions(self, category: Category, count: u16) -> Self {
+        self.with_positions(category.index(), count)
     }
 
     /// Gibt die Anzahl Positionen für eine Kategorie zurück
