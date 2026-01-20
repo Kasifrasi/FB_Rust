@@ -4,7 +4,7 @@
 //! - 0 Positionen = Header-Eingabe
 //! - 1+ Positionen = Positions-Modus
 
-use crate::v2::report::BodyConfig;
+use crate::report::BodyConfig;
 
 #[test]
 fn test_default_config() {

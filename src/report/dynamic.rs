@@ -9,7 +9,7 @@
 use super::formats::FormatMatrix;
 use super::registry::CellAddr;
 use super::values::{CellValue, ReportValues};
-use crate::v2::lang::data::TEXT_MATRIX;
+use crate::lang::data::TEXT_MATRIX;
 use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
 use std::collections::HashMap;
 

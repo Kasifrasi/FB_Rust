@@ -8,13 +8,13 @@
 
 #[cfg(test)]
 mod integrated_api_tests {
-    use crate::v2::report::api::ApiKey;
-    use crate::v2::report::formats::ReportStyles;
-    use crate::v2::report::layout::setup_sheet;
-    use crate::v2::report::values::ReportValues;
-    use crate::v2::report::writer::write_report_v2_with_body;
-    use crate::v2::report::BodyConfig;
-    use crate::v2::Sprachversion::builder::build_sheet as build_trans_sheet;
+    use crate::report::api::ApiKey;
+    use crate::report::formats::ReportStyles;
+    use crate::report::layout::setup_sheet;
+    use crate::report::values::ReportValues;
+    use crate::report::writer::write_report_with_body;
+    use crate::report::BodyConfig;
+    use crate::lang::builder::build_sheet as build_trans_sheet;
     use rust_xlsxwriter::{Format, Workbook};
 
     // ========================================================================
@@ -207,7 +207,7 @@ mod integrated_api_tests {
             .with_positions(7, 0) // Header-Input
             .with_positions(8, 0); // Header-Input
 
-        write_report_v2_with_body(ws, &styles, "_de", &values, &body_config)
+        write_report_with_body(ws, &styles, "_de", &values, &body_config)
             .expect("Failed to write report");
 
         ws.protect();
@@ -389,7 +389,7 @@ mod integrated_api_tests {
             .with_positions(7, 0) // Header-Input
             .with_positions(8, 0); // Header-Input
 
-        write_report_v2_with_body(ws, &styles, "_de", &values, &body_config)
+        write_report_with_body(ws, &styles, "_de", &values, &body_config)
             .expect("Failed to write report");
 
         ws.protect();
@@ -534,7 +534,7 @@ mod integrated_api_tests {
             .with_positions(7, 0) // Header-Input
             .with_positions(8, 0); // Header-Input
 
-        write_report_v2_with_body(ws, &styles, "_de", &values, &body_config)
+        write_report_with_body(ws, &styles, "_de", &values, &body_config)
             .expect("Failed to write report");
 
         ws.protect();
@@ -704,7 +704,7 @@ mod integrated_api_tests {
             .with_positions(7, 0) // Header-Input
             .with_positions(8, 0); // Header-Input
 
-        write_report_v2_with_body(ws, &styles, "_de", &values, &body_config)
+        write_report_with_body(ws, &styles, "_de", &values, &body_config)
             .expect("Failed to write report");
 
         ws.protect();
@@ -909,7 +909,7 @@ mod integrated_api_tests {
             .with_positions(7, 0) // Header-Input
             .with_positions(8, 4); // 4 Positionen als seltene Reserve-Ausnahme
 
-        write_report_v2_with_body(ws, &styles, "_de", &values, &body_config)
+        write_report_with_body(ws, &styles, "_de", &values, &body_config)
             .expect("Failed to write report");
 
         ws.protect();

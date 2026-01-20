@@ -1,14 +1,14 @@
-//! Report Module - Finanzbericht Generator
+//! Report generation engine.
 //!
-//! Struktur:
-//! - api: API-Zellen Definition (EINZIGE QUELLE DER WAHRHEIT)
-//! - registry: Zentrale Zell-Registry (Api, Static, Formula, Empty)
-//! - values: Eingabewerte (ReportValues)
-//! - formats: Styles und FormatMatrix
-//! - layout: Spaltenbreiten, Merges, Freeze Panes
-//! - sections: Header, Table, Panel Schreiblogik
-//! - body: Dynamischer Body-Bereich (Kostenkategorien)
-//! - writer: Hauptkoordinator
+//! Modules:
+//! - `api`: Cell definitions and API keys
+//! - `registry`: Cell registry with topological formula evaluation
+//! - `values`: Input value storage
+//! - `formats`: Styles and format matrix
+//! - `layout`: Column widths, merges, freeze panes
+//! - `sections`: Static sections (header, table, panel)
+//! - `body`: Dynamic cost position sections
+//! - `writer`: Main entry points
 
 pub mod api;
 pub mod body;
@@ -23,14 +23,10 @@ pub mod sections;
 pub mod values;
 pub mod writer;
 
-// Re-exports für einfachen Zugriff
-// API-Zellen (neue zentrale Definitionen)
+// Public API
 pub use api::{register_all_api_cells, ApiKey, PositionField};
-
-// Legacy cells (für Kompatibilität, wird später entfernt)
-pub use cells::CellAddress;
-
 pub use body::{BodyConfig, BodyLayout, BodyResult, CategoryMode};
+pub use cells::CellAddress;
 pub use formats::{
     build_format_matrix, extend_format_matrix_with_body, FormatMatrix, ReportStyles, SectionStyles,
 };
@@ -43,4 +39,4 @@ pub use registry::{
     FormulaDeps, Inputs, RegistryError, SheetRef, Sheets, StaticVal, Statics,
 };
 pub use values::{CellValue, ReportValues};
-pub use writer::{write_report_v2, write_report_v2_with_body, write_report_v2_with_body_unified};
+pub use writer::{write_report, write_report_with_body};

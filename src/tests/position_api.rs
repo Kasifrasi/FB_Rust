@@ -6,8 +6,8 @@
 //! - ReportValues Convenience-Methoden
 //! - BodyLayout::position_addr()
 
-use crate::v2::report::api::PositionField;
-use crate::v2::report::{ApiKey, BodyConfig, BodyLayout, ReportValues};
+use crate::report::api::PositionField;
+use crate::report::{ApiKey, BodyConfig, BodyLayout, ReportValues};
 
 // ============================================================================
 // PositionField Tests

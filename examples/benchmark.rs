@@ -9,11 +9,11 @@
 //! Die generierten Dateien werden in einem temporären Verzeichnis erstellt
 //! und nach dem Benchmark gelöscht.
 
-use kmw_fb_rust::v2::common::{LANG_CONFIG, LANG_SUFFIXES};
-use kmw_fb_rust::v2::lang::build_sheet as build_sprachversionen;
-use kmw_fb_rust::v2::report::layout::setup_sheet;
-use kmw_fb_rust::v2::report::ApiKey;
-use kmw_fb_rust::v2::report::{write_report_v2_with_body, BodyConfig, ReportStyles, ReportValues};
+use kmw_fb_rust::common::{LANG_CONFIG, LANG_SUFFIXES};
+use kmw_fb_rust::lang::build_sheet as build_sprachversionen;
+use kmw_fb_rust::report::layout::setup_sheet;
+use kmw_fb_rust::report::ApiKey;
+use kmw_fb_rust::report::{write_report_with_body, BodyConfig, ReportStyles, ReportValues};
 use rust_xlsxwriter::{Format, Workbook};
 use std::fs;
 use std::path::Path;
@@ -139,7 +139,7 @@ fn generate_report(
     values.set_footer_sonstiges(base_cost * 0.5);
 
     // Report schreiben
-    write_report_v2_with_body(ws, &styles, suffix, &values, &body_config)?;
+    write_report_with_body(ws, &styles, suffix, &values, &body_config)?;
     ws.protect();
 
     // Speichern

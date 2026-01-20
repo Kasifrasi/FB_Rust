@@ -33,8 +33,8 @@
 //! - API: `Position { category: 1, position: 1..N, field }` (position 1-basiert!)
 
 use super::config::{BodyConfig, ALL_CATEGORIES, BODY_START_ROW};
-use crate::v2::report::api::PositionField;
-use crate::v2::report::registry::CellAddr;
+use crate::report::api::PositionField;
+use crate::report::registry::CellAddr;
 
 /// Kategorie-Metadaten (VLOOKUP-Indizes)
 #[derive(Debug, Clone, Copy)]

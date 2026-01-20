@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use crate::v2::Finanzbericht::header::write_header;
-    use crate::v2::Finanzbericht::sheet_setup::sheet_setup;
-    use crate::v2::Finanzbericht::styles::ReportStyles;
-    use crate::v2::Finanzbericht::values::ReportValues;
-    use crate::v2::Sprachversion::builder::build_sheet as build_trans_sheet;
+    use crate::lang::builder::build_sheet as build_trans_sheet;
+    use crate::report::formats::ReportStyles;
+    use crate::report::layout::setup_sheet;
+    use crate::report::values::ReportValues;
+    use crate::report::writer::write_report;
     use rust_xlsxwriter::{Format, Workbook};
 
     #[test]
@@ -36,7 +36,7 @@ mod tests {
         }
 
         // 5. Setup sheet (column widths, etc.)
-        sheet_setup(ws).expect("Failed to setup sheet");
+        setup_sheet(ws).expect("Failed to setup sheet");
 
         // 6. Prepare Styles
         let styles = ReportStyles::new();
@@ -46,7 +46,7 @@ mod tests {
 
         // 8. Write Header
         let suffix = "_de";
-        write_header(ws, &styles, suffix, &values).expect("Failed to write header");
+        write_report(ws, &styles, suffix, &values).expect("Failed to write header");
 
         // 9. Protect worksheet
         // All cells are unlocked by set_row_format()
@@ -63,10 +63,10 @@ mod tests {
     /// Test mit neuem Registry-basierten Writer
     #[test]
     fn test_header_generation_v2() {
-        use crate::v2::report::formats::ReportStyles;
-        use crate::v2::report::layout::setup_sheet;
-        use crate::v2::report::values::ReportValues;
-        use crate::v2::report::writer::write_report_v2;
+        use crate::report::formats::ReportStyles;
+        use crate::report::layout::setup_sheet;
+        use crate::report::values::ReportValues;
+        use crate::report::writer::write_report;
 
         let mut workbook = Workbook::new();
 
@@ -108,7 +108,7 @@ mod tests {
 
         // 8. Write Report mit V2 Writer
         let suffix = "_de";
-        write_report_v2(ws, &styles, suffix, &values).expect("Failed to write report v2");
+        write_report(ws, &styles, suffix, &values).expect("Failed to write report v2");
 
         // 9. Protect worksheet
         ws.protect();
@@ -123,12 +123,12 @@ mod tests {
     /// Test mit numerischen Werten um Formelauswertung zu verifizieren
     #[test]
     fn test_formula_evaluation_with_numbers() {
-        use crate::v2::report::definitions::build_registry;
-        use crate::v2::report::formats::ReportStyles;
-        use crate::v2::report::layout::setup_sheet;
-        use crate::v2::report::registry::{ApiKey, CellAddr};
-        use crate::v2::report::values::ReportValues;
-        use crate::v2::report::writer::write_report_v2;
+        use crate::report::definitions::build_registry;
+        use crate::report::formats::ReportStyles;
+        use crate::report::layout::setup_sheet;
+        use crate::report::registry::{ApiKey, CellAddr};
+        use crate::report::values::ReportValues;
+        use crate::report::writer::write_report;
 
         let mut workbook = Workbook::new();
 
@@ -193,7 +193,7 @@ mod tests {
 
         // 8. Write Report
         let suffix = "_de";
-        write_report_v2(ws, &styles, suffix, &values).expect("Failed to write report");
+        write_report(ws, &styles, suffix, &values).expect("Failed to write report");
 
         // 9. Protect worksheet
         ws.protect();

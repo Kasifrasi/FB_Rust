@@ -24,10 +24,10 @@ use std::collections::HashMap;
 
 use super::config::BodyConfig;
 use super::layout::{BodyLayout, CategoryLayout, CategoryMode, PositionRange, TOTAL_LABEL_INDEX};
-use crate::v2::report::api::{ApiKey, PositionField};
-use crate::v2::report::definitions::lookup_text_string;
-use crate::v2::report::formats::FormatMatrix;
-use crate::v2::report::values::{CellValue, ReportValues};
+use crate::report::api::{ApiKey, PositionField};
+use crate::report::definitions::lookup_text_string;
+use crate::report::formats::FormatMatrix;
+use crate::report::values::{CellValue, ReportValues};
 use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
 
 /// Gecachte Formel-Ergebnisse für den Body-Bereich

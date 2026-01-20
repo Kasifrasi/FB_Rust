@@ -13,7 +13,7 @@ use super::registry::{
     FormulaCellDeps, Inputs, RegistryError, Sheets, Statics,
 };
 use super::values::CellValue;
-use crate::v2::lang::data::TEXT_MATRIX;
+use crate::lang::data::TEXT_MATRIX;
 
 // ============================================================================
 // Öffentliche VLOOKUP-Evaluierung

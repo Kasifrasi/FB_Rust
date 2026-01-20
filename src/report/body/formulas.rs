@@ -45,12 +45,12 @@
 
 use super::footer::FooterLayout;
 use super::layout::{BodyLayout, CategoryMode, TOTAL_LABEL_INDEX};
-use crate::v2::report::api::{ApiKey, FooterField, PositionField};
-use crate::v2::report::registry::{
+use crate::report::api::{ApiKey, FooterField, PositionField};
+use crate::report::registry::{
     CellAddr, CellRegistry, EvalContext, FormulaCell, FormulaCellDeps, FormulaDeps, Inputs,
     RegistryError, Sheets, Statics,
 };
-use crate::v2::report::values::CellValue;
+use crate::report::values::CellValue;
 
 /// Typ-Alias für die Registry mit dynamischen Evaluatoren
 pub type DynRegistry = CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>;
@@ -707,8 +707,8 @@ fn register_ok_formula(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::v2::report::body::config::BodyConfig;
-    use crate::v2::report::definitions::build_registry;
+    use crate::report::body::config::BodyConfig;
+    use crate::report::definitions::build_registry;
 
     #[test]
     fn test_register_body_formulas() {

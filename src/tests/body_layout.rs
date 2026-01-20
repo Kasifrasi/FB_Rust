@@ -2,8 +2,8 @@
 //!
 //! Testet die Layout-Berechnung für verschiedene Konfigurationen.
 
-use crate::v2::report::body::CategoryMode;
-use crate::v2::report::{BodyConfig, BodyLayout};
+use crate::report::body::CategoryMode;
+use crate::report::{BodyConfig, BodyLayout};
 
 #[test]
 fn test_layout_default() {

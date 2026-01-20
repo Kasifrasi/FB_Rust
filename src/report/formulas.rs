@@ -8,7 +8,7 @@
 
 use super::cells::CellAddress;
 use super::values::{CellValue, ReportValues};
-use crate::v2::lang::data::TEXT_MATRIX;
+use crate::lang::data::TEXT_MATRIX;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 

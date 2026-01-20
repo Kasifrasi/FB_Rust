@@ -1,14 +1,8 @@
-//! Writer V2 - Registry-basierter Finanzbericht Generator
-//!
-//! Nutzt die CellRegistry für:
-//! - Zentrale Zell-Verwaltung
-//! - Automatische Auswertungsreihenfolge
-//! - Unterstützung dynamischer Bereiche
+//! Report writer with registry-based formula evaluation.
 
 use super::body::{
-    register_body_formulas, register_footer_formulas, write_body_structure_with_values,
-    write_footer, write_footer_values, BodyConfig, BodyLayout, BodyResult, CategoryMode,
-    FooterLayout,
+    write_body_structure_with_values, write_footer, write_footer_values, BodyConfig, BodyLayout,
+    BodyResult,
 };
 use super::definitions::build_registry;
 use super::formats::{
@@ -17,19 +11,14 @@ use super::formats::{
 use super::layout;
 use super::registry::{CellAddr, CellKind, CellRegistry, EvalContext};
 use super::sections::{
-    write_header_section, write_panel_section, write_prebody_section,
-    write_prebody_section_unified, write_table_section,
+    write_header_section, write_panel_section, write_prebody_section, write_table_section,
 };
 use super::values::{CellValue, ReportValues};
 use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
 use std::collections::HashMap;
 
-// ============================================================================
-// Report Writer V2
-// ============================================================================
-
 /// Schreibt den kompletten Finanzbericht (Registry-basiert)
-pub fn write_report_v2(
+pub fn write_report(
     ws: &mut Worksheet,
     styles: &ReportStyles,
     suffix: &str,
@@ -66,7 +55,7 @@ pub fn write_report_v2(
 }
 
 /// Schreibt den kompletten Finanzbericht MIT dynamischem Body-Bereich
-pub fn write_report_v2_with_body(
+pub fn write_report_with_body(
     ws: &mut Worksheet,
     styles: &ReportStyles,
     suffix: &str,
@@ -146,217 +135,7 @@ pub fn write_report_v2_with_body(
     Ok(body_result)
 }
 
-/// Schreibt den kompletten Finanzbericht mit einheitlicher Registry-basierter Evaluierung
-///
-/// Diese Funktion nutzt die einheitliche CellRegistry für ALLE Bereiche:
-/// - Statische Zellen (A1:V25)
-/// - Body-Zellen (dynamisch basierend auf BodyConfig)
-/// - Prebody-Formeln
-/// - Footer-Formeln
-///
-/// Vorteile:
-/// - Einheitliche Evaluierungsreihenfolge durch topologische Sortierung
-/// - Einheitliches Caching in `computed` HashMap
-/// - Konsistente Formel-Registrierung für alle Bereiche
-pub fn write_report_v2_with_body_unified(
-    ws: &mut Worksheet,
-    styles: &ReportStyles,
-    suffix: &str,
-    values: &ReportValues,
-    body_config: &BodyConfig,
-) -> Result<BodyResult, XlsxError> {
-    // Standardwert für Formel-Ergebnisse auf "" setzen (statt 0)
-    ws.set_formula_result_default("");
-
-    // 1. Registry erstellen (für statischen Bereich)
-    let mut registry = build_registry()
-        .map_err(|e| XlsxError::ParameterError(format!("Registry error: {}", e)))?;
-
-    // 2. Body-Layout berechnen
-    let body_layout = BodyLayout::compute(body_config);
-
-    // 3. Body-Formeln mit der Registry registrieren
-    register_body_formulas(&mut registry, &body_layout).map_err(|e| {
-        XlsxError::ParameterError(format!("Body formula registration error: {}", e))
-    })?;
-
-    // 4. Footer-Layout berechnen und Formeln registrieren
-    let footer_layout = FooterLayout::compute(body_layout.total_row);
-    let income_row = 19u32; // Einnahmen-Zeile (0-indexiert)
-    register_footer_formulas(&mut registry, &footer_layout, income_row).map_err(|e| {
-        XlsxError::ParameterError(format!("Footer formula registration error: {}", e))
-    })?;
-
-    // 5. ALLE Zellen evaluieren (statisch + Body + Footer, einheitlich!)
-    let computed = evaluate_all_cells(&registry, values);
-
-    // 6. FormatMatrix erstellen (statisch + body)
-    let sec = SectionStyles::new(styles);
-    let mut fmt = build_format_matrix(styles, &sec);
-    extend_format_matrix_with_body(&mut fmt, styles, &body_layout);
-
-    // 7. Statische Sections schreiben (Layout, Merges, Blanks)
-    write_header_section(ws, &fmt, suffix, values.language())?;
-    write_table_section(ws, &fmt)?;
-    write_panel_section(ws, &fmt, values)?;
-    // Prebody: Formeln mit korrekten Formaten (Borders, Bold)
-    write_prebody_section_unified(ws, styles, values.language())?;
-
-    // 8. ALLE Zellen aus Registry schreiben (statisch + Body + Footer, einheitlich!)
-    write_cells_from_registry(ws, &registry, &computed, &fmt)?;
-
-    // 9. Body-Struktur schreiben (nur Layout: Nummern, Merges, Blanks)
-    // API-Werte und Formeln wurden bereits in Schritt 8 geschrieben
-    let body_result = write_body_structure_unified(ws, &fmt, &body_layout, &computed)?;
-
-    // 10. Footer schreiben (Layout + Werte aus Registry)
-    // Die Formeln wurden bereits in Schritt 8 geschrieben
-    let e_income = computed
-        .get(&CellAddr::new(19, 4))
-        .and_then(|v| v.as_number());
-    let f_income = computed
-        .get(&CellAddr::new(19, 5))
-        .and_then(|v| v.as_number());
-
-    // Alte write_footer Funktion für Layout (wird später refaktoriert)
-    // Die Formel-Evaluierung erfolgt jetzt zentral über die Registry
-    write_footer(
-        ws,
-        styles,
-        body_result.layout.total_row,
-        income_row,
-        values.language(),
-        e_income,
-        body_result.e_total,
-        f_income,
-        body_result.f_total,
-        values.footer_bank(),
-        values.footer_kasse(),
-        values.footer_sonstiges(),
-    )?;
-
-    write_footer_values(
-        ws,
-        &footer_layout,
-        styles,
-        values.footer_bank(),
-        values.footer_kasse(),
-        values.footer_sonstiges(),
-    )?;
-
-    // 10. Freeze Pane
-    layout::setup_freeze_panes(ws, 9)?;
-
-    Ok(body_result)
-}
-
-/// Schreibt die Body-Struktur (nur Layout-Elemente, Werte kommen aus Registry)
-fn write_body_structure_unified(
-    ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    layout: &BodyLayout,
-    computed: &HashMap<CellAddr, CellValue>,
-) -> Result<BodyResult, XlsxError> {
-    // Kategorien schreiben
-    for cat in &layout.categories {
-        write_category_unified(ws, fmt, cat, computed)?;
-    }
-
-    // Total-Zeile: Nummer schreiben (Formeln kommen aus Registry)
-    // B:C ist gemerged mit VLOOKUP-Formel
-    let total_row = layout.total_row;
-    if let Some(format) = fmt.get(total_row, 1) {
-        ws.merge_range(total_row, 1, total_row, 2, "", format)?;
-    }
-    // H: Blank
-    if let Some(format) = fmt.get(total_row, 7) {
-        ws.write_blank(total_row, 7, format)?;
-    }
-
-    // E-Total und F-Total aus computed holen
-    let e_total = computed
-        .get(&CellAddr::new(total_row, 4))
-        .and_then(|v| v.as_number());
-    let f_total = computed
-        .get(&CellAddr::new(total_row, 5))
-        .and_then(|v| v.as_number());
-
-    Ok(BodyResult {
-        layout: layout.clone(),
-        last_row: layout.last_row,
-        total_row: layout.total_row,
-        e_total,
-        f_total,
-    })
-}
-
-/// Schreibt eine Kategorie (nur Layout, Werte aus Registry)
-fn write_category_unified(
-    ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    cat: &super::body::CategoryLayout,
-    computed: &HashMap<CellAddr, CellValue>,
-) -> Result<(), XlsxError> {
-    match &cat.mode {
-        CategoryMode::HeaderInput { row } => {
-            // B: Kategorie-Nummer
-            if let Some(format) = fmt.get(*row, 1) {
-                ws.write_string_with_format(*row, 1, &format!("{}.", cat.meta.num), format)?;
-            }
-            // H: Blank (falls nicht API)
-            if let Some(format) = fmt.get(*row, 7) {
-                if computed
-                    .get(&CellAddr::new(*row, 7))
-                    .map_or(true, |v| v.is_empty())
-                {
-                    ws.write_blank(*row, 7, format)?;
-                }
-            }
-        }
-        CategoryMode::WithPositions {
-            header_row,
-            positions,
-            footer_row,
-        } => {
-            // Header-Zeile: B = Nummer
-            if let Some(format) = fmt.get(*header_row, 1) {
-                ws.write_string_with_format(*header_row, 1, &format!("{}.", cat.meta.num), format)?;
-            }
-            // Header D-H: Blanks
-            for col in 3..=7 {
-                if let Some(format) = fmt.get(*header_row, col) {
-                    ws.write_blank(*header_row, col, format)?;
-                }
-            }
-
-            // Positions-Zeilen: B = Nummer
-            for i in 0..positions.count {
-                let row = positions.start_row + i as u32;
-                let pos_num = i + 1;
-                if let Some(format) = fmt.get(row, 1) {
-                    ws.write_string_with_format(
-                        row,
-                        1,
-                        &format!("{}.{}", cat.meta.num, pos_num),
-                        format,
-                    )?;
-                }
-            }
-
-            // Footer-Zeile: B:C merged
-            if let Some(format) = fmt.get(*footer_row, 1) {
-                ws.merge_range(*footer_row, 1, *footer_row, 2, "", format)?;
-            }
-            // Footer H: Blank
-            if let Some(format) = fmt.get(*footer_row, 7) {
-                ws.write_blank(*footer_row, 7, format)?;
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Evaluiert alle Zellen und gibt die berechneten Werte zurück
+/// Evaluates all cells and returns computed values.
 fn evaluate_all_cells(
     registry: &CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
     values: &ReportValues,

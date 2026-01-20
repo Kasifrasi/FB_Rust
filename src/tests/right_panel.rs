@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests_right_panel {
-    use crate::v2::report::api::ApiKey;
-    use crate::v2::report::formats::ReportStyles;
-    use crate::v2::report::layout::setup_sheet;
-    use crate::v2::report::values::ReportValues;
-    use crate::v2::report::writer::write_report_v2;
-    use crate::v2::Sprachversion::builder::build_sheet as build_trans_sheet;
+    use crate::report::api::ApiKey;
+    use crate::report::formats::ReportStyles;
+    use crate::report::layout::setup_sheet;
+    use crate::report::values::ReportValues;
+    use crate::report::writer::write_report;
+    use crate::lang::builder::build_sheet as build_trans_sheet;
     use rust_xlsxwriter::{Format, Workbook};
 
     /// Test mit vollständigen Right Panel Daten
@@ -82,7 +82,7 @@ mod tests_right_panel {
         }
 
         let suffix = "_de";
-        write_report_v2(ws, &styles, suffix, &values).expect("Failed to write report");
+        write_report(ws, &styles, suffix, &values).expect("Failed to write report");
 
         ws.protect();
 
@@ -165,7 +165,7 @@ mod tests_right_panel {
         }
 
         let suffix = "_de";
-        write_report_v2(ws, &styles, suffix, &values).expect("Failed to write report");
+        write_report(ws, &styles, suffix, &values).expect("Failed to write report");
 
         ws.protect();
 
