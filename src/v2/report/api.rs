@@ -10,8 +10,19 @@
 //! 2. Bereichszelle: `NewField => (start_row, col, count),` im `range` Block
 //! FERTIG! Alles andere wird automatisch generiert.
 //!
-//! Für **dynamische Positionen** (Kostenkategorien) wird `ApiKey::Position`
-//! verwendet - diese werden zur Laufzeit registriert basierend auf `BodyLayout`.
+//! ## Dynamische Positionen (Kostenkategorien)
+//!
+//! Für Kostenpositionen wird `ApiKey::Position` verwendet:
+//!
+//! - **position = 0**: Header-Eingabe-Modus
+//!   - Nur bei Kategorien mit 0 Positionen in BodyConfig
+//!   - Eingabe direkt in der Header-Zeile (D, E, F, H)
+//!   - Description nicht verfügbar (C ist VLOOKUP-Label)
+//!
+//! - **position = 1..N**: Positions-Modus
+//!   - Bei Kategorien mit 1+ Positionen in BodyConfig
+//!   - Eingabe in separaten Positions-Zeilen
+//!   - Alle Felder verfügbar (C, D, E, F, H)
 
 use super::registry::{CellAddr, CellRegistry, RegistryError};
 
@@ -23,9 +34,15 @@ use super::registry::{CellAddr, CellRegistry, RegistryError};
 ///
 /// Jede Position hat 5 Eingabefelder in den Spalten C, D, E, F, H.
 /// (G ist die Ratio-Formel und wird nicht als API-Feld behandelt)
+///
+/// ## Hinweis zu Header-Eingabe-Modus (position=0)
+///
+/// Bei Header-Eingabe (position=0) ist `Description` NICHT verfügbar,
+/// da Spalte C das VLOOKUP-Label enthält. `BodyLayout::position_addr()`
+/// gibt `None` zurück für `Description` bei position=0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PositionField {
-    /// Beschreibung (Spalte C)
+    /// Beschreibung (Spalte C) - NUR bei position >= 1!
     Description,
     /// Bewilligtes Budget (Spalte D)
     Approved,
@@ -59,48 +76,22 @@ impl PositionField {
             Self::Remark,
         ]
     }
-}
 
-// =============================================================================
-// SingleRowField - Felder einer Single-Row Kategorie (6, 7, 8)
-// =============================================================================
-
-/// Felder einer Single-Row Kategorie im Body-Bereich
-///
-/// Single-Row Kategorien (6, 7, 8) haben kein Description-Feld,
-/// da Spalte C das VLOOKUP-Label enthält.
-/// Eingabefelder sind nur D, E, F, H.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SingleRowField {
-    /// Bewilligtes Budget (Spalte D)
-    Approved,
-    /// Einnahmen Berichtszeitraum (Spalte E)
-    IncomeReport,
-    /// Einnahmen gesamt (Spalte F)
-    IncomeTotal,
-    /// Begründung/Bemerkung (Spalte H)
-    Remark,
-}
-
-impl SingleRowField {
-    /// Gibt die Spalten-Nummer zurück (0-basiert)
-    pub const fn col(&self) -> u16 {
-        match self {
-            Self::Approved => 3,     // D
-            Self::IncomeReport => 4, // E
-            Self::IncomeTotal => 5,  // F
-            Self::Remark => 7,       // H
-        }
-    }
-
-    /// Gibt alle SingleRowFields zurück
-    pub const fn all() -> [SingleRowField; 4] {
+    /// Gibt alle PositionFields zurück die bei Header-Eingabe (position=0) verfügbar sind
+    ///
+    /// Bei Header-Eingabe ist Description nicht verfügbar (C ist VLOOKUP-Label).
+    pub const fn header_input_fields() -> [PositionField; 4] {
         [
             Self::Approved,
             Self::IncomeReport,
             Self::IncomeTotal,
             Self::Remark,
         ]
+    }
+
+    /// Prüft ob dieses Feld bei Header-Eingabe (position=0) verfügbar ist
+    pub const fn available_at_header_input(&self) -> bool {
+        !matches!(self, Self::Description)
     }
 }
 
@@ -133,28 +124,33 @@ macro_rules! define_api_cells {
             $( $single_name, )*
             // Bereichszellen mit Index (statisch)
             $( $range_name(u8), )*
-            // Dynamische Kostenpositionen - Adresse wird zur Laufzeit berechnet
+            /// Dynamische Kostenposition
+            ///
+            /// Die Adresse wird zur Laufzeit basierend auf `BodyLayout` berechnet.
+            ///
+            /// ## Position-Werte
+            ///
+            /// - `position = 0`: Header-Eingabe-Modus
+            ///   - Nur bei Kategorien mit 0 Positionen in BodyConfig
+            ///   - `Description` nicht verfügbar!
+            ///
+            /// - `position = 1..N`: Normale Position
+            ///   - Bei Kategorien mit 1+ Positionen in BodyConfig
+            ///   - Alle Felder verfügbar
             Position {
-                /// Kategorie-Nummer (1-5, Multi-Row Kategorien)
+                /// Kategorie-Nummer (1-8)
                 category: u8,
-                /// Position innerhalb der Kategorie (1-N)
+                /// Position: 0 = Header-Eingabe, 1..N = Positions-Zeile
                 position: u16,
                 /// Welches Feld der Position
                 field: PositionField,
-            },
-            // Single-Row Kategorien (6, 7, 8) - nur eine Zeile, kein Description
-            SingleRow {
-                /// Kategorie-Nummer (6, 7 oder 8)
-                category: u8,
-                /// Welches Feld
-                field: SingleRowField,
             },
         }
 
         impl ApiKey {
             /// Gibt die Zelladresse für statische Keys zurück (0-basiert)
             ///
-            /// Für dynamische Keys (`Position`, `SingleRow`) wird `None` zurückgegeben -
+            /// Für dynamische Keys (`Position`) wird `None` zurückgegeben -
             /// diese benötigen ein `BodyLayout` zur Adressberechnung.
             pub const fn static_addr(&self) -> Option<CellAddr> {
                 match self {
@@ -164,14 +160,13 @@ macro_rules! define_api_cells {
                     $( Self::$range_name(i) => Some(CellAddr::new($range_start_row + *i as u32, $range_col)), )*
                     // Dynamische Keys haben keine feste Adresse
                     Self::Position { .. } => None,
-                    Self::SingleRow { .. } => None,
                 }
             }
 
             /// Gibt die Zelladresse zurück (0-basiert)
             ///
-            /// **Panics** für dynamische Keys (`Position`, `SingleRow`) - verwende `static_addr()`
-            /// oder berechne die Adresse über `BodyLayout::position_addr()` / `single_row_addr()`.
+            /// **Panics** für dynamische Keys (`Position`) - verwende `static_addr()`
+            /// oder berechne die Adresse über `BodyLayout::position_addr()`.
             pub const fn addr(&self) -> CellAddr {
                 match self {
                     // Einzelzellen
@@ -180,13 +175,12 @@ macro_rules! define_api_cells {
                     $( Self::$range_name(i) => CellAddr::new($range_start_row + *i as u32, $range_col), )*
                     // Dynamische Keys - sollte nicht direkt aufgerufen werden
                     Self::Position { .. } => panic!("Position keys have no static address"),
-                    Self::SingleRow { .. } => panic!("SingleRow keys have no static address"),
                 }
             }
 
             /// Prüft ob dieser Key dynamisch ist (Adresse zur Laufzeit)
             pub const fn is_dynamic(&self) -> bool {
-                matches!(self, Self::Position { .. } | Self::SingleRow { .. })
+                matches!(self, Self::Position { .. })
             }
 
             /// Gibt alle statischen API-Keys zurück (für Iteration)
@@ -374,5 +368,45 @@ mod tests {
 
         // all() gibt alle 5 Felder zurück
         assert_eq!(PositionField::all().len(), 5);
+
+        // header_input_fields() gibt 4 Felder zurück (ohne Description)
+        assert_eq!(PositionField::header_input_fields().len(), 4);
+    }
+
+    #[test]
+    fn test_position_field_availability() {
+        use PositionField::*;
+
+        // Description nicht bei Header-Eingabe verfügbar
+        assert!(!Description.available_at_header_input());
+
+        // Alle anderen sind verfügbar
+        assert!(Approved.available_at_header_input());
+        assert!(IncomeReport.available_at_header_input());
+        assert!(IncomeTotal.available_at_header_input());
+        assert!(Remark.available_at_header_input());
+    }
+
+    #[test]
+    fn test_header_input_position() {
+        use PositionField::*;
+
+        // Header-Eingabe: position=0
+        let key = ApiKey::Position {
+            category: 6,
+            position: 0,
+            field: Approved,
+        };
+
+        assert!(key.is_dynamic());
+
+        // Normale Position: position=1
+        let key = ApiKey::Position {
+            category: 1,
+            position: 1,
+            field: Description,
+        };
+
+        assert!(key.is_dynamic());
     }
 }

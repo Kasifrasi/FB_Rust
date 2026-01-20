@@ -25,12 +25,12 @@ pub mod writer;
 
 // Re-exports für einfachen Zugriff
 // API-Zellen (neue zentrale Definitionen)
-pub use api::{register_all_api_cells, ApiKey, PositionField, SingleRowField};
+pub use api::{register_all_api_cells, ApiKey, PositionField};
 
 // Legacy cells (für Kompatibilität, wird später entfernt)
 pub use cells::CellAddress;
 
-pub use body::{BodyConfig, BodyLayout, BodyResult};
+pub use body::{BodyConfig, BodyLayout, BodyResult, CategoryMode};
 pub use formats::{
     build_format_matrix, extend_format_matrix_with_body, FormatMatrix, ReportStyles, SectionStyles,
 };

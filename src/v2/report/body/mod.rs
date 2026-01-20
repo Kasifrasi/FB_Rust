@@ -11,5 +11,5 @@ mod layout;
 mod writer;
 
 pub use config::BodyConfig;
-pub use layout::{BodyLayout, CategoryLayout, PositionRange};
+pub use layout::{BodyLayout, CategoryLayout, CategoryMode, PositionRange};
 pub use writer::{write_body_structure, write_body_structure_with_values, BodyResult};

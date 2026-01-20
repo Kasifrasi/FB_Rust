@@ -3,7 +3,7 @@
 //! Dieses Modul speichert alle Eingabewerte.
 //! Nutzt direkt `ApiKey` als Schlüssel - keine redundanten Enums.
 
-use super::api::{ApiKey, PositionField, SingleRowField};
+use super::api::{ApiKey, PositionField};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -201,15 +201,25 @@ impl ReportValues {
     /// Setzt ein einzelnes Positions-Feld
     ///
     /// # Arguments
-    /// * `category` - Kategorie-Nummer (1-5 für Multi-Row)
-    /// * `position` - Position innerhalb der Kategorie (1-basiert!)
+    /// * `category` - Kategorie-Nummer (1-8)
+    /// * `position` - Position:
+    ///   - `0`: Header-Eingabe (bei Kategorien mit 0 Positionen in BodyConfig)
+    ///   - `1..N`: Positions-Zeile (bei Kategorien mit 1+ Positionen)
     /// * `field` - Welches Feld der Position
     /// * `value` - Der Wert
     ///
+    /// # Hinweis
+    /// Bei `position=0` (Header-Eingabe) ist `PositionField::Description` nicht
+    /// verfügbar, da Spalte C das VLOOKUP-Label enthält.
+    ///
     /// # Beispiel
     /// ```ignore
+    /// // Position mit Positions-Zeile (position >= 1)
     /// values.set_position(1, 1, PositionField::Description, "Personalkosten");
     /// values.set_position(1, 1, PositionField::Approved, 5000.0);
+    ///
+    /// // Header-Eingabe (position = 0)
+    /// values.set_position(6, 0, PositionField::Approved, 3000.0);
     /// ```
     pub fn set_position(
         &mut self,
@@ -230,8 +240,11 @@ impl ReportValues {
 
     /// Setzt eine komplette Positions-Zeile (alle 5 Felder)
     ///
+    /// **Nur für position >= 1!** Für Header-Eingabe (position=0) verwende
+    /// `set_header_input()`.
+    ///
     /// # Arguments
-    /// * `category` - Kategorie-Nummer (1-5 für Multi-Row)
+    /// * `category` - Kategorie-Nummer (1-8)
     /// * `position` - Position innerhalb der Kategorie (1-basiert!)
     /// * `description` - Beschreibung (Spalte C)
     /// * `approved` - Bewilligtes Budget (Spalte D)
@@ -262,43 +275,13 @@ impl ReportValues {
         self
     }
 
-    /// Holt einen Positions-Wert (falls vorhanden)
-    pub fn get_position(&self, category: u8, position: u16, field: PositionField) -> &CellValue {
-        self.get(ApiKey::Position {
-            category,
-            position,
-            field,
-        })
-    }
-
-    // ========================================================================
-    // Single-Row-Methoden (Kategorien 6, 7, 8)
-    // ========================================================================
-
-    /// Setzt ein einzelnes Single-Row-Feld
+    /// Setzt Header-Eingabe-Werte (position=0)
+    ///
+    /// Für Kategorien mit 0 Positionen in BodyConfig.
+    /// Kein Description-Feld (C ist VLOOKUP-Label).
     ///
     /// # Arguments
-    /// * `category` - Kategorie-Nummer (6, 7 oder 8)
-    /// * `field` - Welches Feld
-    /// * `value` - Der Wert
-    ///
-    /// # Beispiel
-    /// ```ignore
-    /// values.set_single_row(6, SingleRowField::Approved, 5000.0);
-    /// ```
-    pub fn set_single_row(
-        &mut self,
-        category: u8,
-        field: SingleRowField,
-        value: impl Into<CellValue>,
-    ) -> &mut Self {
-        self.set(ApiKey::SingleRow { category, field }, value)
-    }
-
-    /// Setzt eine komplette Single-Row-Zeile (alle 4 Felder)
-    ///
-    /// # Arguments
-    /// * `category` - Kategorie-Nummer (6, 7 oder 8)
+    /// * `category` - Kategorie-Nummer (1-8)
     /// * `approved` - Bewilligtes Budget (Spalte D)
     /// * `income_report` - Einnahmen Berichtszeitraum (Spalte E)
     /// * `income_total` - Einnahmen gesamt (Spalte F)
@@ -306,9 +289,10 @@ impl ReportValues {
     ///
     /// # Beispiel
     /// ```ignore
-    /// values.set_single_row_values(6, 5000.0, 2500.0, 2500.0, "Notiz");
+    /// // Kategorie 6 mit 0 Positionen in BodyConfig
+    /// values.set_header_input(6, 4000.0, 2000.0, 2000.0, "Sonstiges");
     /// ```
-    pub fn set_single_row_values(
+    pub fn set_header_input(
         &mut self,
         category: u8,
         approved: impl Into<CellValue>,
@@ -316,17 +300,22 @@ impl ReportValues {
         income_total: impl Into<CellValue>,
         remark: impl Into<CellValue>,
     ) -> &mut Self {
-        use SingleRowField::*;
-        self.set_single_row(category, Approved, approved);
-        self.set_single_row(category, IncomeReport, income_report);
-        self.set_single_row(category, IncomeTotal, income_total);
-        self.set_single_row(category, Remark, remark);
+        use PositionField::*;
+        // position=0 für Header-Eingabe
+        self.set_position(category, 0, Approved, approved);
+        self.set_position(category, 0, IncomeReport, income_report);
+        self.set_position(category, 0, IncomeTotal, income_total);
+        self.set_position(category, 0, Remark, remark);
         self
     }
 
-    /// Holt einen Single-Row-Wert (falls vorhanden)
-    pub fn get_single_row(&self, category: u8, field: SingleRowField) -> &CellValue {
-        self.get(ApiKey::SingleRow { category, field })
+    /// Holt einen Positions-Wert (falls vorhanden)
+    pub fn get_position(&self, category: u8, position: u16, field: PositionField) -> &CellValue {
+        self.get(ApiKey::Position {
+            category,
+            position,
+            field,
+        })
     }
 }
 
@@ -463,6 +452,35 @@ mod tests {
     }
 
     #[test]
+    fn test_header_input() {
+        use PositionField::*;
+
+        let mut values = ReportValues::new();
+        values.set_header_input(6, 4000.0, 2000.0, 2000.0, "Sonstiges");
+
+        // position=0 für Header-Eingabe
+        assert_eq!(
+            values.get_position(6, 0, Approved).as_number(),
+            Some(4000.0)
+        );
+        assert_eq!(
+            values.get_position(6, 0, IncomeReport).as_number(),
+            Some(2000.0)
+        );
+        assert_eq!(
+            values.get_position(6, 0, IncomeTotal).as_number(),
+            Some(2000.0)
+        );
+        assert_eq!(
+            values.get_position(6, 0, Remark).as_text(),
+            Some("Sonstiges")
+        );
+
+        // Description bei Header-Eingabe nicht gesetzt
+        assert!(values.get_position(6, 0, Description).is_empty());
+    }
+
+    #[test]
     fn test_multiple_positions() {
         use PositionField::*;
 
@@ -492,5 +510,28 @@ mod tests {
 
         // Nicht gesetzte Position gibt Empty zurück
         assert!(values.get_position(1, 4, Description).is_empty());
+    }
+
+    #[test]
+    fn test_mixed_modes() {
+        use PositionField::*;
+
+        let mut values = ReportValues::new();
+
+        // Kategorie 1: Positions-Modus (position >= 1)
+        values.set_position_row(1, 1, "Personal", 5000.0, 2500.0, 2500.0, "");
+
+        // Kategorie 6: Header-Eingabe-Modus (position = 0)
+        values.set_header_input(6, 4000.0, 2000.0, 2000.0, "");
+
+        // Prüfe beide Modi
+        assert_eq!(
+            values.get_position(1, 1, Description).as_text(),
+            Some("Personal")
+        );
+        assert_eq!(
+            values.get_position(6, 0, Approved).as_number(),
+            Some(4000.0)
+        );
     }
 }

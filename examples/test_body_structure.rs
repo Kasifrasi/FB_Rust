@@ -2,12 +2,17 @@
 //!
 //! Generiert eine Excel-Datei mit dem dynamischen Body-Bereich.
 //! Öffne die Datei in Excel um das Layout zu prüfen.
+//!
+//! ## Neue flexible Kategorien-API
+//!
+//! - **0 Positionen**: Header-Eingabe (position=0)
+//! - **1+ Positionen**: Positions-Zeilen (position=1..N)
 
 use kmw_fb_rust::v2::lang::build_sheet as build_sprachversionen;
 use kmw_fb_rust::v2::report::layout::setup_sheet;
 use kmw_fb_rust::v2::report::ApiKey;
+use kmw_fb_rust::v2::report::PositionField;
 use kmw_fb_rust::v2::report::{write_report_v2_with_body, BodyConfig, ReportStyles, ReportValues};
-use kmw_fb_rust::v2::report::{PositionField, SingleRowField};
 use rust_xlsxwriter::Workbook;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -42,16 +47,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         values.set(ApiKey::IncomeTotal(i), 5000.0 * (i + 1) as f64);
     }
 
-    // Body-Konfiguration mit weniger Positionen für bessere Übersicht
+    // =========================================================================
+    // Body-Konfiguration: Flexible Kategorien
+    // =========================================================================
+    //
+    // - 0 Positionen = Header-Eingabe (position=0)
+    // - 1+ Positionen = Positions-Zeilen (position=1..N)
+
     let body_config = BodyConfig::new()
-        .with_positions(1, 5) // Kategorie 1: 5 Positionen
+        .with_positions(1, 5) // Kategorie 1: 5 Positionen unter Header
         .with_positions(2, 3) // Kategorie 2: 3 Positionen
         .with_positions(3, 4) // Kategorie 3: 4 Positionen
         .with_positions(4, 3) // Kategorie 4: 3 Positionen
-        .with_positions(5, 2); // Kategorie 5: 2 Positionen
+        .with_positions(5, 2) // Kategorie 5: 2 Positionen
+        .with_positions(6, 0) // Kategorie 6: Header-Eingabe (0 Positionen)
+        .with_positions(7, 0) // Kategorie 7: Header-Eingabe
+        .with_positions(8, 0); // Kategorie 8: Header-Eingabe
 
     // =========================================================================
-    // Kostenpositionen (dynamisch via API)
+    // Kostenpositionen (Multi-Row Kategorien: position >= 1)
     // =========================================================================
 
     // Kategorie 1: Personalkosten (5 Positionen)
@@ -124,29 +138,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Einzelne Position mit individuellem Feld setzen (zur Demonstration)
     values.set_position(1, 1, PositionField::Remark, "Senior Developer");
 
+    println!(
+        "Positions-Werte gesetzt für {} Multi-Row Kategorien (1-5)",
+        5
+    );
+
     // =========================================================================
-    // Single-Row Kategorien (6, 7, 8) - nur eine Zeile pro Kategorie
+    // Header-Eingabe Kategorien (position = 0)
     // =========================================================================
 
-    // Kategorie 6: Sonstige direkte Kosten
-    values.set_single_row_values(6, 4000.0, 2000.0, 2000.0, "Diverse");
+    // Kategorie 6: Header-Eingabe (0 Positionen -> position=0)
+    values.set_header_input(6, 4000.0, 2000.0, 2000.0, "Diverse");
 
-    // Kategorie 7: Indirekte Kosten
-    values.set_single_row_values(7, 6000.0, 3000.0, 3000.0, "Overhead");
+    // Kategorie 7: Header-Eingabe
+    values.set_header_input(7, 6000.0, 3000.0, 3000.0, "Overhead");
 
-    // Kategorie 8: Eigenmittel/Drittmittel (Einzelfeld-Demonstration)
-    values.set_single_row(8, SingleRowField::Approved, 2500.0);
-    values.set_single_row(8, SingleRowField::IncomeReport, 1250.0);
-    values.set_single_row(8, SingleRowField::IncomeTotal, 1250.0);
-    values.set_single_row(8, SingleRowField::Remark, "Eigenbeitrag");
+    // Kategorie 8: Header-Eingabe (Einzelfeld-Demonstration)
+    values.set_position(8, 0, PositionField::Approved, 2500.0);
+    values.set_position(8, 0, PositionField::IncomeReport, 1250.0);
+    values.set_position(8, 0, PositionField::IncomeTotal, 1250.0);
+    values.set_position(8, 0, PositionField::Remark, "Eigenbeitrag");
 
-    println!("Positions-Werte gesetzt für {} Multi-Row Kategorien", 5);
-    println!("Single-Row-Werte gesetzt für {} Kategorien (6, 7, 8)", 3);
+    println!(
+        "Header-Eingabe-Werte gesetzt für {} Kategorien (6, 7, 8) mit position=0",
+        3
+    );
 
     // Report schreiben
     let result = write_report_v2_with_body(ws, &styles, "v2-body-test", &values, &body_config)?;
 
-    println!("Body-Layout:");
+    println!("\nBody-Layout:");
     println!(
         "  Total Row: {} (Excel Row {})",
         result.total_row,
@@ -159,20 +180,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     println!("  Kategorien:");
     for cat in &result.layout.categories {
-        if let Some(header) = cat.header_row {
-            let positions = cat.positions.as_ref().unwrap();
-            let footer = cat.footer_row.unwrap();
-            println!(
-                "    Kategorie {}: Header={}, Pos={}-{} ({}), Footer={}",
-                cat.meta.num,
-                header + 1,
-                positions.start_row + 1,
-                positions.end_row + 1,
-                positions.count,
-                footer + 1
-            );
-        } else if let Some(single) = cat.single_row {
-            println!("    Kategorie {}: Single-Row={}", cat.meta.num, single + 1);
+        use kmw_fb_rust::v2::report::body::CategoryMode;
+        match &cat.mode {
+            CategoryMode::HeaderInput { row } => {
+                println!(
+                    "    Kategorie {}: Header-Eingabe Row={} (position=0)",
+                    cat.meta.num,
+                    row + 1
+                );
+            }
+            CategoryMode::WithPositions {
+                header_row,
+                positions,
+                footer_row,
+            } => {
+                println!(
+                    "    Kategorie {}: Header={}, Pos={}-{} ({}), Footer={}",
+                    cat.meta.num,
+                    header_row + 1,
+                    positions.start_row + 1,
+                    positions.end_row + 1,
+                    positions.count,
+                    footer_row + 1
+                );
+            }
         }
     }
 

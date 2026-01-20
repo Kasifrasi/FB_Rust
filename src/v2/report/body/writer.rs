@@ -1,16 +1,21 @@
 //! Body Writer - Schreibt die Struktur des dynamischen Body-Bereichs
 //!
-//! Schreibt:
-//! - Kategorie-Header (Nummer + VLOOKUP Label)
-//! - Position-Zeilen (Nummer + API-Werte)
-//! - Kategorie-Footer (VLOOKUP Sum-Label + SUMPRODUCT Formeln)
-//! - Single-Row Kategorien
-//! - Gesamt-Zeile (VLOOKUP Label + SUM Formeln)
-//! - Ratio-Formeln (G-Spalte)
+//! Schreibt für jede Kategorie basierend auf ihrem Modus:
+//!
+//! ## Header-Eingabe-Modus (0 Positionen)
+//! - Eine Zeile: Nummer + VLOOKUP Label + API-Eingaben (D, E, F, H) + Ratio (G)
+//!
+//! ## Positions-Modus (1+ Positionen)
+//! - Header-Zeile: Nummer + VLOOKUP Label
+//! - N Positions-Zeilen: Nummer + API-Eingaben (C, D, E, F, H) + Ratio (G)
+//! - Footer-Zeile: VLOOKUP Sum-Label + SUMPRODUCT Formeln + Ratio (G)
+//!
+//! Am Ende:
+//! - Gesamt-Zeile: VLOOKUP Label + SUM Formeln + Ratio (G)
 
 use super::config::BodyConfig;
-use super::layout::{BodyLayout, CategoryLayout, TOTAL_LABEL_INDEX};
-use crate::v2::report::api::{ApiKey, PositionField, SingleRowField};
+use super::layout::{BodyLayout, CategoryLayout, CategoryMode, TOTAL_LABEL_INDEX};
+use crate::v2::report::api::{ApiKey, PositionField};
 use crate::v2::report::formats::FormatMatrix;
 use crate::v2::report::values::{CellValue, ReportValues};
 use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
@@ -58,11 +63,7 @@ pub fn write_body_structure_with_values(
 
     // 2. Kategorien schreiben
     for cat in &layout.categories {
-        if cat.is_multi_row() {
-            write_multi_row_category(ws, fmt, cat, &layout, values)?;
-        } else {
-            write_single_row_category(ws, fmt, cat, &layout, values)?;
-        }
+        write_category(ws, fmt, cat, &layout, values)?;
     }
 
     // 3. Gesamt-Zeile schreiben
@@ -78,21 +79,79 @@ pub fn write_body_structure_with_values(
     })
 }
 
-/// Schreibt eine Multi-Row Kategorie (Header + Positionen + Footer)
-fn write_multi_row_category(
+/// Schreibt eine Kategorie (einheitlich für beide Modi)
+fn write_category(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
     cat: &CategoryLayout,
     layout: &BodyLayout,
     values: Option<&ReportValues>,
 ) -> Result<(), XlsxError> {
-    let header_row = cat.header_row.expect("Multi-row must have header");
-    let positions = cat
-        .positions
-        .as_ref()
-        .expect("Multi-row must have positions");
-    let footer_row = cat.footer_row.expect("Multi-row must have footer");
+    match &cat.mode {
+        CategoryMode::HeaderInput { row } => {
+            write_header_input_category(ws, fmt, cat, *row, layout, values)?;
+        }
+        CategoryMode::WithPositions {
+            header_row,
+            positions,
+            footer_row,
+        } => {
+            write_positions_category(
+                ws,
+                fmt,
+                cat,
+                *header_row,
+                positions,
+                *footer_row,
+                layout,
+                values,
+            )?;
+        }
+    }
+    Ok(())
+}
 
+/// Schreibt eine Header-Eingabe-Kategorie (0 Positionen)
+fn write_header_input_category(
+    ws: &mut Worksheet,
+    fmt: &FormatMatrix,
+    cat: &CategoryLayout,
+    row: u32,
+    layout: &BodyLayout,
+    values: Option<&ReportValues>,
+) -> Result<(), XlsxError> {
+    // B: Kategorie-Nummer
+    write_with_format(ws, fmt, row, 1, &format!("{}.", cat.meta.num))?;
+
+    // C: VLOOKUP Label
+    let label_formula = vlookup_formula(cat.meta.label_index);
+    write_formula_with_format(ws, fmt, row, 2, &label_formula)?;
+
+    // D, E, F, H: API-Werte (position=0) oder Blanks
+    // G wird später als Ratio-Formel geschrieben
+    if let Some(values) = values {
+        write_header_input_values(ws, fmt, layout, values, cat.meta.num)?;
+    } else {
+        // Fallback: Blanks für D, E, F, H
+        for col in [3, 4, 5, 7] {
+            write_blank_with_format(ws, fmt, row, col)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Schreibt eine Positions-Kategorie (1+ Positionen)
+fn write_positions_category(
+    ws: &mut Worksheet,
+    fmt: &FormatMatrix,
+    cat: &CategoryLayout,
+    header_row: u32,
+    positions: &super::layout::PositionRange,
+    footer_row: u32,
+    layout: &BodyLayout,
+    values: Option<&ReportValues>,
+) -> Result<(), XlsxError> {
     // === Header-Zeile ===
     // B: Kategorie-Nummer
     write_with_format(ws, fmt, header_row, 1, &format!("{}.", cat.meta.num))?;
@@ -101,34 +160,28 @@ fn write_multi_row_category(
     let label_formula = vlookup_formula(cat.meta.label_index);
     write_formula_with_format(ws, fmt, header_row, 2, &label_formula)?;
 
-    // D-H: Blanks
+    // D-H: Blanks (Header hat keine Eingaben)
     for col in 3..=7 {
         write_blank_with_format(ws, fmt, header_row, col)?;
     }
 
-    // === Position-Zeilen ===
-    for (i, _row) in (positions.start_row..=positions.end_row).enumerate() {
-        let pos_num = (i + 1) as u16;
+    // === Positions-Zeilen ===
+    for i in 0..positions.count {
+        let row = positions.start_row + i as u32;
+        let pos_num = i + 1; // 1-basiert
 
         // B: Positions-Nummer
-        write_with_format(
-            ws,
-            fmt,
-            positions.start_row + i as u32,
-            1,
-            &format!("{}.{}", cat.meta.num, pos_num),
-        )?;
+        write_with_format(ws, fmt, row, 1, &format!("{}.{}", cat.meta.num, pos_num))?;
 
-        // C-H: API-Werte oder Blanks
+        // C, D, E, F, H: API-Werte oder Blanks
+        // G wird später als Ratio-Formel geschrieben
         if let Some(values) = values {
             write_position_values(ws, fmt, layout, values, cat.meta.num, pos_num)?;
         } else {
             // Fallback: Blanks
-            for col in 2..=7 {
-                if col != 6 {
-                    // G ist Ratio-Formel
-                    write_blank_with_format(ws, fmt, positions.start_row + i as u32, col)?;
-                }
+            for col in [2, 3, 4, 5, 7] {
+                // C, D, E, F, H (nicht G)
+                write_blank_with_format(ws, fmt, row, col)?;
             }
         }
     }
@@ -151,37 +204,6 @@ fn write_multi_row_category(
     Ok(())
 }
 
-/// Schreibt eine Single-Row Kategorie
-fn write_single_row_category(
-    ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    cat: &CategoryLayout,
-    layout: &BodyLayout,
-    values: Option<&ReportValues>,
-) -> Result<(), XlsxError> {
-    let row = cat.single_row.expect("Single-row must have single_row");
-
-    // B: Kategorie-Nummer
-    write_with_format(ws, fmt, row, 1, &format!("{}.", cat.meta.num))?;
-
-    // C: VLOOKUP Label
-    let label_formula = vlookup_formula(cat.meta.label_index);
-    write_formula_with_format(ws, fmt, row, 2, &label_formula)?;
-
-    // D, E, F, H: API-Werte oder Blanks (G ist Ratio-Formel)
-    if let Some(values) = values {
-        write_single_row_values(ws, fmt, layout, values, cat.meta.num)?;
-    } else {
-        // Fallback: Blanks
-        for col in [3, 4, 5, 7] {
-            // D, E, F, H - nicht G (Ratio)
-            write_blank_with_format(ws, fmt, row, col)?;
-        }
-    }
-
-    Ok(())
-}
-
 /// Schreibt die Gesamt-Zeile
 fn write_total_row(
     ws: &mut Worksheet,
@@ -194,12 +216,12 @@ fn write_total_row(
     let label_formula = vlookup_formula(TOTAL_LABEL_INDEX);
     write_merged_formula(ws, fmt, row, 1, 2, &label_formula)?;
 
-    // D-F: SUM Formeln (summiert Footer + Single-Rows)
-    let footer_rows = layout.footer_rows();
-    let single_rows = layout.single_rows();
+    // D-F: SUM Formeln (summiert alle Summen-Zeilen)
+    // Summen-Zeile = Footer bei Positions-Modus, Header-Input bei Header-Eingabe
+    let sum_rows: Vec<u32> = layout.categories.iter().map(|c| c.sum_row()).collect();
 
     for col in 3..=5 {
-        let formula = sum_formula(col, &footer_rows, &single_rows);
+        let formula = sum_formula(col, &sum_rows);
         write_formula_with_format(ws, fmt, row, col, &formula)?;
     }
 
@@ -247,11 +269,10 @@ fn sumproduct_formula(col: u16, start_row: u32, end_row: u32) -> String {
 }
 
 /// Generiert SUM-Formel: =SUM(D47+D69+D91+...)
-fn sum_formula(col: u16, footer_rows: &[u32], single_rows: &[u32]) -> String {
+fn sum_formula(col: u16, sum_rows: &[u32]) -> String {
     let col_letter = col_to_letter(col);
-    let refs: Vec<String> = footer_rows
+    let refs: Vec<String> = sum_rows
         .iter()
-        .chain(single_rows.iter())
         .map(|r| format!("{}{}", col_letter, r + 1))
         .collect();
     format!("=SUM({})", refs.join("+"))
@@ -312,7 +333,33 @@ fn write_blank_with_format(
     Ok(())
 }
 
-/// Schreibt API-Werte für eine Position (C, D, E, F, H - nicht G!)
+/// Schreibt API-Werte für Header-Eingabe (position=0)
+/// Felder: D, E, F, H (nicht C - ist VLOOKUP Label, nicht G - ist Ratio)
+fn write_header_input_values(
+    ws: &mut Worksheet,
+    fmt: &FormatMatrix,
+    layout: &BodyLayout,
+    values: &ReportValues,
+    category: u8,
+) -> Result<(), XlsxError> {
+    // Bei Header-Eingabe: position=0, nur Felder ohne Description
+    for field in PositionField::header_input_fields() {
+        let key = ApiKey::Position {
+            category,
+            position: 0, // Header-Eingabe!
+            field,
+        };
+        let value = values.get(key);
+
+        if let Some(addr) = layout.position_addr(category, 0, field) {
+            write_cell_value(ws, fmt, addr.row, addr.col, value)?;
+        }
+    }
+    Ok(())
+}
+
+/// Schreibt API-Werte für eine Position (position >= 1)
+/// Felder: C, D, E, F, H (nicht G - ist Ratio)
 fn write_position_values(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
@@ -330,25 +377,6 @@ fn write_position_values(
         let value = values.get(key);
 
         if let Some(addr) = layout.position_addr(category, position, field) {
-            write_cell_value(ws, fmt, addr.row, addr.col, value)?;
-        }
-    }
-    Ok(())
-}
-
-/// Schreibt API-Werte für eine Single-Row Kategorie (D, E, F, H - nicht C, G!)
-fn write_single_row_values(
-    ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    layout: &BodyLayout,
-    values: &ReportValues,
-    category: u8,
-) -> Result<(), XlsxError> {
-    for field in SingleRowField::all() {
-        let key = ApiKey::SingleRow { category, field };
-        let value = values.get(key);
-
-        if let Some(addr) = layout.single_row_addr(category, field) {
             write_cell_value(ws, fmt, addr.row, addr.col, value)?;
         }
     }
@@ -435,7 +463,7 @@ mod tests {
 
     #[test]
     fn test_sum_formula() {
-        let formula = sum_formula(3, &[47, 69], &[91, 92]);
+        let formula = sum_formula(3, &[47, 69, 91, 92]);
         assert_eq!(formula, "=SUM(D48+D70+D92+D93)");
     }
 

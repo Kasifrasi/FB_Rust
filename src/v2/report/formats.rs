@@ -1046,62 +1046,66 @@ pub fn extend_format_matrix_with_body(
     styles: &ReportStyles,
     layout: &BodyLayout,
 ) {
+    use super::body::CategoryMode;
+
     let body = BodyStyles::new(styles);
 
     for cat in &layout.categories {
-        // === Multi-Row Kategorie ===
-        if let Some(header_row) = cat.header_row {
-            // Header-Zeile
-            m.set(header_row, 1, &body.cat_header_b); // B
-            m.set(header_row, 2, &body.cat_header_c); // C
-            m.set(header_row, 3, &body.cat_header_value); // D
-            m.set(header_row, 4, &body.cat_header_value); // E
-            m.set(header_row, 5, &body.cat_header_value); // F
-            m.set(header_row, 6, &body.cat_header_pct); // G
-            m.set(header_row, 7, &body.cat_header_h); // H
-        }
+        match &cat.mode {
+            // === Header-Eingabe-Modus (0 Positionen) ===
+            CategoryMode::HeaderInput { row } => {
+                // Header-Input verwendet Position-Formate für D-H, aber bold B und C
+                m.set(*row, 1, &body.single_b); // B
 
-        if let Some(positions) = &cat.positions {
-            // Positions-Zeilen
-            for row in positions.start_row..=positions.end_row {
-                m.set(row, 1, &body.pos_b); // B
-                m.set(row, 2, &body.pos_c); // C
-                m.set(row, 3, &body.pos_d); // D
-                m.set(row, 4, &body.pos_ef); // E
-                m.set(row, 5, &body.pos_ef); // F
-                m.set(row, 6, &body.pos_g); // G
-                m.set(row, 7, &body.pos_h); // H
-            }
-        }
+                // Kategorie 8 hat grauen Text
+                if cat.meta.num == 8 {
+                    let gray_text = body.single_c.clone().set_font_color(Color::RGB(0xBFBFBF));
+                    m.set(*row, 2, &gray_text);
+                } else {
+                    m.set(*row, 2, &body.single_c);
+                }
 
-        if let Some(footer_row) = cat.footer_row {
-            // Footer-Zeile (B:C wird gemerged im Writer, Format nur für B gesetzt)
-            m.set(footer_row, 1, &body.footer_bc); // B:C merged
-            m.set(footer_row, 3, &body.footer_value); // D
-            m.set(footer_row, 4, &body.footer_value); // E
-            m.set(footer_row, 5, &body.footer_value); // F
-            m.set(footer_row, 6, &body.footer_pct); // G
-            m.set(footer_row, 7, &body.footer_h); // H
-        }
-
-        // === Single-Row Kategorie ===
-        if let Some(single_row) = cat.single_row {
-            // Single-Row verwendet Position-Formate für D-H, aber bold B und C
-            m.set(single_row, 1, &body.single_b); // B
-
-            // Kategorie 8 hat grauen Text
-            if cat.meta.num == 8 {
-                let gray_text = body.single_c.clone().set_font_color(Color::RGB(0xBFBFBF));
-                m.set(single_row, 2, &gray_text);
-            } else {
-                m.set(single_row, 2, &body.single_c);
+                m.set(*row, 3, &body.pos_d); // D
+                m.set(*row, 4, &body.pos_ef); // E
+                m.set(*row, 5, &body.pos_ef); // F
+                m.set(*row, 6, &body.pos_g); // G
+                m.set(*row, 7, &body.pos_h); // H
             }
 
-            m.set(single_row, 3, &body.pos_d); // D
-            m.set(single_row, 4, &body.pos_ef); // E
-            m.set(single_row, 5, &body.pos_ef); // F
-            m.set(single_row, 6, &body.pos_g); // G
-            m.set(single_row, 7, &body.pos_h); // H
+            // === Positions-Modus (1+ Positionen) ===
+            CategoryMode::WithPositions {
+                header_row,
+                positions,
+                footer_row,
+            } => {
+                // Header-Zeile
+                m.set(*header_row, 1, &body.cat_header_b); // B
+                m.set(*header_row, 2, &body.cat_header_c); // C
+                m.set(*header_row, 3, &body.cat_header_value); // D
+                m.set(*header_row, 4, &body.cat_header_value); // E
+                m.set(*header_row, 5, &body.cat_header_value); // F
+                m.set(*header_row, 6, &body.cat_header_pct); // G
+                m.set(*header_row, 7, &body.cat_header_h); // H
+
+                // Positions-Zeilen
+                for row in positions.start_row..=positions.end_row {
+                    m.set(row, 1, &body.pos_b); // B
+                    m.set(row, 2, &body.pos_c); // C
+                    m.set(row, 3, &body.pos_d); // D
+                    m.set(row, 4, &body.pos_ef); // E
+                    m.set(row, 5, &body.pos_ef); // F
+                    m.set(row, 6, &body.pos_g); // G
+                    m.set(row, 7, &body.pos_h); // H
+                }
+
+                // Footer-Zeile (B:C wird gemerged im Writer, Format nur für B gesetzt)
+                m.set(*footer_row, 1, &body.footer_bc); // B:C merged
+                m.set(*footer_row, 3, &body.footer_value); // D
+                m.set(*footer_row, 4, &body.footer_value); // E
+                m.set(*footer_row, 5, &body.footer_value); // F
+                m.set(*footer_row, 6, &body.footer_pct); // G
+                m.set(*footer_row, 7, &body.footer_h); // H
+            }
         }
     }
 
