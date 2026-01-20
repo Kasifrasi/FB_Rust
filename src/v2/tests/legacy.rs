@@ -54,7 +54,7 @@ mod tests {
         ws.protect();
 
         // 10. Save to file for inspection
-        let path = "src/v2/tests/header_test.xlsx";
+        let path = "tests/output/header_test.xlsx";
         workbook
             .save(path)
             .expect("Failed to save workbook to file");
@@ -114,7 +114,7 @@ mod tests {
         ws.protect();
 
         // 10. Save to file
-        let path = "src/v2/tests/header_test_v2.xlsx";
+        let path = "tests/output/header_test_v2.xlsx";
         workbook
             .save(path)
             .expect("Failed to save workbook to file");
@@ -199,7 +199,7 @@ mod tests {
         ws.protect();
 
         // 10. Save to file
-        let path = "src/v2/tests/formula_eval_test.xlsx";
+        let path = "tests/output/formula_eval_test.xlsx";
         workbook
             .save(path)
             .expect("Failed to save workbook to file");

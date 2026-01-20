@@ -136,7 +136,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ws.protect();
 
         // Datei speichern
-        let filename = format!("{}.xlsx", config.base);
+        let filename = format!("tests/output/{}.xlsx", config.base);
         workbook.save(&filename)?;
         println!("  -> {} gespeichert", filename);
     }

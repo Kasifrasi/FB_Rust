@@ -86,7 +86,7 @@ mod tests_right_panel {
 
         ws.protect();
 
-        let path = "src/v2/tests/right_panel_complete_data.xlsx";
+        let path = "tests/output/right_panel_complete_data.xlsx";
         workbook.save(path).expect("Failed to save workbook");
 
         println!("Right Panel Test erfolgreich!");
@@ -169,7 +169,7 @@ mod tests_right_panel {
 
         ws.protect();
 
-        let path = "src/v2/tests/right_panel_realistic_data.xlsx";
+        let path = "tests/output/right_panel_realistic_data.xlsx";
         workbook.save(path).expect("Failed to save workbook");
 
         println!("Realistic Right Panel Test erfolgreich!");

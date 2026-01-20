@@ -212,7 +212,7 @@ mod integrated_api_tests {
 
         ws.protect();
 
-        let path = "src/v2/tests/test_realistic_medium_project.xlsx";
+        let path = "tests/output/test_realistic_medium_project.xlsx";
         workbook.save(path).expect("Failed to save workbook");
 
         println!("✓ Test 1: Realistisches mittleres Projekt");
@@ -394,7 +394,7 @@ mod integrated_api_tests {
 
         ws.protect();
 
-        let path = "src/v2/tests/test_large_project_maximum.xlsx";
+        let path = "tests/output/test_large_project_maximum.xlsx";
         workbook.save(path).expect("Failed to save workbook");
 
         println!("✓ Test 2: Großprojekt mit maximalen Positionen");
@@ -539,7 +539,7 @@ mod integrated_api_tests {
 
         ws.protect();
 
-        let path = "src/v2/tests/test_minimal_project.xlsx";
+        let path = "tests/output/test_minimal_project.xlsx";
         workbook.save(path).expect("Failed to save workbook");
 
         println!("✓ Test 3: Minimalprojekt");
@@ -709,7 +709,7 @@ mod integrated_api_tests {
 
         ws.protect();
 
-        let path = "src/v2/tests/test_category_6_with_positions.xlsx";
+        let path = "tests/output/test_category_6_with_positions.xlsx";
         workbook.save(path).expect("Failed to save workbook");
 
         println!("✓ Test 4: Kategorie 6 mit minimalen Positionen");
@@ -914,7 +914,7 @@ mod integrated_api_tests {
 
         ws.protect();
 
-        let path = "src/v2/tests/test_reserve_with_positions.xlsx";
+        let path = "tests/output/test_reserve_with_positions.xlsx";
         workbook.save(path).expect("Failed to save workbook");
 
         println!("✓ Test 5: Reserve mit mehreren Positionen");
