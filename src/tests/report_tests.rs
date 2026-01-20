@@ -478,7 +478,7 @@ mod report_tests {
         let styles = ReportStyles::new();
 
         let mut values = ReportValues::new()
-            .with_language("englisch")
+            .with_language("english")
             .with_currency("USD")
             .with_project_number("KMW-2024-EN")
             .with_project_title("International Research Project")
