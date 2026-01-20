@@ -5,7 +5,8 @@
 //! - SectionStyles: Abgeleitete Styles für spezifische Bereiche
 //! - FormatMatrix: Zell-spezifische Format-Zuordnung
 
-use rust_xlsxwriter::{Color, Format, FormatAlign, FormatBorder};
+use super::body::BodyLayout;
+use rust_xlsxwriter::{Color, Format, FormatAlign, FormatBorder, FormatPattern};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -754,4 +755,374 @@ pub fn build_format_matrix(styles: &ReportStyles, sec: &SectionStyles) -> Format
     m.set(30, 21, &sec.rp_calc_last);
 
     m
+}
+
+// ============================================================================
+// BodyStyles: Formate für den dynamischen Body-Bereich
+// ============================================================================
+
+/// Styles für den dynamischen Body-Bereich (Kostenkategorien)
+pub struct BodyStyles {
+    // === Category Header (bold, keine Füllung) ===
+    /// B: Kategorie-Nummer ("1."), rechts, bold, medium left border
+    pub cat_header_b: Format,
+    /// C: VLOOKUP Label, links, bold
+    pub cat_header_c: Format,
+    /// D-F: Werte-Spalten (leer im Header)
+    pub cat_header_value: Format,
+    /// G: Prozent-Spalte (leer im Header)
+    pub cat_header_pct: Format,
+    /// H: Bemerkung, medium right border
+    pub cat_header_h: Format,
+
+    // === Position Row (Input Cells, gelb) ===
+    /// B: Positions-Nummer ("1.1"), rechts
+    pub pos_b: Format,
+    /// C: Beschreibung, links, input fill, wrap
+    pub pos_c: Format,
+    /// D: Bewilligt, grau fill (berechnet oder value)
+    pub pos_d: Format,
+    /// E-F: Einnahmen, input fill
+    pub pos_ef: Format,
+    /// G: Prozent (Formel)
+    pub pos_g: Format,
+    /// H: Bemerkung, input fill, wrap, medium right
+    pub pos_h: Format,
+
+    // === Category Footer (grau fill, bold) ===
+    /// B: Sum-Label via VLOOKUP
+    pub footer_b: Format,
+    /// C: leer
+    pub footer_c: Format,
+    /// D-F: SUMPRODUCT Formeln
+    pub footer_value: Format,
+    /// G: Ratio-Formel
+    pub footer_pct: Format,
+    /// H: leer, medium right
+    pub footer_h: Format,
+
+    // === Single-Row Category (wie Position, aber mit bold Label) ===
+    /// B: Kategorie-Nummer ("6."), rechts, bold
+    pub single_b: Format,
+    /// C: VLOOKUP Label, bold
+    pub single_c: Format,
+    // D-H: gleich wie pos_*
+
+    // === Total Row (grau fill, bold, medium bottom) ===
+    /// B: "Gesamt" Label
+    pub total_b: Format,
+    /// C: leer
+    pub total_c: Format,
+    /// D-F: SUM Formeln
+    pub total_value: Format,
+    /// G: Ratio-Formel
+    pub total_pct: Format,
+    /// H: leer, medium right + bottom
+    pub total_h: Format,
+}
+
+impl BodyStyles {
+    pub fn new(s: &ReportStyles) -> Self {
+        let thin = s.border_thin;
+        let medium = s.border_medium;
+
+        // === Category Header ===
+        let cat_header_b = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_bold()
+            .set_num_format("@")
+            .set_border_left(medium)
+            .set_border_top(thin)
+            .set_border_bottom(thin)
+            .set_border_right(thin);
+
+        let cat_header_c = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Left)
+            .set_bold()
+            .set_border(thin);
+
+        let cat_header_value = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_bold()
+            .set_text_wrap()
+            .set_num_format("#,##0.00")
+            .set_border(thin);
+
+        let cat_header_pct = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_bold()
+            .set_num_format("0%")
+            .set_border(thin);
+
+        let cat_header_h = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Left)
+            .set_bold()
+            .set_border_left(thin)
+            .set_border_top(thin)
+            .set_border_bottom(thin)
+            .set_border_right(medium);
+
+        // === Position Row ===
+        let pos_b = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_num_format("@")
+            .set_border_left(medium)
+            .set_border_top(thin)
+            .set_border_bottom(thin)
+            .set_border_right(thin);
+
+        let pos_c = s
+            .base
+            .clone()
+            .set_background_color(s.fill_input)
+            .set_text_wrap()
+            .set_border(thin);
+
+        let pos_d = s
+            .base
+            .clone()
+            .set_background_color(s.fill_value)
+            .set_text_wrap()
+            .set_num_format("#,##0.00")
+            .set_border(thin);
+
+        let pos_ef = s
+            .base
+            .clone()
+            .set_background_color(s.fill_input)
+            .set_text_wrap()
+            .set_num_format("#,##0.00")
+            .set_border(thin);
+
+        let pos_g = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_num_format("0%")
+            .set_border(thin);
+
+        let pos_h = s
+            .base
+            .clone()
+            .set_background_color(s.fill_input)
+            .set_text_wrap()
+            .set_border_left(thin)
+            .set_border_top(thin)
+            .set_border_bottom(thin)
+            .set_border_right(medium);
+
+        // === Category Footer (grau) ===
+        let gray_bold = s
+            .base
+            .clone()
+            .set_foreground_color(s.fill_summary)
+            .set_pattern(FormatPattern::Solid)
+            .set_bold();
+
+        let footer_b = gray_bold
+            .clone()
+            .set_border_left(medium)
+            .set_border_top(thin)
+            .set_border_bottom(thin)
+            .set_border_right(thin);
+
+        let footer_c = gray_bold.clone().set_border(thin);
+
+        let footer_value = gray_bold
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_num_format("#,##0.00")
+            .set_border(thin);
+
+        let footer_pct = gray_bold
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_num_format("0%")
+            .set_border(thin);
+
+        let footer_h = gray_bold
+            .clone()
+            .set_border_left(thin)
+            .set_border_top(thin)
+            .set_border_bottom(thin)
+            .set_border_right(medium);
+
+        // === Single-Row Category ===
+        let single_b = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_bold()
+            .set_num_format("@")
+            .set_border_left(medium)
+            .set_border_top(thin)
+            .set_border_bottom(thin)
+            .set_border_right(thin);
+
+        // Für Kategorie 8: grauer Text
+        let single_c = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Left)
+            .set_bold()
+            .set_border(thin);
+
+        // === Total Row (grau, medium bottom) ===
+        let total_b = gray_bold
+            .clone()
+            .set_border_left(medium)
+            .set_border_top(thin)
+            .set_border_bottom(medium)
+            .set_border_right(thin);
+
+        let total_c = gray_bold
+            .clone()
+            .set_border_top(thin)
+            .set_border_bottom(medium)
+            .set_border_left(thin)
+            .set_border_right(thin);
+
+        let total_value = gray_bold
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_num_format("#,##0.00")
+            .set_border_top(thin)
+            .set_border_bottom(medium)
+            .set_border_left(thin)
+            .set_border_right(thin);
+
+        let total_pct = gray_bold
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_num_format("0%")
+            .set_border_top(thin)
+            .set_border_bottom(medium)
+            .set_border_left(thin)
+            .set_border_right(thin);
+
+        let total_h = gray_bold
+            .clone()
+            .set_border_left(thin)
+            .set_border_top(thin)
+            .set_border_bottom(medium)
+            .set_border_right(medium);
+
+        Self {
+            cat_header_b,
+            cat_header_c,
+            cat_header_value,
+            cat_header_pct,
+            cat_header_h,
+            pos_b,
+            pos_c,
+            pos_d,
+            pos_ef,
+            pos_g,
+            pos_h,
+            footer_b,
+            footer_c,
+            footer_value,
+            footer_pct,
+            footer_h,
+            single_b,
+            single_c,
+            total_b,
+            total_c,
+            total_value,
+            total_pct,
+            total_h,
+        }
+    }
+}
+
+// ============================================================================
+// extend_format_matrix_with_body: Fügt Body-Formate zur Matrix hinzu
+// ============================================================================
+
+/// Erweitert die FormatMatrix um die dynamischen Body-Formate
+pub fn extend_format_matrix_with_body(
+    m: &mut FormatMatrix,
+    styles: &ReportStyles,
+    layout: &BodyLayout,
+) {
+    let body = BodyStyles::new(styles);
+
+    for cat in &layout.categories {
+        // === Multi-Row Kategorie ===
+        if let Some(header_row) = cat.header_row {
+            // Header-Zeile
+            m.set(header_row, 1, &body.cat_header_b); // B
+            m.set(header_row, 2, &body.cat_header_c); // C
+            m.set(header_row, 3, &body.cat_header_value); // D
+            m.set(header_row, 4, &body.cat_header_value); // E
+            m.set(header_row, 5, &body.cat_header_value); // F
+            m.set(header_row, 6, &body.cat_header_pct); // G
+            m.set(header_row, 7, &body.cat_header_h); // H
+        }
+
+        if let Some(positions) = &cat.positions {
+            // Positions-Zeilen
+            for row in positions.start_row..=positions.end_row {
+                m.set(row, 1, &body.pos_b); // B
+                m.set(row, 2, &body.pos_c); // C
+                m.set(row, 3, &body.pos_d); // D
+                m.set(row, 4, &body.pos_ef); // E
+                m.set(row, 5, &body.pos_ef); // F
+                m.set(row, 6, &body.pos_g); // G
+                m.set(row, 7, &body.pos_h); // H
+            }
+        }
+
+        if let Some(footer_row) = cat.footer_row {
+            // Footer-Zeile
+            m.set(footer_row, 1, &body.footer_b); // B
+            m.set(footer_row, 2, &body.footer_c); // C
+            m.set(footer_row, 3, &body.footer_value); // D
+            m.set(footer_row, 4, &body.footer_value); // E
+            m.set(footer_row, 5, &body.footer_value); // F
+            m.set(footer_row, 6, &body.footer_pct); // G
+            m.set(footer_row, 7, &body.footer_h); // H
+        }
+
+        // === Single-Row Kategorie ===
+        if let Some(single_row) = cat.single_row {
+            // Single-Row verwendet Position-Formate für D-H, aber bold B und C
+            m.set(single_row, 1, &body.single_b); // B
+
+            // Kategorie 8 hat grauen Text
+            if cat.meta.num == 8 {
+                let gray_text = body.single_c.clone().set_font_color(Color::RGB(0xBFBFBF));
+                m.set(single_row, 2, &gray_text);
+            } else {
+                m.set(single_row, 2, &body.single_c);
+            }
+
+            m.set(single_row, 3, &body.pos_d); // D
+            m.set(single_row, 4, &body.pos_ef); // E
+            m.set(single_row, 5, &body.pos_ef); // F
+            m.set(single_row, 6, &body.pos_g); // G
+            m.set(single_row, 7, &body.pos_h); // H
+        }
+    }
+
+    // === Total-Zeile ===
+    m.set(layout.total_row, 1, &body.total_b); // B
+    m.set(layout.total_row, 2, &body.total_c); // C
+    m.set(layout.total_row, 3, &body.total_value); // D
+    m.set(layout.total_row, 4, &body.total_value); // E
+    m.set(layout.total_row, 5, &body.total_value); // F
+    m.set(layout.total_row, 6, &body.total_pct); // G
+    m.set(layout.total_row, 7, &body.total_h); // H
 }

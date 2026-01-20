@@ -5,8 +5,11 @@
 //! - Automatische Auswertungsreihenfolge
 //! - Unterstützung dynamischer Bereiche
 
+use super::body::{write_body_structure, BodyConfig, BodyLayout, BodyResult};
 use super::definitions::build_registry;
-use super::formats::{build_format_matrix, FormatMatrix, ReportStyles, SectionStyles};
+use super::formats::{
+    build_format_matrix, extend_format_matrix_with_body, FormatMatrix, ReportStyles, SectionStyles,
+};
 use super::layout;
 use super::registry::{CellAddr, CellKind, CellRegistry, EvalContext};
 use super::sections::{write_header_section, write_panel_section, write_table_section};
@@ -51,6 +54,47 @@ pub fn write_report_v2(
     layout::setup_freeze_panes(ws, 9)?;
 
     Ok(())
+}
+
+/// Schreibt den kompletten Finanzbericht MIT dynamischem Body-Bereich
+pub fn write_report_v2_with_body(
+    ws: &mut Worksheet,
+    styles: &ReportStyles,
+    suffix: &str,
+    values: &ReportValues,
+    body_config: &BodyConfig,
+) -> Result<BodyResult, XlsxError> {
+    // 1. Registry erstellen (für statischen Bereich)
+    let registry = build_registry()
+        .map_err(|e| XlsxError::ParameterError(format!("Registry error: {}", e)))?;
+
+    // 2. Body-Layout berechnen
+    let body_layout = BodyLayout::compute(body_config);
+
+    // 3. Alle statischen Zellen evaluieren
+    let computed = evaluate_all_cells(&registry, values);
+
+    // 4. FormatMatrix erstellen (statisch + body)
+    let sec = SectionStyles::new(styles);
+    let mut fmt = build_format_matrix(styles, &sec);
+    extend_format_matrix_with_body(&mut fmt, styles, &body_layout);
+
+    // 5. Statische Sections schreiben
+    let lang_val = values.language().unwrap_or("");
+    write_header_section(ws, &fmt, suffix, lang_val)?;
+    write_table_section(ws, &fmt)?;
+    write_panel_section(ws, &fmt, values)?;
+
+    // 6. Statische Zellen aus Registry schreiben
+    write_cells_from_registry(ws, &registry, &computed, &fmt)?;
+
+    // 7. Dynamischen Body schreiben
+    let body_result = write_body_structure(ws, &fmt, body_config)?;
+
+    // 8. Freeze Pane
+    layout::setup_freeze_panes(ws, 9)?;
+
+    Ok(body_result)
 }
 
 /// Evaluiert alle Zellen und gibt die berechneten Werte zurück
