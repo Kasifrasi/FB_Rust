@@ -519,23 +519,6 @@ fn write_with_format(
     Ok(())
 }
 
-/// Schreibt Formel mit Format (locked)
-fn write_formula_with_format(
-    ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    row: u32,
-    col: u16,
-    formula: &str,
-) -> Result<(), XlsxError> {
-    let formula = Formula::new(formula);
-    if let Some(format) = fmt.get_locked(row, col) {
-        ws.write_formula_with_format(row, col, formula, &format)?;
-    } else {
-        ws.write_formula(row, col, formula)?;
-    }
-    Ok(())
-}
-
 /// Schreibt Formel mit Format und gecachtem Ergebnis (locked)
 ///
 /// Das gecachte Ergebnis wird in die Excel-Formel als `result` eingebettet,
@@ -688,26 +671,6 @@ fn write_cell_value(
                 ws.write_string(row, col, d)?;
             }
         }
-    }
-    Ok(())
-}
-
-/// Schreibt Formel in gemergten Bereich (col_start:col_end)
-fn write_merged_formula(
-    ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    row: u32,
-    col_start: u16,
-    col_end: u16,
-    formula: &str,
-) -> Result<(), XlsxError> {
-    let formula = Formula::new(formula);
-    if let Some(format) = fmt.get_locked(row, col_start) {
-        ws.merge_range(row, col_start, row, col_end, "", &format)?;
-        ws.write_formula_with_format(row, col_start, formula, &format)?;
-    } else {
-        ws.merge_range(row, col_start, row, col_end, "", &Format::new())?;
-        ws.write_formula(row, col_start, formula)?;
     }
     Ok(())
 }
