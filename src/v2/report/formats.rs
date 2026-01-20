@@ -790,10 +790,8 @@ pub struct BodyStyles {
     pub pos_h: Format,
 
     // === Category Footer (grau fill, bold) ===
-    /// B: Sum-Label via VLOOKUP
-    pub footer_b: Format,
-    /// C: leer
-    pub footer_c: Format,
+    /// B:C merged: Sum-Label via VLOOKUP (keine rechte border auf B, da merged)
+    pub footer_bc: Format,
     /// D-F: SUMPRODUCT Formeln
     pub footer_value: Format,
     /// G: Ratio-Formel
@@ -809,10 +807,8 @@ pub struct BodyStyles {
     // D-H: gleich wie pos_*
 
     // === Total Row (grau fill, bold, medium bottom) ===
-    /// B: "Gesamt" Label
-    pub total_b: Format,
-    /// C: leer
-    pub total_c: Format,
+    /// B:C merged: "Gesamt" Label
+    pub total_bc: Format,
     /// D-F: SUM Formeln
     pub total_value: Format,
     /// G: Ratio-Formel
@@ -931,14 +927,14 @@ impl BodyStyles {
             .set_pattern(FormatPattern::Solid)
             .set_bold();
 
-        let footer_b = gray_bold
+        // B:C merged - linksbündig, left border (medium), right border (thin)
+        let footer_bc = gray_bold
             .clone()
+            .set_align(FormatAlign::Left)
             .set_border_left(medium)
             .set_border_top(thin)
             .set_border_bottom(thin)
             .set_border_right(thin);
-
-        let footer_c = gray_bold.clone().set_border(thin);
 
         let footer_value = gray_bold
             .clone()
@@ -980,18 +976,13 @@ impl BodyStyles {
             .set_border(thin);
 
         // === Total Row (grau, medium bottom) ===
-        let total_b = gray_bold
+        // B:C merged - linksbündig, left border (medium), right border (thin)
+        let total_bc = gray_bold
             .clone()
+            .set_align(FormatAlign::Left)
             .set_border_left(medium)
             .set_border_top(thin)
             .set_border_bottom(medium)
-            .set_border_right(thin);
-
-        let total_c = gray_bold
-            .clone()
-            .set_border_top(thin)
-            .set_border_bottom(medium)
-            .set_border_left(thin)
             .set_border_right(thin);
 
         let total_value = gray_bold
@@ -1031,15 +1022,13 @@ impl BodyStyles {
             pos_ef,
             pos_g,
             pos_h,
-            footer_b,
-            footer_c,
+            footer_bc,
             footer_value,
             footer_pct,
             footer_h,
             single_b,
             single_c,
-            total_b,
-            total_c,
+            total_bc,
             total_value,
             total_pct,
             total_h,
@@ -1086,9 +1075,8 @@ pub fn extend_format_matrix_with_body(
         }
 
         if let Some(footer_row) = cat.footer_row {
-            // Footer-Zeile
-            m.set(footer_row, 1, &body.footer_b); // B
-            m.set(footer_row, 2, &body.footer_c); // C
+            // Footer-Zeile (B:C wird gemerged im Writer, Format nur für B gesetzt)
+            m.set(footer_row, 1, &body.footer_bc); // B:C merged
             m.set(footer_row, 3, &body.footer_value); // D
             m.set(footer_row, 4, &body.footer_value); // E
             m.set(footer_row, 5, &body.footer_value); // F
@@ -1117,9 +1105,8 @@ pub fn extend_format_matrix_with_body(
         }
     }
 
-    // === Total-Zeile ===
-    m.set(layout.total_row, 1, &body.total_b); // B
-    m.set(layout.total_row, 2, &body.total_c); // C
+    // === Total-Zeile (B:C wird gemerged im Writer) ===
+    m.set(layout.total_row, 1, &body.total_bc); // B:C merged
     m.set(layout.total_row, 3, &body.total_value); // D
     m.set(layout.total_row, 4, &body.total_value); // E
     m.set(layout.total_row, 5, &body.total_value); // F

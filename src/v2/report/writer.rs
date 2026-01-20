@@ -12,7 +12,9 @@ use super::formats::{
 };
 use super::layout;
 use super::registry::{CellAddr, CellKind, CellRegistry, EvalContext};
-use super::sections::{write_header_section, write_panel_section, write_table_section};
+use super::sections::{
+    write_header_section, write_panel_section, write_prebody_section, write_table_section,
+};
 use super::values::{CellValue, ReportValues};
 use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
 use std::collections::HashMap;
@@ -84,6 +86,7 @@ pub fn write_report_v2_with_body(
     write_header_section(ws, &fmt, suffix, lang_val)?;
     write_table_section(ws, &fmt)?;
     write_panel_section(ws, &fmt, values)?;
+    write_prebody_section(ws, styles)?;
 
     // 6. Statische Zellen aus Registry schreiben
     write_cells_from_registry(ws, &registry, &computed, &fmt)?;

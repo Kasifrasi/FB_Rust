@@ -11,7 +11,7 @@
 use super::config::BodyConfig;
 use super::layout::{BodyLayout, CategoryLayout, TOTAL_LABEL_INDEX};
 use crate::v2::report::formats::FormatMatrix;
-use rust_xlsxwriter::{Formula, Worksheet, XlsxError};
+use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
 
 /// Ergebnis der Body-Generierung
 #[derive(Debug, Clone)]
@@ -98,12 +98,9 @@ fn write_multi_row_category(
     }
 
     // === Footer-Zeile ===
-    // B: VLOOKUP Sum-Label
+    // B:C merged: VLOOKUP Sum-Label
     let sum_label_formula = vlookup_formula(cat.meta.sum_label_index);
-    write_formula_with_format(ws, fmt, footer_row, 1, &sum_label_formula)?;
-
-    // C: Blank
-    write_blank_with_format(ws, fmt, footer_row, 2)?;
+    write_merged_formula(ws, fmt, footer_row, 1, 2, &sum_label_formula)?;
 
     // D-F: SUMPRODUCT Formeln
     for col in 3..=5 {
@@ -149,12 +146,9 @@ fn write_total_row(
 ) -> Result<(), XlsxError> {
     let row = layout.total_row;
 
-    // B: VLOOKUP "Gesamt" Label
+    // B:C merged: VLOOKUP "Gesamt" Label
     let label_formula = vlookup_formula(TOTAL_LABEL_INDEX);
-    write_formula_with_format(ws, fmt, row, 1, &label_formula)?;
-
-    // C: Blank
-    write_blank_with_format(ws, fmt, row, 2)?;
+    write_merged_formula(ws, fmt, row, 1, 2, &label_formula)?;
 
     // D-F: SUM Formeln (summiert Footer + Single-Rows)
     let footer_rows = layout.footer_rows();
@@ -270,6 +264,26 @@ fn write_blank_with_format(
 ) -> Result<(), XlsxError> {
     if let Some(format) = fmt.get(row, col) {
         ws.write_blank(row, col, format)?;
+    }
+    Ok(())
+}
+
+/// Schreibt Formel in gemergten Bereich (col_start:col_end)
+fn write_merged_formula(
+    ws: &mut Worksheet,
+    fmt: &FormatMatrix,
+    row: u32,
+    col_start: u16,
+    col_end: u16,
+    formula: &str,
+) -> Result<(), XlsxError> {
+    let formula = Formula::new(formula);
+    if let Some(format) = fmt.get_locked(row, col_start) {
+        ws.merge_range(row, col_start, row, col_end, "", &format)?;
+        ws.write_formula_with_format(row, col_start, formula, &format)?;
+    } else {
+        ws.merge_range(row, col_start, row, col_end, "", &Format::new())?;
+        ws.write_formula(row, col_start, formula)?;
     }
     Ok(())
 }

@@ -3,6 +3,7 @@
 //! Generiert eine Excel-Datei mit dem dynamischen Body-Bereich.
 //! Öffne die Datei in Excel um das Layout zu prüfen.
 
+use kmw_fb_rust::v2::lang::build_sheet as build_sprachversionen;
 use kmw_fb_rust::v2::report::layout::setup_sheet;
 use kmw_fb_rust::v2::report::ApiKey;
 use kmw_fb_rust::v2::report::{write_report_v2_with_body, BodyConfig, ReportStyles, ReportValues};
@@ -13,6 +14,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut workbook = Workbook::new();
     let styles = ReportStyles::new();
+
+    // Sprachversionen-Sheet hinzufügen (für VLOOKUP-Formeln)
+    build_sprachversionen(&mut workbook)?;
 
     // Worksheet erstellen und einrichten
     let ws = workbook.add_worksheet();
