@@ -125,10 +125,7 @@ pub fn write_footer(
         .set_num_format("#,##0.00");
 
     // Input-Format mit Hintergrundfarbe (unlocked für Eingabe)
-    let input_format = number_right
-        .clone()
-        .set_unlocked()
-        .set_background_color(styles.fill_input);
+    let input_format = number_right.clone().set_background_color(styles.fill_input);
 
     // === BORDER-FORMATE ===
     let border_medium = FormatBorder::Medium;
@@ -476,7 +473,6 @@ pub fn write_footer_values(
     let base_input = Format::new()
         .set_font_name("Arial")
         .set_font_size(10.0)
-        .set_unlocked()
         .set_background_color(styles.fill_input)
         .set_align(FormatAlign::Right)
         .set_align(FormatAlign::VerticalCenter)

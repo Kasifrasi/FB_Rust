@@ -71,12 +71,6 @@ pub mod addr {
     // Header Input Cells
     pub const E2: CellAddr = CellAddr::new(1, 4); // Sprache
     pub const E3: CellAddr = CellAddr::new(2, 4); // Währung
-    pub const D5: CellAddr = CellAddr::new(4, 3); // Projektnummer
-    pub const D6: CellAddr = CellAddr::new(5, 3); // Projekttitel
-    pub const E8: CellAddr = CellAddr::new(7, 4); // Projektstart
-    pub const G8: CellAddr = CellAddr::new(7, 6); // Projektende
-    pub const E9: CellAddr = CellAddr::new(8, 4); // Berichtszeitraum Start
-    pub const G9: CellAddr = CellAddr::new(8, 6); // Berichtszeitraum Ende
 }
 
 // ============================================================================

@@ -32,6 +32,5 @@ pub use format::{
     ValidationTarget,
 };
 pub use writer::{
-    apply_report_options, setup_default_column_format, setup_freeze_panes, setup_sheet,
-    write_report_with_options, MergeRange,
+    apply_report_options, setup_freeze_panes, setup_sheet, write_report_with_options, MergeRange,
 };

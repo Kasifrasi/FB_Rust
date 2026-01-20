@@ -26,9 +26,11 @@ impl FormatMatrix {
         }
     }
 
-    /// Setzt das Format für eine Zelle
+    /// Setzt das Format für eine Zelle (automatisch unlocked)
     pub fn set(&mut self, row: u32, col: u16, format: &Format) {
-        self.formats.insert((row, col), format.clone());
+        // Alle Zellen sind standardmäßig unlocked - nur Formeln werden locked
+        self.formats
+            .insert((row, col), format.clone().set_unlocked());
     }
 
     /// Holt das Format für eine Zelle (Standard - unlocked durch Default-Format)
@@ -206,14 +208,12 @@ impl ReportStyles {
 
         let body_input = base
             .clone()
-            .set_unlocked()
             .set_border(border_thin)
             .set_background_color(fill_input)
             .set_num_format("#,##0.00");
 
         let body_calc = base
             .clone()
-            .set_unlocked()
             .set_border(border_thin)
             .set_background_color(fill_input)
             .set_num_format("#,##0.00");
@@ -222,7 +222,6 @@ impl ReportStyles {
 
         let body_right = base
             .clone()
-            .set_unlocked()
             .set_border(border_thin)
             .set_background_color(fill_input)
             .set_border_right(border_medium);
@@ -394,14 +393,12 @@ impl SectionStyles {
         let fmt_d5 = s
             .base
             .clone()
-            .set_unlocked()
             .set_background_color(s.fill_input)
             .set_border_bottom(s.border_thin);
 
         let fmt_d6 = s
             .base
             .clone()
-            .set_unlocked()
             .set_background_color(s.fill_input)
             .set_align(FormatAlign::Left)
             .set_align(FormatAlign::Top)
@@ -411,7 +408,6 @@ impl SectionStyles {
         let fmt_row7_base = s.base.clone().set_border_bottom(s.border_thin);
         let fmt_row7_date = fmt_row7_base
             .clone()
-            .set_unlocked()
             .set_background_color(s.fill_input)
             .set_num_format("mm-dd-yy")
             .set_align(FormatAlign::Left);
@@ -429,7 +425,6 @@ impl SectionStyles {
         let input_dotted = s
             .base
             .clone()
-            .set_unlocked()
             .set_background_color(s.fill_input)
             .set_border(s.border_dotted);
 
@@ -886,7 +881,6 @@ impl BodyStyles {
         let pos_c = s
             .base
             .clone()
-            .set_unlocked()
             .set_background_color(s.fill_input)
             .set_text_wrap()
             .set_border(thin);
@@ -894,7 +888,6 @@ impl BodyStyles {
         let pos_d = s
             .base
             .clone()
-            .set_unlocked()
             .set_background_color(s.fill_value)
             .set_text_wrap()
             .set_num_format("#,##0.00")
@@ -903,7 +896,6 @@ impl BodyStyles {
         let pos_ef = s
             .base
             .clone()
-            .set_unlocked()
             .set_background_color(s.fill_input)
             .set_text_wrap()
             .set_num_format("#,##0.00")
@@ -919,7 +911,6 @@ impl BodyStyles {
         let pos_h = s
             .base
             .clone()
-            .set_unlocked()
             .set_background_color(s.fill_input)
             .set_text_wrap()
             .set_border_left(thin)

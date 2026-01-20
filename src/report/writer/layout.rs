@@ -7,7 +7,7 @@
 //! - Freeze Panes
 //! - Page Setup
 
-use rust_xlsxwriter::{Format, Worksheet, XlsxError};
+use rust_xlsxwriter::{Worksheet, XlsxError};
 
 // ============================================================================
 // Merge-Definition
@@ -99,20 +99,6 @@ fn setup_row_heights(ws: &mut Worksheet) -> Result<(), XlsxError> {
 
 pub fn setup_freeze_panes(ws: &mut Worksheet, row: u32) -> Result<(), XlsxError> {
     ws.set_freeze_panes(row, 0)?;
-    Ok(())
-}
-
-// ============================================================================
-// Default Column Format (unlocked)
-// ============================================================================
-
-pub fn setup_default_column_format(
-    ws: &mut Worksheet,
-    unlocked_format: &Format,
-) -> Result<(), XlsxError> {
-    for col in 0..1000u16 {
-        ws.set_column_format(col, unlocked_format)?;
-    }
     Ok(())
 }
 

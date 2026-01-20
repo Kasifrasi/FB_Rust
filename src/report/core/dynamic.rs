@@ -9,8 +9,6 @@
 use super::registry::CellAddr;
 use crate::lang::data::TEXT_MATRIX;
 use crate::report::api::{CellValue, ReportValues};
-use crate::report::format::FormatMatrix;
-use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -321,35 +319,6 @@ impl DynamicSectionDef {
 // Evaluation
 // ============================================================================
 
-/// Evaluiert alle dynamischen Zellen
-pub fn evaluate_dynamic_cells(
-    registry: &DynamicRegistry,
-    base_computed: &HashMap<CellAddr, CellValue>,
-    dynamic_values: &HashMap<CellAddr, CellValue>,
-    api_values: &ReportValues,
-) -> HashMap<CellAddr, CellValue> {
-    let mut result = dynamic_values.clone();
-
-    // Sortiere nach Zeile, dann Spalte
-    let mut addrs: Vec<CellAddr> = registry.formulas.keys().copied().collect();
-    addrs.sort_by(|a, b| a.row.cmp(&b.row).then(a.col.cmp(&b.col)));
-
-    for addr in addrs {
-        if let Some(formula) = registry.formulas.get(&addr) {
-            let ctx = DynamicEvalContext {
-                row: addr.row,
-                computed: base_computed,
-                api_values,
-                dynamic_values: &result,
-            };
-            let value = (formula.eval)(&ctx);
-            result.insert(addr, value);
-        }
-    }
-
-    result
-}
-
 /// Text-Lookup für dynamische Zellen
 fn evaluate_text_lookup_dynamic(ctx: &DynamicEvalContext, index: usize) -> CellValue {
     let language = match ctx.language() {
@@ -373,98 +342,6 @@ fn evaluate_text_lookup_dynamic(ctx: &DynamicEvalContext, index: usize) -> CellV
         .and_then(|row| row.get(text_idx))
         .map(|s| CellValue::Text(s.to_string()))
         .unwrap_or(CellValue::Empty)
-}
-
-// ============================================================================
-// Writing
-// ============================================================================
-
-/// Schreibt dynamische Zellen ins Worksheet
-pub fn write_dynamic_cells(
-    ws: &mut Worksheet,
-    registry: &DynamicRegistry,
-    computed: &HashMap<CellAddr, CellValue>,
-    fmt: &FormatMatrix,
-) -> Result<(), XlsxError> {
-    for (&addr, formula) in &registry.formulas {
-        let value = computed.get(&addr).cloned().unwrap_or(CellValue::Empty);
-
-        // Generiere Excel-Formel wenn Template vorhanden
-        if !formula.template.is_empty() {
-            let excel_row = addr.row + 1;
-            let formula_str = formula.template.replace("{row}", &excel_row.to_string());
-            let excel_formula = Formula::new(&formula_str).set_result(cell_value_to_string(&value));
-
-            if let Some(format) = fmt.get_locked(addr.row, addr.col) {
-                ws.write_formula_with_format(addr.row, addr.col, excel_formula, &format)?;
-            } else {
-                let locked = Format::new().set_locked();
-                ws.write_formula_with_format(addr.row, addr.col, excel_formula, &locked)?;
-            }
-        } else {
-            // Direkter Wert
-            write_cell_value(ws, addr, &value, fmt)?;
-        }
-    }
-
-    // API-Zellen (werden normalerweise von außen beschrieben)
-    // Hier nur leere Zellen mit Format schreiben
-    for &addr in registry.api_cells.keys() {
-        if let Some(format) = fmt.get(addr.row, addr.col) {
-            ws.write_blank(addr.row, addr.col, &format)?;
-        }
-    }
-
-    Ok(())
-}
-
-fn write_cell_value(
-    ws: &mut Worksheet,
-    addr: CellAddr,
-    value: &CellValue,
-    fmt: &FormatMatrix,
-) -> Result<(), XlsxError> {
-    let format = fmt.get(addr.row, addr.col);
-
-    match value {
-        CellValue::Empty => {
-            if let Some(f) = format {
-                ws.write_blank(addr.row, addr.col, &f)?;
-            }
-        }
-        CellValue::Text(s) => {
-            if let Some(f) = format {
-                ws.write_string_with_format(addr.row, addr.col, s, &f)?;
-            } else {
-                ws.write_string(addr.row, addr.col, s)?;
-            }
-        }
-        CellValue::Number(n) => {
-            if let Some(f) = format {
-                ws.write_number_with_format(addr.row, addr.col, *n, &f)?;
-            } else {
-                ws.write_number(addr.row, addr.col, *n)?;
-            }
-        }
-        CellValue::Date(d) => {
-            if let Some(f) = format {
-                ws.write_string_with_format(addr.row, addr.col, d, &f)?;
-            } else {
-                ws.write_string(addr.row, addr.col, d)?;
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn cell_value_to_string(value: &CellValue) -> String {
-    match value {
-        CellValue::Empty => String::new(),
-        CellValue::Text(s) => s.clone(),
-        CellValue::Number(n) => n.to_string(),
-        CellValue::Date(d) => d.clone(),
-    }
 }
 
 // ============================================================================
