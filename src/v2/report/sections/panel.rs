@@ -7,6 +7,9 @@
 //! Struktur pro Panel:
 //! - Header (Row 10-12): J11:K11 merged, L13-O13 Formeln
 //! - Body (Row 13-30): 18 Zeilen mit Index, Text, Date, Numbers, Calc
+//!
+//! **Hinweis:** Header-Formeln (J11, Q11, L13-O13, S13-V13) werden von
+//! `write_cells_from_registry()` geschrieben. Body-Rows werden hier geschrieben.
 
 use crate::v2::lang::data::TEXT_MATRIX;
 use crate::v2::report::formats::FormatMatrix;
@@ -20,7 +23,12 @@ pub const HEADER_MERGES: &[(MergeRange, u32, u16)] = &[
     (MergeRange::new(10, 16, 10, 17), 10, 16), // Q11:R11
 ];
 
-/// Schreibt die Panel Section
+/// Schreibt die Panel Section (Layout, Merges, Blanks, Body-Rows)
+///
+/// **Hinweis:** Header-Formeln (J11, Q11, L13-O13, S13-V13) werden von
+/// `write_cells_from_registry()` geschrieben. Body-Rows (K/R Spalten mit
+/// VLOOKUP und O/V Calc-Formeln) werden hier direkt geschrieben, da sie
+/// in jeder Zeile wiederholt werden.
 pub fn write_panel_section(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
@@ -36,7 +44,12 @@ pub fn write_panel_section(
     // Header Blanks (Row 11-12)
     write_header_blanks(ws, fmt)?;
 
-    // Body Rows (Row 13-30)
+    // Header Formeln (J11, Q11, L13-O13, S13-V13) werden von
+    // write_cells_from_registry() geschrieben!
+
+    // Body Rows (Row 13-30) - K/R VLOOKUP und O/V Calc-Formeln
+    // Diese werden hier geschrieben, da sie in jeder Zeile wiederholt werden
+    // und die O/V Calc-Formeln bereits in der Registry registriert sind.
     write_body_rows(ws, fmt, f_k, &text_result)?;
 
     Ok(())

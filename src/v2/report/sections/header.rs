@@ -6,6 +6,9 @@
 //! - Projekt-Infos (D5, D6)
 //! - Projektlaufzeit/Berichtszeitraum (Row 7-8)
 //! - Info-Box (J1-O4)
+//!
+//! **Hinweis:** Formeln werden von `write_cells_from_registry()` geschrieben.
+//! Dieser Section-Writer schreibt nur Layout (Merges, Blanks, Werte, Validierungen).
 
 use crate::v2::lang::data::CURRENCIES;
 use crate::v2::report::formats::FormatMatrix;
@@ -45,12 +48,15 @@ pub const BLANKS: &[(u32, u16)] = &[
     (8, 9), // E9, G9, J9
 ];
 
-/// Schreibt die Header Section
+/// Schreibt die Header Section (Layout, Merges, Blanks, Werte, Validierungen)
+///
+/// **Hinweis:** Formeln werden von `write_cells_from_registry()` geschrieben,
+/// nicht hier. Die Registry enthält alle Formeln mit korrekten Evaluierungen.
 pub fn write_header_section(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
     suffix: &str,
-    lang_val: &str,
+    language: Option<&str>,
 ) -> Result<(), XlsxError> {
     // Merges
     write_merges(ws, fmt)?;
@@ -58,11 +64,14 @@ pub fn write_header_section(
     // Blanks
     write_blanks(ws, fmt)?;
 
-    // Werte
-    write_values(ws, fmt, suffix, lang_val)?;
+    // Werte (statische Strings, keine Formeln)
+    write_values(ws, fmt, suffix, language.unwrap_or(""))?;
 
     // Data Validations
     write_validations(ws)?;
+
+    // Formeln werden von write_cells_from_registry() geschrieben!
+    // Die Registry enthält alle VLOOKUP-Formeln mit korrekten Evaluierungen.
 
     Ok(())
 }

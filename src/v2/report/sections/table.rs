@@ -4,6 +4,9 @@
 //! - Table Header (Row 10-13)
 //! - Table Body (Row 14-18)
 //! - Summary Row (Row 19)
+//!
+//! **Hinweis:** Formeln werden von `write_cells_from_registry()` geschrieben.
+//! Dieser Section-Writer schreibt nur Layout (Merges, Blanks, Body-Werte).
 
 use crate::v2::report::formats::FormatMatrix;
 use crate::v2::report::layout::MergeRange;
@@ -61,7 +64,10 @@ pub const BODY_BLANKS: &[(u32, u16)] = &[
     (19, 7), // Summary Row H20
 ];
 
-/// Schreibt die Table Section
+/// Schreibt die Table Section (Layout, Merges, Blanks)
+///
+/// **Hinweis:** Formeln werden von `write_cells_from_registry()` geschrieben,
+/// nicht hier. Die Registry enthält alle Formeln mit korrekten Evaluierungen.
 pub fn write_table_section(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> {
     // Header Merges
     write_merges(ws, fmt, HEADER_MERGES)?;
@@ -77,6 +83,9 @@ pub fn write_table_section(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(),
 
     // Body Values (Zahlen)
     write_body_values(ws, fmt)?;
+
+    // Formeln werden von write_cells_from_registry() geschrieben!
+    // Die Registry enthält alle VLOOKUP- und Berechnungsformeln.
 
     Ok(())
 }

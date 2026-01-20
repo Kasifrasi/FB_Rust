@@ -42,107 +42,28 @@ pub fn write_prebody_section(
     Ok(())
 }
 
-/// Schreibt die Pre-Body Section Layout (nur Merges und Blanks)
+/// Schreibt die Pre-Body Section mit Registry-evaluierten Werten
 ///
-/// Die VLOOKUP-Formeln werden von der Registry geschrieben.
-/// Diese Funktion schreibt nur das visuelle Layout:
-/// - Spacer Row
-/// - Merge-Bereiche für vertikale Zellen
-/// - Blanks mit korrekten Formaten
+/// Diese Version nutzt die zentrale Registry für die VLOOKUP-Evaluierung,
+/// schreibt aber die Formeln selbst mit den korrekten Formaten (Borders, Bold).
+///
+/// Die Formeln sind in der Registry registriert (`definitions.rs::register_prebody_formulas`),
+/// aber diese Funktion schreibt sie mit den spezifischen Formatierungen.
 ///
 /// # Arguments
 /// * `ws` - Das Worksheet
 /// * `styles` - Report-Styles
+/// * `language` - Die Sprache für VLOOKUP-Evaluierung
 pub fn write_prebody_section_unified(
     ws: &mut Worksheet,
     styles: &ReportStyles,
+    language: Option<&str>,
 ) -> Result<(), XlsxError> {
     // Spacer Row 20 (0-basiert: 20 = Excel 21)
     ws.set_row_height(20, 13.5)?;
 
-    // Footer-Tabelle Layout (nur Merges und Blanks)
-    write_footer_table_layout(ws, styles)?;
-
-    Ok(())
-}
-
-/// Schreibt das Layout der Footer-Tabelle (ohne Formeln)
-fn write_footer_table_layout(ws: &mut Worksheet, styles: &ReportStyles) -> Result<(), XlsxError> {
-    let thin = styles.border_thin;
-    let medium = styles.border_medium;
-
-    // === Formate für Footer-Tabelle ===
-
-    // D-H: Vertikale Merge-Zellen (Spaltenüberschriften)
-    let fmt_ft_val = styles
-        .base
-        .clone()
-        .set_align(FormatAlign::Center)
-        .set_align(FormatAlign::VerticalCenter)
-        .set_text_wrap()
-        .set_border_top(medium)
-        .set_border_left(thin)
-        .set_border_right(thin);
-
-    let fmt_ft_val_bold = fmt_ft_val.clone().set_bold();
-    let fmt_ft_right = fmt_ft_val.clone().set_border_right(medium);
-
-    // B-C: Zeilen-Labels
-    let fmt_ft_lbl_b = styles
-        .base
-        .clone()
-        .set_align(FormatAlign::Center)
-        .set_align(FormatAlign::VerticalCenter)
-        .set_text_wrap()
-        .set_border_left(medium)
-        .set_border_top(medium);
-
-    let fmt_ft_lbl_c = styles
-        .base
-        .clone()
-        .set_align(FormatAlign::Center)
-        .set_align(FormatAlign::VerticalCenter)
-        .set_text_wrap()
-        .set_border_top(medium)
-        .set_border_right(thin);
-
-    let fmt_ft_mid = styles
-        .base
-        .clone()
-        .set_align(FormatAlign::Center)
-        .set_align(FormatAlign::VerticalCenter)
-        .set_border_left(medium)
-        .set_border_right(thin);
-
-    let fmt_ft_mid_bold = fmt_ft_mid.clone().set_bold();
-
-    let fmt_ft_bot_bc = styles
-        .base
-        .clone()
-        .set_border_left(medium)
-        .set_border_bottom(thin)
-        .set_border_right(thin);
-
-    // === Row 22-25: Vertikale Merges für D-H ===
-    // Die Formeln werden von der Registry geschrieben, hier nur Merges
-    ws.merge_range(22, 3, 25, 3, "", &fmt_ft_val)?; // D23:D26
-    ws.merge_range(22, 4, 25, 4, "", &fmt_ft_val_bold)?; // E23:E26
-    ws.merge_range(22, 5, 25, 5, "", &fmt_ft_val)?; // F23:F26
-    ws.merge_range(22, 6, 25, 6, "", &fmt_ft_val)?; // G23:G26
-    ws.merge_range(22, 7, 25, 7, "", &fmt_ft_right)?; // H23:H26
-
-    // B23, C23 - Blanks
-    ws.write_blank(22, 1, &fmt_ft_lbl_b)?;
-    ws.write_blank(22, 2, &fmt_ft_lbl_c)?;
-
-    // Row 23: B24:C24 merged
-    ws.merge_range(23, 1, 23, 2, "", &fmt_ft_mid_bold)?;
-
-    // Row 24: B25:C25 merged
-    ws.merge_range(24, 1, 24, 2, "", &fmt_ft_mid)?;
-
-    // Row 25: B26:C26 merged
-    ws.merge_range(25, 1, 25, 2, "", &fmt_ft_bot_bc)?;
+    // Footer-Tabelle mit Formeln und korrekten Formaten
+    write_footer_table(ws, styles, language)?;
 
     Ok(())
 }

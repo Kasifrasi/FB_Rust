@@ -85,6 +85,20 @@ pub fn build_registry(
 // ============================================================================
 // Formula Cells
 // ============================================================================
+//
+// Alle Formeln werden in der Registry registriert für:
+// - Einheitliche Evaluierung mit topologischer Sortierung
+// - Einheitliches Caching in computed HashMap
+// - Zentrale Verwaltung aller Zellen
+//
+// Die Registry enthält:
+// - API-Zellen (Eingabefelder)
+// - Statische Formeln (Header, Table, Panel)
+// - Dynamische Body-Formeln (basierend auf BodyConfig)
+// - Dynamische Footer-Formeln (basierend auf FooterLayout)
+//
+// Section-Writer schreiben nur Layout (Merges, Blanks, Werte, Validierungen).
+// Formeln werden von write_cells_from_registry() mit FormatMatrix-Formaten geschrieben.
 
 fn register_formula_cells(
     registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
@@ -193,7 +207,6 @@ fn register_formula_cells(
 
     // ========================================================================
     // Row 15-19: G16-G19 (Prozent-Formeln) - IFERROR(F/D,0)
-    // HINWEIS: G15 ist leer oder auch Formel - hier nur G16-G19
     // ========================================================================
 
     for i in 1..5u8 {
@@ -258,13 +271,6 @@ fn register_formula_cells(
         register_right_panel_calc(registry, CellAddr::new(row, 21), 19, 20)?;
     }
 
-    // ========================================================================
-    // Pre-Body Section (Rows 22-25): VLOOKUP-Formeln für Spaltenüberschriften
-    // Diese sind statisch und unabhängig vom BodyConfig.
-    // ========================================================================
-
-    register_prebody_formulas(registry)?;
-
     Ok(())
 }
 
@@ -275,6 +281,10 @@ fn register_formula_cells(
 ///                      G23:G26=VLOOKUP(56), H23:H26=VLOOKUP(15)
 /// - Row 23 (Excel 24): B24:C24=VLOOKUP(24) "Ausgaben"
 /// - Row 24 (Excel 25): B25:C25=VLOOKUP(10) "Währung"
+///
+/// HINWEIS: Diese Funktion wird aktuell nicht verwendet, da die Prebody-Formeln
+/// von write_prebody_section() mit speziellen Formaten geschrieben werden.
+#[allow(dead_code)]
 fn register_prebody_formulas(
     registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
 ) -> Result<(), RegistryError> {
@@ -666,7 +676,7 @@ mod tests {
         // Prüfe dass Formeln registriert sind
         assert!(registry.is_formula(CellAddr::new(0, 1))); // B1
 
-        // Prüfe Anzahl
+        // Prüfe Anzahl (API + Formeln)
         assert!(registry.len() > 50);
     }
 

@@ -51,13 +51,12 @@ pub fn write_report_v2(
     let sec = SectionStyles::new(styles);
     let fmt = build_format_matrix(styles, &sec);
 
-    // 4. Statische Sections schreiben (Layout, Merges, etc.)
-    let lang_val = values.language().unwrap_or("");
-    write_header_section(ws, &fmt, suffix, lang_val)?;
+    // 4. Statische Sections schreiben (Layout, Merges, Blanks)
+    write_header_section(ws, &fmt, suffix, values.language())?;
     write_table_section(ws, &fmt)?;
     write_panel_section(ws, &fmt, values)?;
 
-    // 5. Alle Zellen aus Registry schreiben
+    // 5. Alle Zellen aus Registry schreiben (API-Werte + Formeln)
     write_cells_from_registry(ws, &registry, &computed, &fmt)?;
 
     // 6. Freeze Pane
@@ -92,9 +91,8 @@ pub fn write_report_v2_with_body(
     let mut fmt = build_format_matrix(styles, &sec);
     extend_format_matrix_with_body(&mut fmt, styles, &body_layout);
 
-    // 5. Statische Sections schreiben
-    let lang_val = values.language().unwrap_or("");
-    write_header_section(ws, &fmt, suffix, lang_val)?;
+    // 5. Statische Sections schreiben (Layout, Merges, Blanks)
+    write_header_section(ws, &fmt, suffix, values.language())?;
     write_table_section(ws, &fmt)?;
     write_panel_section(ws, &fmt, values)?;
     write_prebody_section(ws, styles, values.language())?;
@@ -197,13 +195,12 @@ pub fn write_report_v2_with_body_unified(
     let mut fmt = build_format_matrix(styles, &sec);
     extend_format_matrix_with_body(&mut fmt, styles, &body_layout);
 
-    // 7. Statische Sections schreiben
-    let lang_val = values.language().unwrap_or("");
-    write_header_section(ws, &fmt, suffix, lang_val)?;
+    // 7. Statische Sections schreiben (Layout, Merges, Blanks)
+    write_header_section(ws, &fmt, suffix, values.language())?;
     write_table_section(ws, &fmt)?;
     write_panel_section(ws, &fmt, values)?;
-    // Prebody: nur Layout, Formeln kommen aus Registry
-    write_prebody_section_unified(ws, styles)?;
+    // Prebody: Formeln mit korrekten Formaten (Borders, Bold)
+    write_prebody_section_unified(ws, styles, values.language())?;
 
     // 8. ALLE Zellen aus Registry schreiben (statisch + Body + Footer, einheitlich!)
     write_cells_from_registry(ws, &registry, &computed, &fmt)?;
