@@ -115,26 +115,6 @@ pub fn write_report_v2_with_body(
         .get(&CellAddr::new(19, 5))
         .and_then(|v| v.as_number());
 
-    // DEBUG: Zeige Footer-Werte
-    eprintln!("DEBUG Footer-Werte:");
-    eprintln!("  e_income (E20): {:?}", e_income);
-    eprintln!("  e_total (body): {:?}", body_result.e_total);
-    eprintln!("  f_income (F20): {:?}", f_income);
-    eprintln!("  f_total (body): {:?}", body_result.f_total);
-    eprintln!("  bank: {:?}", values.footer_bank());
-    eprintln!("  kasse: {:?}", values.footer_kasse());
-    eprintln!("  sonstiges: {:?}", values.footer_sonstiges());
-    if let (Some(e_inc), Some(e_tot)) = (e_income, body_result.e_total) {
-        eprintln!("  E_saldo (e_inc - e_tot): {}", e_inc - e_tot);
-    }
-    if let (Some(b), Some(k), Some(s)) = (
-        values.footer_bank(),
-        values.footer_kasse(),
-        values.footer_sonstiges(),
-    ) {
-        eprintln!("  SUM(bank,kasse,sonstiges): {}", b + k + s);
-    }
-
     let footer_layout = write_footer(
         ws,
         styles,
