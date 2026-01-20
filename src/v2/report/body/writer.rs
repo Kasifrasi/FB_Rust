@@ -52,6 +52,8 @@ pub struct BodyResult {
     pub last_row: u32,
     /// Zeile der Gesamt-Summe
     pub total_row: u32,
+    /// E-Spalte Total (für Footer Check-Formel)
+    pub e_total: Option<f64>,
     /// F-Spalte Total (für Footer Check-Formel)
     pub f_total: Option<f64>,
 }
@@ -259,13 +261,15 @@ pub fn write_body_structure_with_values(
     // 5. Ratio-Formeln anwenden (mit gecachten Ergebnissen)
     write_ratio_formulas(ws, fmt, &layout, &cache)?;
 
-    // F-Total aus Cache holen (col 5 = F)
+    // E-Total und F-Total aus Cache holen (col 4 = E, col 5 = F)
+    let e_total = cache.totals.get(&4).copied();
     let f_total = cache.totals.get(&5).copied();
 
     Ok(BodyResult {
         layout: layout.clone(),
         last_row: layout.last_row,
         total_row: layout.total_row,
+        e_total,
         f_total,
     })
 }

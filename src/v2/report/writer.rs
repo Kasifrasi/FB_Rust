@@ -33,6 +33,9 @@ pub fn write_report_v2(
     suffix: &str,
     values: &ReportValues,
 ) -> Result<(), XlsxError> {
+    // Standardwert für Formel-Ergebnisse auf "" setzen (statt 0)
+    ws.set_formula_result_default("");
+
     // 1. Registry erstellen
     let registry = build_registry().map_err(|e| {
         // Konvertiere RegistryError zu XlsxError
@@ -69,6 +72,9 @@ pub fn write_report_v2_with_body(
     values: &ReportValues,
     body_config: &BodyConfig,
 ) -> Result<BodyResult, XlsxError> {
+    // Standardwert für Formel-Ergebnisse auf "" setzen (statt 0)
+    ws.set_formula_result_default("");
+
     // 1. Registry erstellen (für statischen Bereich)
     let registry = build_registry()
         .map_err(|e| XlsxError::ParameterError(format!("Registry error: {}", e)))?;
@@ -101,10 +107,33 @@ pub fn write_report_v2_with_body(
     // income_row = 19 (0-indexed, Zeile 20 in Excel)
     let income_row = 19u32;
 
-    // F20 (Einnahmen-Summe) aus computed holen für Check-Formel Evaluierung
+    // E20 und F20 (Einnahmen-Summe) aus computed holen für Check-Formel Evaluierung
+    let e_income = computed
+        .get(&CellAddr::new(19, 4))
+        .and_then(|v| v.as_number());
     let f_income = computed
         .get(&CellAddr::new(19, 5))
         .and_then(|v| v.as_number());
+
+    // DEBUG: Zeige Footer-Werte
+    eprintln!("DEBUG Footer-Werte:");
+    eprintln!("  e_income (E20): {:?}", e_income);
+    eprintln!("  e_total (body): {:?}", body_result.e_total);
+    eprintln!("  f_income (F20): {:?}", f_income);
+    eprintln!("  f_total (body): {:?}", body_result.f_total);
+    eprintln!("  bank: {:?}", values.footer_bank());
+    eprintln!("  kasse: {:?}", values.footer_kasse());
+    eprintln!("  sonstiges: {:?}", values.footer_sonstiges());
+    if let (Some(e_inc), Some(e_tot)) = (e_income, body_result.e_total) {
+        eprintln!("  E_saldo (e_inc - e_tot): {}", e_inc - e_tot);
+    }
+    if let (Some(b), Some(k), Some(s)) = (
+        values.footer_bank(),
+        values.footer_kasse(),
+        values.footer_sonstiges(),
+    ) {
+        eprintln!("  SUM(bank,kasse,sonstiges): {}", b + k + s);
+    }
 
     let footer_layout = write_footer(
         ws,
@@ -112,6 +141,8 @@ pub fn write_report_v2_with_body(
         body_result.layout.total_row,
         income_row,
         values.language(),
+        e_income,
+        body_result.e_total,
         f_income,
         body_result.f_total,
         values.footer_bank(),

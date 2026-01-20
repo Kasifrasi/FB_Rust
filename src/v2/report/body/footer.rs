@@ -65,6 +65,8 @@ impl FooterLayout {
 /// * `total_row` - Die Total-Zeile des Body (0-indexed)
 /// * `income_row` - Die Einnahmen-Zeile (Zeile 20, 0-indexed = 19)
 /// * `language` - Die Sprache für VLOOKUP-Evaluierung (z.B. Some("deutsch"))
+/// * `e_income` - E-Spalte Einnahmen (für Check-Formel)
+/// * `e_total` - E-Spalte Total (für Check-Formel)
 /// * `f_income` - F-Spalte Einnahmen (für Check-Formel)
 /// * `f_total` - F-Spalte Total (für Check-Formel)
 /// * `bank` - Bank-Wert (für OK-Formel)
@@ -79,6 +81,8 @@ pub fn write_footer(
     total_row: u32,
     income_row: u32,
     language: Option<&str>,
+    e_income: Option<f64>,
+    e_total: Option<f64>,
     f_income: Option<f64>,
     f_total: Option<f64>,
     bank: Option<f64>,
@@ -89,10 +93,8 @@ pub fn write_footer(
     let s = layout.start_row;
 
     // === BASIS-FORMATE ===
-    let base = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_unlocked();
+    // Formeln sind immer gesperrt (locked ist default)
+    let base = Format::new().set_font_name("Arial").set_font_size(10.0);
 
     let normal = base
         .clone()
@@ -122,8 +124,11 @@ pub fn write_footer(
         .set_align(FormatAlign::VerticalCenter)
         .set_num_format("#,##0.00");
 
-    // Input-Format mit Hintergrundfarbe
-    let input_format = number_right.clone().set_background_color(styles.fill_input);
+    // Input-Format mit Hintergrundfarbe (unlocked für Eingabe)
+    let input_format = number_right
+        .clone()
+        .set_unlocked()
+        .set_background_color(styles.fill_input);
 
     // === BORDER-FORMATE ===
     let border_medium = FormatBorder::Medium;
@@ -243,34 +248,40 @@ pub fn write_footer(
         income_row + 1, // F20 (1-indexed)
         total_row + 1   // F total (1-indexed)
     );
-    // Evaluiere Check-Formel: Wenn E_saldo == F_income - F_total → "✓"
-    let check_result = match (f_income, f_total, bank, kasse, sonstiges) {
-        (Some(f_inc), Some(f_tot), Some(b), Some(k), Some(so)) => {
-            let e_saldo = b + k + so; // E saldo = Bank + Kasse + Sonstiges
-            let f_diff = f_inc - f_tot;
-            if (e_saldo * 100.0).round() / 100.0 == (f_diff * 100.0).round() / 100.0 {
-                Some("✓".to_string())
+    // Evaluiere Check-Formel: Wenn ROUND(E_income - E_total, 2) == ROUND(F_income - F_total, 2) → "✓"
+    // WICHTIG: Wenn Ergebnis leer ist, KEIN set_result() aufrufen - sonst zeigt Excel 0 statt leer!
+    let check_formula = match (e_income, e_total, f_income, f_total) {
+        (Some(e_inc), Some(e_tot), Some(f_inc), Some(f_tot)) => {
+            let e_diff = (e_inc - e_tot) * 100.0;
+            let f_diff = (f_inc - f_tot) * 100.0;
+            if e_diff.round() == f_diff.round() {
+                // Nur bei Erfolg set_result mit "✓"
+                Formula::new(&check_formula_str).set_result("✓")
             } else {
-                Some(String::new())
+                // Bei leerem Ergebnis: KEIN set_result - Excel evaluiert selbst
+                Formula::new(&check_formula_str)
             }
         }
-        _ => None,
-    };
-    let check_formula = if let Some(result) = check_result {
-        Formula::new(&check_formula_str).set_result(result)
-    } else {
-        Formula::new(&check_formula_str)
+        // Keine Werte: kein set_result
+        _ => Formula::new(&check_formula_str),
     };
     ws.write_formula_with_format(s + 4, 3, check_formula, &fmt_d_s4)?;
 
-    // E: Differenz-Formel, right+top+bottom border (KEIN left border!)
+    // E: Differenz-Formel (E_income - E_total), right+top+bottom border (KEIN left border!)
     let fmt_e_s4 = number_right
         .clone()
         .set_border_right(border_medium)
         .set_border_top(border_thin)
         .set_border_bottom(border_thin);
-    let diff_formula = format!("=E{}-E{}", income_row + 1, total_row + 1);
-    ws.write_formula_with_format(s + 4, 4, diff_formula.as_str(), &fmt_e_s4)?;
+    let diff_formula_str = format!("=E{}-E{}", income_row + 1, total_row + 1);
+    // Evaluiere Differenz-Formel: E_income - E_total
+    let diff_formula = match (e_income, e_total) {
+        (Some(e_inc), Some(e_tot)) => {
+            Formula::new(&diff_formula_str).set_result((e_inc - e_tot).to_string())
+        }
+        _ => Formula::new(&diff_formula_str),
+    };
+    ws.write_formula_with_format(s + 4, 4, diff_formula, &fmt_e_s4)?;
 
     // =========================================================================
     // ZEILE 5 (s+5): Leer
@@ -308,17 +319,24 @@ pub fn write_footer(
         s + 9 + 1  // sonstiges row (1-indexed)
     );
     // Evaluiere OK-Formel: Wenn E_saldo == SUM(E_bank:E_sonstiges) → "OK"
-    // E_saldo = Bank + Kasse + Sonstiges (aus Differenz-Formel)
+    // E_saldo ist die Differenz E_income - E_total (wird in E s+4 geschrieben)
     // SUM(E_bank:E_sonstiges) = Bank + Kasse + Sonstiges
-    // Diese sind per Definition gleich, also immer "OK" wenn alle Werte vorhanden
-    let ok_result = match (bank, kasse, sonstiges) {
-        (Some(_), Some(_), Some(_)) => Some("OK".to_string()),
-        _ => None,
-    };
-    let ok_formula = if let Some(result) = ok_result {
-        Formula::new(&ok_formula_str).set_result(result)
-    } else {
-        Formula::new(&ok_formula_str)
+    // Wenn E_saldo == Bank + Kasse + Sonstiges → "OK"
+    // WICHTIG: Wenn Ergebnis leer ist, KEIN set_result() aufrufen - sonst zeigt Excel 0 statt leer!
+    let ok_formula = match (e_income, e_total, bank, kasse, sonstiges) {
+        (Some(e_inc), Some(e_tot), Some(b), Some(k), Some(so)) => {
+            let e_saldo = e_inc - e_tot;
+            let sum_inputs = b + k + so;
+            if (e_saldo * 100.0).round() == (sum_inputs * 100.0).round() {
+                // Nur bei Erfolg set_result mit "OK"
+                Formula::new(&ok_formula_str).set_result("OK")
+            } else {
+                // Bei leerem Ergebnis: KEIN set_result - Excel evaluiert selbst
+                Formula::new(&ok_formula_str)
+            }
+        }
+        // Keine Werte: kein set_result
+        _ => Formula::new(&ok_formula_str),
     };
     ws.write_formula_with_format(s + 6, 4, ok_formula, &fmt_e_s6)?;
 

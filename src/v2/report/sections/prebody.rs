@@ -95,9 +95,10 @@ fn write_footer_table(
 
     // === Row 22 (Excel 23): Spaltenüberschriften mit vertikalen Merges ===
 
-    // D23:D26 merged - Referenz auf D11
+    // D23:D26 merged - VLOOKUP(11)
     ws.merge_range(22, 3, 25, 3, "", &fmt_ft_val)?;
-    ws.write_formula_with_format(22, 3, Formula::new("=D11"), &fmt_ft_val)?;
+    let formula_11 = make_vlookup_formula(11, language);
+    ws.write_formula_with_format(22, 3, formula_11, &fmt_ft_val)?;
 
     // E23:E26 merged - VLOOKUP(25) "Ausgaben"
     ws.merge_range(22, 4, 25, 4, "", &fmt_ft_val_bold)?;
@@ -114,9 +115,10 @@ fn write_footer_table(
     let formula_56 = make_vlookup_formula(56, language);
     ws.write_formula_with_format(22, 6, formula_56, &fmt_ft_val)?;
 
-    // H23:H26 merged - Referenz auf H11
+    // H23:H26 merged - VLOOKUP(15)
     ws.merge_range(22, 7, 25, 7, "", &fmt_ft_right)?;
-    ws.write_formula_with_format(22, 7, Formula::new("=H11"), &fmt_ft_right)?;
+    let formula_15 = make_vlookup_formula(15, language);
+    ws.write_formula_with_format(22, 7, formula_15, &fmt_ft_right)?;
 
     // B23, C23 - Blanks
     ws.write_blank(22, 1, &fmt_ft_lbl_b)?;
