@@ -178,7 +178,7 @@ impl ReportStyles {
         let link_style = base
             .clone()
             .set_align(FormatAlign::Left)
-            .set_font_color(blue_link)
+            .set_hyperlink()
             .set_border_left(border_medium)
             .set_border_right(border_medium)
             .set_border_bottom(border_medium);
