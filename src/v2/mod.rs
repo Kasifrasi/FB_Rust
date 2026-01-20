@@ -1,7 +1,11 @@
 pub mod common;
 pub mod lang;
 pub mod report;
+
+#[cfg(test)]
 mod tests;
+
+#[cfg(test)]
 mod tests_right_panel;
 
 // Legacy re-exports (für Abwärtskompatibilität während Übergang)

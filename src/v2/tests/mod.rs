@@ -8,5 +8,6 @@
 
 mod body_config;
 mod body_layout;
+mod integrated_api;
 mod legacy;
 mod position_api;
