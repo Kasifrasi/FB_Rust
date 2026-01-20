@@ -13,5 +13,5 @@ pub mod table;
 
 pub use header::write_header_section;
 pub use panel::write_panel_section;
-pub use prebody::write_prebody_section;
+pub use prebody::{write_prebody_section, write_prebody_section_unified};
 pub use table::write_table_section;

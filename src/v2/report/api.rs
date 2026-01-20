@@ -145,13 +145,17 @@ macro_rules! define_api_cells {
                 /// Welches Feld der Position
                 field: PositionField,
             },
+            /// Footer-Eingabefelder (Bank, Kasse, Sonstiges)
+            ///
+            /// Die Adresse wird zur Laufzeit basierend auf `FooterLayout` berechnet.
+            Footer(FooterField),
         }
 
         impl ApiKey {
             /// Gibt die Zelladresse für statische Keys zurück (0-basiert)
             ///
-            /// Für dynamische Keys (`Position`) wird `None` zurückgegeben -
-            /// diese benötigen ein `BodyLayout` zur Adressberechnung.
+            /// Für dynamische Keys (`Position`, `Footer`) wird `None` zurückgegeben -
+            /// diese benötigen ein `BodyLayout`/`FooterLayout` zur Adressberechnung.
             pub const fn static_addr(&self) -> Option<CellAddr> {
                 match self {
                     // Einzelzellen
@@ -160,13 +164,14 @@ macro_rules! define_api_cells {
                     $( Self::$range_name(i) => Some(CellAddr::new($range_start_row + *i as u32, $range_col)), )*
                     // Dynamische Keys haben keine feste Adresse
                     Self::Position { .. } => None,
+                    Self::Footer(_) => None,
                 }
             }
 
             /// Gibt die Zelladresse zurück (0-basiert)
             ///
-            /// **Panics** für dynamische Keys (`Position`) - verwende `static_addr()`
-            /// oder berechne die Adresse über `BodyLayout::position_addr()`.
+            /// **Panics** für dynamische Keys (`Position`, `Footer`) - verwende `static_addr()`
+            /// oder berechne die Adresse über `BodyLayout::position_addr()` / `FooterLayout`.
             pub const fn addr(&self) -> CellAddr {
                 match self {
                     // Einzelzellen
@@ -175,12 +180,13 @@ macro_rules! define_api_cells {
                     $( Self::$range_name(i) => CellAddr::new($range_start_row + *i as u32, $range_col), )*
                     // Dynamische Keys - sollte nicht direkt aufgerufen werden
                     Self::Position { .. } => panic!("Position keys have no static address"),
+                    Self::Footer(_) => panic!("Footer keys have no static address"),
                 }
             }
 
             /// Prüft ob dieser Key dynamisch ist (Adresse zur Laufzeit)
             pub const fn is_dynamic(&self) -> bool {
-                matches!(self, Self::Position { .. })
+                matches!(self, Self::Position { .. } | Self::Footer(_))
             }
 
             /// Gibt alle statischen API-Keys zurück (für Iteration)

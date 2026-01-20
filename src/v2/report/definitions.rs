@@ -258,6 +258,40 @@ fn register_formula_cells(
         register_right_panel_calc(registry, CellAddr::new(row, 21), 19, 20)?;
     }
 
+    // ========================================================================
+    // Pre-Body Section (Rows 22-25): VLOOKUP-Formeln für Spaltenüberschriften
+    // Diese sind statisch und unabhängig vom BodyConfig.
+    // ========================================================================
+
+    register_prebody_formulas(registry)?;
+
+    Ok(())
+}
+
+/// Registriert die Pre-Body VLOOKUP-Formeln (Zeilen 22-25)
+///
+/// Pre-Body enthält die Spaltenüberschriften zwischen Einnahme-Tabelle und Body:
+/// - Row 22 (Excel 23): D23:D26=VLOOKUP(11), E23:E26=VLOOKUP(25), F23:F26=VLOOKUP(55),
+///                      G23:G26=VLOOKUP(56), H23:H26=VLOOKUP(15)
+/// - Row 23 (Excel 24): B24:C24=VLOOKUP(24) "Ausgaben"
+/// - Row 24 (Excel 25): B25:C25=VLOOKUP(10) "Währung"
+fn register_prebody_formulas(
+    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+) -> Result<(), RegistryError> {
+    // Row 22 (0-basiert): D-H Spaltenüberschriften (vertikal gemerged in Excel)
+    // Die Formeln werden nur in der ersten Zeile des Merge-Bereichs registriert
+    register_text_lookup(registry, CellAddr::new(22, 3), 11)?; // D23 - Index 11
+    register_text_lookup(registry, CellAddr::new(22, 4), 25)?; // E23 - "Ausgaben"
+    register_text_lookup(registry, CellAddr::new(22, 5), 55)?; // F23 - Index 55
+    register_text_lookup(registry, CellAddr::new(22, 6), 56)?; // G23 - Index 56
+    register_text_lookup(registry, CellAddr::new(22, 7), 15)?; // H23 - Index 15
+
+    // Row 23 (0-basiert): B24:C24 merged - VLOOKUP(24)
+    register_text_lookup(registry, CellAddr::new(23, 1), 24)?; // B24 - "Ausgaben" Label
+
+    // Row 24 (0-basiert): B25:C25 merged - VLOOKUP(10) "Währung"
+    register_text_lookup(registry, CellAddr::new(24, 1), 10)?; // B25 - Währung
+
     Ok(())
 }
 

@@ -3,7 +3,7 @@
 //! Dieses Modul speichert alle Eingabewerte.
 //! Nutzt direkt `ApiKey` als Schlüssel - keine redundanten Enums.
 
-use super::api::{ApiKey, PositionField};
+use super::api::{ApiKey, FooterField, PositionField};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -113,9 +113,35 @@ impl ReportValues {
         self
     }
 
-    /// Holt einen Wert für eine API-Zelle
+    /// Holt einen Wert für eine API-Zelle (Referenz)
+    ///
+    /// **Hinweis:** Für `ApiKey::Footer` Keys verwende `get_owned()` stattdessen,
+    /// da diese Werte nicht in der HashMap gespeichert sind.
     pub fn get(&self, key: ApiKey) -> &CellValue {
         self.values.get(&key).unwrap_or(&CellValue::Empty)
+    }
+
+    /// Holt einen Wert für eine API-Zelle (owned)
+    ///
+    /// Diese Methode unterstützt alle Keys inkl. Footer-Keys.
+    pub fn get_owned(&self, key: ApiKey) -> CellValue {
+        match key {
+            ApiKey::Footer(field) => match field {
+                FooterField::Bank => self
+                    .footer_bank
+                    .map(CellValue::Number)
+                    .unwrap_or(CellValue::Empty),
+                FooterField::Kasse => self
+                    .footer_kasse
+                    .map(CellValue::Number)
+                    .unwrap_or(CellValue::Empty),
+                FooterField::Sonstiges => self
+                    .footer_sonstiges
+                    .map(CellValue::Number)
+                    .unwrap_or(CellValue::Empty),
+            },
+            _ => self.values.get(&key).cloned().unwrap_or(CellValue::Empty),
+        }
     }
 
     /// Prüft ob eine Zelle einen Wert hat

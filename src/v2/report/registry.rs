@@ -597,6 +597,75 @@ impl<E> CellRegistry<E> {
     pub fn is_empty(&self) -> bool {
         self.cells.is_empty()
     }
+
+    // ========================================================================
+    // Dynamische Registrierung (für Body, Prebody, Footer)
+    // ========================================================================
+
+    /// Registriert eine dynamische Formel-Zelle
+    ///
+    /// Anders als `register_formula()` validiert diese Methode nicht, dass
+    /// alle Formel-Dependencies bereits registriert sind. Dies ermöglicht
+    /// die Registrierung von Formeln deren Abhängigkeiten erst später
+    /// (z.B. in derselben Batch-Registrierung) hinzugefügt werden.
+    ///
+    /// **Verwende diese Methode für:**
+    /// - Body-Formeln (Ratio, SUMPRODUCT, SUM)
+    /// - Prebody-Formeln (VLOOKUP)
+    /// - Footer-Formeln (Check, Diff)
+    ///
+    /// # Arguments
+    /// * `addr` - Die Zelladresse
+    /// * `formula` - Die Formel-Zelle
+    ///
+    /// # Errors
+    /// - `AlreadyRegistered` wenn die Zelle bereits registriert ist
+    pub fn register_dynamic_formula(
+        &mut self,
+        addr: CellAddr,
+        formula: FormulaCell<E>,
+    ) -> Result<(), RegistryError> {
+        self.check_not_registered(addr, "DynamicFormula")?;
+
+        self.cells.insert(addr, CellKind::Formula(formula));
+        self.formula_cells.insert(addr);
+        self.eval_order = None; // Cache invalidieren
+
+        Ok(())
+    }
+
+    /// Registriert mehrere dynamische API-Zellen auf einmal
+    ///
+    /// Effizienter als mehrere einzelne `register_api_at()` Aufrufe,
+    /// da der Cache nur einmal invalidiert wird.
+    ///
+    /// # Arguments
+    /// * `cells` - Iterator über (ApiKey, CellAddr) Paare
+    pub fn register_dynamic_api_batch(
+        &mut self,
+        cells: impl IntoIterator<Item = (ApiKey, CellAddr)>,
+    ) -> Result<(), RegistryError> {
+        for (key, addr) in cells {
+            self.check_not_registered(addr, "Api")?;
+            self.cells.insert(addr, CellKind::Api(ApiCell { key }));
+            self.api_cells.insert(addr);
+        }
+        self.eval_order = None; // Cache nur einmal invalidieren
+        Ok(())
+    }
+
+    /// Gibt die Anzahl der dynamisch registrierten Zellen zurück
+    ///
+    /// Dynamische Zellen sind alle Zellen mit Adressen >= Zeile 26
+    /// (der erste mögliche Body-Bereich nach dem statischen A1:V25).
+    pub fn dynamic_cell_count(&self) -> usize {
+        self.cells.keys().filter(|addr| addr.row >= 26).count()
+    }
+
+    /// Prüft ob die Registry dynamische Zellen enthält
+    pub fn has_dynamic_cells(&self) -> bool {
+        self.cells.keys().any(|addr| addr.row >= 26)
+    }
 }
 
 impl<E> Default for CellRegistry<E> {
@@ -610,6 +679,9 @@ impl<E> Default for CellRegistry<E> {
 // ============================================================================
 
 /// Kontext für Formel-Auswertung
+///
+/// Stellt einheitliche Zugriffsmethoden für alle Formeln bereit,
+/// sowohl für statische als auch für dynamische Bereiche.
 pub struct EvalContext<'a> {
     /// Bereits berechnete Werte
     pub computed: &'a HashMap<CellAddr, CellValue>,
@@ -618,6 +690,14 @@ pub struct EvalContext<'a> {
 }
 
 impl<'a> EvalContext<'a> {
+    /// Erstellt einen neuen Evaluierungskontext
+    pub fn new(computed: &'a HashMap<CellAddr, CellValue>, api_values: &'a ReportValues) -> Self {
+        Self {
+            computed,
+            api_values,
+        }
+    }
+
     /// Liest den Wert einer Zelle
     pub fn cell(&self, addr: CellAddr) -> &CellValue {
         static EMPTY: CellValue = CellValue::Empty;
@@ -627,6 +707,91 @@ impl<'a> EvalContext<'a> {
     /// Liest einen API-Wert direkt
     pub fn api(&self) -> &ReportValues {
         self.api_values
+    }
+
+    // ========================================================================
+    // Einheitliche Hilfsmethoden für alle Bereiche (statisch + dynamisch)
+    // ========================================================================
+
+    /// Gibt die aktuell ausgewählte Sprache zurück
+    ///
+    /// Zentrale Methode für alle VLOOKUP-abhängigen Formeln.
+    pub fn language(&self) -> Option<&str> {
+        self.api_values.language()
+    }
+
+    /// Evaluiert einen VLOOKUP-Index für die aktuelle Sprache
+    ///
+    /// Einheitliche Methode für alle Bereiche des Reports.
+    /// Ersetzt direkte `lookup_text_string()` Aufrufe.
+    ///
+    /// # Arguments
+    /// * `index` - Der VLOOKUP-Index (1-basiert, wie in Excel)
+    ///
+    /// # Returns
+    /// Der Text aus TEXT_MATRIX oder Empty wenn nicht gefunden
+    pub fn vlookup_text(&self, index: usize) -> CellValue {
+        super::definitions::lookup_text(self.language(), index)
+    }
+
+    /// Evaluiert einen VLOOKUP-Index und gibt den Text als String zurück
+    ///
+    /// Convenience-Methode für Fälle wo nur der String-Wert benötigt wird.
+    pub fn vlookup_text_string(&self, index: usize) -> Option<String> {
+        match self.vlookup_text(index) {
+            CellValue::Text(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Evaluiert einen VLOOKUP mit Default-Wert
+    ///
+    /// # Arguments
+    /// * `index` - Der VLOOKUP-Index (1-basiert)
+    /// * `default` - Wert falls Sprache nicht gesetzt oder nicht gefunden
+    pub fn vlookup_text_default(&self, index: usize, default: &str) -> CellValue {
+        match self.vlookup_text(index) {
+            CellValue::Empty => CellValue::Text(default.to_string()),
+            v => v,
+        }
+    }
+
+    /// Berechnet IFERROR(numerator/denominator, 0)
+    ///
+    /// Einheitliche Methode für Ratio-Berechnungen in allen Bereichen.
+    pub fn iferror_division(&self, numerator: CellAddr, denominator: CellAddr) -> CellValue {
+        let num = self.cell(numerator).as_number();
+        let denom = self.cell(denominator).as_number();
+
+        match (num, denom) {
+            (Some(n), Some(d)) if d != 0.0 => CellValue::Number(n / d),
+            _ => CellValue::Number(0.0),
+        }
+    }
+
+    /// Berechnet IFERROR(numerator/denominator, 0) mit direkten f64-Werten
+    ///
+    /// Für dynamische Bereiche wo die Werte nicht aus Zellen kommen.
+    pub fn iferror_division_values(&self, numerator: f64, denominator: f64) -> f64 {
+        if denominator == 0.0 {
+            0.0
+        } else {
+            numerator / denominator
+        }
+    }
+
+    /// Berechnet SUMPRODUCT(ROUND(range, 2))
+    ///
+    /// Summiert alle Werte im Bereich mit Rundung auf 2 Dezimalstellen.
+    pub fn sumproduct_round(&self, start: CellAddr, end: CellAddr) -> CellValue {
+        let mut sum = 0.0;
+        for row in start.row..=end.row {
+            let addr = CellAddr::new(row, start.col);
+            if let Some(n) = self.cell(addr).as_number() {
+                sum += (n * 100.0).round() / 100.0;
+            }
+        }
+        CellValue::Number(sum)
     }
 }
 

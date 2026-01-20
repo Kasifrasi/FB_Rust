@@ -43,4 +43,4 @@ pub use registry::{
     FormulaDeps, Inputs, RegistryError, SheetRef, Sheets, StaticVal, Statics,
 };
 pub use values::{CellValue, ReportValues};
-pub use writer::{write_report_v2, write_report_v2_with_body};
+pub use writer::{write_report_v2, write_report_v2_with_body, write_report_v2_with_body_unified};
