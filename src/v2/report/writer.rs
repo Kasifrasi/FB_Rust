@@ -100,7 +100,13 @@ pub fn write_report_v2_with_body(
     // 8. Footer schreiben (3 Zeilen nach Total)
     // income_row = 19 (0-indexed, Zeile 20 in Excel)
     let income_row = 19u32;
-    let footer_layout = write_footer(ws, styles, body_result.layout.total_row, income_row)?;
+    let footer_layout = write_footer(
+        ws,
+        styles,
+        body_result.layout.total_row,
+        income_row,
+        values.language(),
+    )?;
 
     // 9. Footer-Werte schreiben (Bank, Kasse, Sonstiges)
     write_footer_values(

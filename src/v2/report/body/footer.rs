@@ -19,8 +19,9 @@
 //! - Zeile 19: B: "Ort, Datum...", D: "Unterschrift..."
 //! - Zeile 20: D: "Funktion..."
 
-use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Worksheet, XlsxError};
+use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Formula, Worksheet, XlsxError};
 
+use crate::v2::report::definitions::lookup_text_string;
 use crate::v2::report::formats::ReportStyles;
 
 /// Footer-Layout mit berechneten Zeilenpositionen
@@ -63,6 +64,7 @@ impl FooterLayout {
 /// * `styles` - Report-Styles
 /// * `total_row` - Die Total-Zeile des Body (0-indexed)
 /// * `income_row` - Die Einnahmen-Zeile (Zeile 20, 0-indexed = 19)
+/// * `language` - Die Sprache für VLOOKUP-Evaluierung (z.B. Some("deutsch"))
 ///
 /// # Returns
 /// Das berechnete Footer-Layout
@@ -71,6 +73,7 @@ pub fn write_footer(
     styles: &ReportStyles,
     total_row: u32,
     income_row: u32,
+    language: Option<&str>,
 ) -> Result<FooterLayout, XlsxError> {
     let layout = FooterLayout::compute(total_row);
     let s = layout.start_row;
@@ -146,34 +149,21 @@ pub fn write_footer(
         .set_border_right(border_medium)
         .set_border_left(border_thin);
 
-    // Erst merge mit leerem String
-    ws.merge_range(s, 4, s + 1, 4, "", &fmt_e_merged)?;
-    // Dann Formel in die obere linke Zelle des Merge schreiben
-    ws.write_formula_with_format(
-        s,
-        4,
-        "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,44,FALSE))",
-        &fmt_e_merged,
-    )?;
+    // E(s):E(s+1) merged mit VLOOKUP 44 ("Saldo für den Berichtszeitraum")
+    write_merged_vlookup_formula(ws, s, 4, s + 1, 4, 44, &fmt_e_merged, language)?;
 
     // =========================================================================
     // ZEILE 1 (s+1): "ABSCHLUSS"
     // =========================================================================
 
-    // B:D(s+1) merged - Zuerst merge, dann Formel
+    // B:D(s+1) merged mit VLOOKUP 43 ("ABSCHLUSS")
     let fmt_bcd_merged = bold
         .clone()
         .set_border_left(border_medium)
         .set_border_right(border_thin)
         .set_align(FormatAlign::Center);
 
-    ws.merge_range(s + 1, 1, s + 1, 3, "", &fmt_bcd_merged)?;
-    ws.write_formula_with_format(
-        s + 1,
-        1,
-        "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,43,FALSE))",
-        &fmt_bcd_merged,
-    )?;
+    write_merged_vlookup_formula(ws, s + 1, 1, s + 1, 3, 43, &fmt_bcd_merged, language)?;
     // E ist bereits in merge von oben
 
     // =========================================================================
@@ -217,18 +207,13 @@ pub fn write_footer(
     // ZEILE 4 (s+4): Saldo-Differenz
     // =========================================================================
 
-    // B: VLOOKUP 45, bold, left+top+bottom border
+    // B: VLOOKUP 45 ("Saldo..."), bold, left+top+bottom border
     let fmt_b_s4 = bold
         .clone()
         .set_border_left(border_medium)
         .set_border_top(border_thin)
         .set_border_bottom(border_thin);
-    ws.write_formula_with_format(
-        s + 4,
-        1,
-        "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,45,FALSE))",
-        &fmt_b_s4,
-    )?;
+    write_vlookup_formula(ws, s + 4, 1, 45, &fmt_b_s4, language)?;
 
     // C: top+bottom border
     let fmt_c_s4 = normal
@@ -276,14 +261,9 @@ pub fn write_footer(
     // ZEILE 6 (s+6): Saldenabstimmung
     // =========================================================================
 
-    // B: VLOOKUP 46, bold, left border
+    // B: VLOOKUP 46 ("Saldenabstimmung:"), bold, left border
     let fmt_b_s6 = bold.clone().set_border_left(border_medium);
-    ws.write_formula_with_format(
-        s + 6,
-        1,
-        "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,46,FALSE))",
-        &fmt_b_s6,
-    )?;
+    write_vlookup_formula(ws, s + 6, 1, 46, &fmt_b_s6, language)?;
 
     // C: leer
     ws.write_blank(s + 6, 2, &normal)?;
@@ -314,11 +294,7 @@ pub fn write_footer(
             .clone()
             .set_border_left(border_medium)
             .set_border_top(border_thin);
-        let vlookup_formula = format!(
-            "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))",
-            vlookup_idx
-        );
-        ws.write_formula_with_format(row, 1, vlookup_formula.as_str(), &fmt_b)?;
+        write_vlookup_formula(ws, row, 1, *vlookup_idx, &fmt_b, language)?;
 
         // C: top border
         let fmt_c = normal.clone().set_border_top(border_thin);
@@ -344,18 +320,13 @@ pub fn write_footer(
     // ZEILE 9 (s+9): Sonstiges - letzte Zeile mit bottom border
     // =========================================================================
 
-    // B: Label, left+top+bottom border
+    // B: Label VLOOKUP 49 ("Sonstiges"), left+top+bottom border
     let fmt_b_s9 = normal
         .clone()
         .set_border_left(border_medium)
         .set_border_top(border_thin)
         .set_border_bottom(border_medium);
-    ws.write_formula_with_format(
-        s + 9,
-        1,
-        "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,49,FALSE))",
-        &fmt_b_s9,
-    )?;
+    write_vlookup_formula(ws, s + 9, 1, 49, &fmt_b_s9, language)?;
 
     // C: top+bottom border
     let fmt_c_s9 = normal
@@ -389,23 +360,13 @@ pub fn write_footer(
     // ZEILE 13 (s+13): Bestätigung 1
     // =========================================================================
 
-    ws.write_formula_with_format(
-        s + 13,
-        1,
-        "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,50,FALSE))",
-        &normal,
-    )?;
+    write_vlookup_formula(ws, s + 13, 1, 50, &normal, language)?;
 
     // =========================================================================
     // ZEILE 14 (s+14): Bestätigung 2
     // =========================================================================
 
-    ws.write_formula_with_format(
-        s + 14,
-        1,
-        "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,54,FALSE))",
-        &normal,
-    )?;
+    write_vlookup_formula(ws, s + 14, 1, 54, &normal, language)?;
 
     // =========================================================================
     // ZEILEN 15-18 (s+15 bis s+18): Leer
@@ -417,24 +378,14 @@ pub fn write_footer(
 
     // B: VLOOKUP 51, bold, top thin border
     let fmt_signature = bold.clone().set_border_top(border_thin);
-    ws.write_formula_with_format(
-        s + 19,
-        1,
-        "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,51,FALSE))",
-        &fmt_signature,
-    )?;
+    write_vlookup_formula(ws, s + 19, 1, 51, &fmt_signature, language)?;
 
     // C: top thin border
     let fmt_c_sig = normal.clone().set_border_top(border_thin);
     ws.write_blank(s + 19, 2, &fmt_c_sig)?;
 
     // D: VLOOKUP 52, bold, top thin border
-    ws.write_formula_with_format(
-        s + 19,
-        3,
-        "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,52,FALSE))",
-        &fmt_signature,
-    )?;
+    write_vlookup_formula(ws, s + 19, 3, 52, &fmt_signature, language)?;
 
     // E, F, G: top thin border
     let fmt_efg_sig = normal.clone().set_border_top(border_thin);
@@ -446,12 +397,7 @@ pub fn write_footer(
     // ZEILE 20 (s+20): Funktion
     // =========================================================================
 
-    ws.write_formula_with_format(
-        s + 20,
-        3,
-        "=IF($E$2=\"\",\"\",VLOOKUP($E$2,Sprachversionen!$B:$BN,53,FALSE))",
-        &normal,
-    )?;
+    write_vlookup_formula(ws, s + 20, 3, 53, &normal, language)?;
 
     Ok(layout)
 }
@@ -510,6 +456,57 @@ pub fn write_footer_values(
         ws.write_number_with_format(s + 9, 4, value, &fmt_input_e_bottom)?;
     }
 
+    Ok(())
+}
+
+/// Schreibt eine VLOOKUP-Formel mit gecachtem Text-Ergebnis
+fn write_vlookup_formula(
+    ws: &mut Worksheet,
+    row: u32,
+    col: u16,
+    index: usize,
+    format: &Format,
+    language: Option<&str>,
+) -> Result<(), XlsxError> {
+    let formula_str = format!(
+        r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))"#,
+        index
+    );
+
+    let formula = if let Some(text) = lookup_text_string(language, index) {
+        Formula::new(&formula_str).set_result(text)
+    } else {
+        Formula::new(&formula_str)
+    };
+
+    ws.write_formula_with_format(row, col, formula, format)?;
+    Ok(())
+}
+
+/// Schreibt eine VLOOKUP-Formel in einem gemergten Bereich mit gecachtem Text-Ergebnis
+fn write_merged_vlookup_formula(
+    ws: &mut Worksheet,
+    row_start: u32,
+    col_start: u16,
+    row_end: u32,
+    col_end: u16,
+    index: usize,
+    format: &Format,
+    language: Option<&str>,
+) -> Result<(), XlsxError> {
+    let formula_str = format!(
+        r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))"#,
+        index
+    );
+
+    let formula = if let Some(text) = lookup_text_string(language, index) {
+        Formula::new(&formula_str).set_result(text)
+    } else {
+        Formula::new(&formula_str)
+    };
+
+    ws.merge_range(row_start, col_start, row_end, col_end, "", format)?;
+    ws.write_formula_with_format(row_start, col_start, formula, format)?;
     Ok(())
 }
 

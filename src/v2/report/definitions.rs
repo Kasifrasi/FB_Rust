@@ -16,6 +16,52 @@ use super::values::CellValue;
 use crate::v2::lang::data::TEXT_MATRIX;
 
 // ============================================================================
+// Öffentliche VLOOKUP-Evaluierung
+// ============================================================================
+
+/// Evaluiert einen VLOOKUP-Index für eine gegebene Sprache
+///
+/// Dies ist die öffentliche Version von `evaluate_text_lookup`, die direkt
+/// mit der Sprache als Parameter arbeitet (ohne EvalContext).
+///
+/// # Arguments
+/// * `language` - Die Sprache (z.B. "deutsch", "english")
+/// * `index` - Der VLOOKUP-Index (1-basiert, wie in Excel)
+///
+/// # Returns
+/// Der Text aus TEXT_MATRIX oder Empty wenn nicht gefunden
+pub fn lookup_text(language: Option<&str>, index: usize) -> CellValue {
+    let language = match language {
+        Some(lang) if !lang.is_empty() => lang,
+        _ => return CellValue::Empty,
+    };
+
+    let lang_idx = match find_language_index(language) {
+        Some(idx) => idx,
+        None => return CellValue::Empty,
+    };
+
+    // Index ist 1-basiert in Excel, aber 0-basiert in TEXT_MATRIX
+    let text_idx = index.saturating_sub(1);
+
+    TEXT_MATRIX
+        .get(lang_idx)
+        .and_then(|row| row.get(text_idx))
+        .map(|s| CellValue::Text(s.to_string()))
+        .unwrap_or(CellValue::Empty)
+}
+
+/// Evaluiert einen VLOOKUP-Index und gibt den Text als String zurück
+///
+/// Convenience-Funktion für Fälle wo nur der String-Wert benötigt wird.
+pub fn lookup_text_string(language: Option<&str>, index: usize) -> Option<String> {
+    match lookup_text(language, index) {
+        CellValue::Text(s) => Some(s),
+        _ => None,
+    }
+}
+
+// ============================================================================
 // Registry Builder
 // ============================================================================
 
