@@ -25,7 +25,7 @@ pub mod writer;
 
 // Re-exports für einfachen Zugriff
 // API-Zellen (neue zentrale Definitionen)
-pub use api::{register_all_api_cells, ApiKey};
+pub use api::{register_all_api_cells, ApiKey, PositionField, SingleRowField};
 
 // Legacy cells (für Kompatibilität, wird später entfernt)
 pub use cells::CellAddress;

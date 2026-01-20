@@ -365,9 +365,29 @@ impl<E> CellRegistry<E> {
         }
     }
 
-    /// Registriert eine API-Zelle
+    /// Registriert eine API-Zelle (für statische Keys mit fester Adresse)
+    ///
+    /// Für dynamische Keys (wie `Position`) verwende `register_api_at()`.
     pub fn register_api(&mut self, key: ApiKey) -> Result<(), RegistryError> {
         let addr = key.addr();
+        self.check_not_registered(addr, "Api")?;
+
+        self.cells.insert(addr, CellKind::Api(ApiCell { key }));
+        self.api_cells.insert(addr);
+        self.eval_order = None; // Cache invalidieren
+
+        Ok(())
+    }
+
+    /// Registriert eine API-Zelle an einer spezifischen Adresse
+    ///
+    /// Wird für dynamische Keys verwendet, deren Adresse erst zur Laufzeit
+    /// bekannt ist (z.B. `ApiKey::Position` basierend auf `BodyLayout`).
+    ///
+    /// # Arguments
+    /// * `key` - Der API-Key (kann statisch oder dynamisch sein)
+    /// * `addr` - Die Zelladresse (bei dynamischen Keys aus Layout berechnet)
+    pub fn register_api_at(&mut self, key: ApiKey, addr: CellAddr) -> Result<(), RegistryError> {
         self.check_not_registered(addr, "Api")?;
 
         self.cells.insert(addr, CellKind::Api(ApiCell { key }));

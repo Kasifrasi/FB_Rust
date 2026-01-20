@@ -3,7 +3,7 @@
 //! Dieses Modul speichert alle Eingabewerte.
 //! Nutzt direkt `ApiKey` als Schlüssel - keine redundanten Enums.
 
-use super::api::ApiKey;
+use super::api::{ApiKey, PositionField, SingleRowField};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -193,6 +193,141 @@ impl ReportValues {
         self.set(ApiKey::ReportEnd, CellValue::Date(date.to_string()));
         self
     }
+
+    // ========================================================================
+    // Positions-Methoden (Dynamische Kostenpositionen)
+    // ========================================================================
+
+    /// Setzt ein einzelnes Positions-Feld
+    ///
+    /// # Arguments
+    /// * `category` - Kategorie-Nummer (1-5 für Multi-Row)
+    /// * `position` - Position innerhalb der Kategorie (1-basiert!)
+    /// * `field` - Welches Feld der Position
+    /// * `value` - Der Wert
+    ///
+    /// # Beispiel
+    /// ```ignore
+    /// values.set_position(1, 1, PositionField::Description, "Personalkosten");
+    /// values.set_position(1, 1, PositionField::Approved, 5000.0);
+    /// ```
+    pub fn set_position(
+        &mut self,
+        category: u8,
+        position: u16,
+        field: PositionField,
+        value: impl Into<CellValue>,
+    ) -> &mut Self {
+        self.set(
+            ApiKey::Position {
+                category,
+                position,
+                field,
+            },
+            value,
+        )
+    }
+
+    /// Setzt eine komplette Positions-Zeile (alle 5 Felder)
+    ///
+    /// # Arguments
+    /// * `category` - Kategorie-Nummer (1-5 für Multi-Row)
+    /// * `position` - Position innerhalb der Kategorie (1-basiert!)
+    /// * `description` - Beschreibung (Spalte C)
+    /// * `approved` - Bewilligtes Budget (Spalte D)
+    /// * `income_report` - Einnahmen Berichtszeitraum (Spalte E)
+    /// * `income_total` - Einnahmen gesamt (Spalte F)
+    /// * `remark` - Begründung/Bemerkung (Spalte H)
+    ///
+    /// # Beispiel
+    /// ```ignore
+    /// values.set_position_row(1, 1, "Personalkosten", 5000.0, 2500.0, 2500.0, "");
+    /// ```
+    pub fn set_position_row(
+        &mut self,
+        category: u8,
+        position: u16,
+        description: impl Into<CellValue>,
+        approved: impl Into<CellValue>,
+        income_report: impl Into<CellValue>,
+        income_total: impl Into<CellValue>,
+        remark: impl Into<CellValue>,
+    ) -> &mut Self {
+        use PositionField::*;
+        self.set_position(category, position, Description, description);
+        self.set_position(category, position, Approved, approved);
+        self.set_position(category, position, IncomeReport, income_report);
+        self.set_position(category, position, IncomeTotal, income_total);
+        self.set_position(category, position, Remark, remark);
+        self
+    }
+
+    /// Holt einen Positions-Wert (falls vorhanden)
+    pub fn get_position(&self, category: u8, position: u16, field: PositionField) -> &CellValue {
+        self.get(ApiKey::Position {
+            category,
+            position,
+            field,
+        })
+    }
+
+    // ========================================================================
+    // Single-Row-Methoden (Kategorien 6, 7, 8)
+    // ========================================================================
+
+    /// Setzt ein einzelnes Single-Row-Feld
+    ///
+    /// # Arguments
+    /// * `category` - Kategorie-Nummer (6, 7 oder 8)
+    /// * `field` - Welches Feld
+    /// * `value` - Der Wert
+    ///
+    /// # Beispiel
+    /// ```ignore
+    /// values.set_single_row(6, SingleRowField::Approved, 5000.0);
+    /// ```
+    pub fn set_single_row(
+        &mut self,
+        category: u8,
+        field: SingleRowField,
+        value: impl Into<CellValue>,
+    ) -> &mut Self {
+        self.set(ApiKey::SingleRow { category, field }, value)
+    }
+
+    /// Setzt eine komplette Single-Row-Zeile (alle 4 Felder)
+    ///
+    /// # Arguments
+    /// * `category` - Kategorie-Nummer (6, 7 oder 8)
+    /// * `approved` - Bewilligtes Budget (Spalte D)
+    /// * `income_report` - Einnahmen Berichtszeitraum (Spalte E)
+    /// * `income_total` - Einnahmen gesamt (Spalte F)
+    /// * `remark` - Begründung/Bemerkung (Spalte H)
+    ///
+    /// # Beispiel
+    /// ```ignore
+    /// values.set_single_row_values(6, 5000.0, 2500.0, 2500.0, "Notiz");
+    /// ```
+    pub fn set_single_row_values(
+        &mut self,
+        category: u8,
+        approved: impl Into<CellValue>,
+        income_report: impl Into<CellValue>,
+        income_total: impl Into<CellValue>,
+        remark: impl Into<CellValue>,
+    ) -> &mut Self {
+        use SingleRowField::*;
+        self.set_single_row(category, Approved, approved);
+        self.set_single_row(category, IncomeReport, income_report);
+        self.set_single_row(category, IncomeTotal, income_total);
+        self.set_single_row(category, Remark, remark);
+        self
+    }
+
+    /// Holt einen Single-Row-Wert (falls vorhanden)
+    pub fn get_single_row(&self, category: u8, field: SingleRowField) -> &CellValue {
+        self.get(ApiKey::SingleRow { category, field })
+    }
 }
 
 // ============================================================================
@@ -270,5 +405,92 @@ mod tests {
             values.get(ApiKey::RightAmountLocal(17)).as_number(),
             Some(999.99)
         );
+    }
+
+    #[test]
+    fn test_set_position() {
+        use PositionField::*;
+
+        let mut values = ReportValues::new();
+        values.set_position(1, 1, Description, "Personalkosten");
+        values.set_position(1, 1, Approved, 5000.0);
+
+        assert_eq!(
+            values.get_position(1, 1, Description).as_text(),
+            Some("Personalkosten")
+        );
+        assert_eq!(
+            values.get_position(1, 1, Approved).as_number(),
+            Some(5000.0)
+        );
+    }
+
+    #[test]
+    fn test_set_position_row() {
+        use PositionField::*;
+
+        let mut values = ReportValues::new();
+        values.set_position_row(
+            1,                    // Kategorie
+            1,                    // Position
+            "Reisekosten",        // Description
+            2000.0,               // Approved
+            1800.0,               // IncomeReport
+            1800.0,               // IncomeTotal
+            "Dienstreise Berlin", // Remark
+        );
+
+        assert_eq!(
+            values.get_position(1, 1, Description).as_text(),
+            Some("Reisekosten")
+        );
+        assert_eq!(
+            values.get_position(1, 1, Approved).as_number(),
+            Some(2000.0)
+        );
+        assert_eq!(
+            values.get_position(1, 1, IncomeReport).as_number(),
+            Some(1800.0)
+        );
+        assert_eq!(
+            values.get_position(1, 1, IncomeTotal).as_number(),
+            Some(1800.0)
+        );
+        assert_eq!(
+            values.get_position(1, 1, Remark).as_text(),
+            Some("Dienstreise Berlin")
+        );
+    }
+
+    #[test]
+    fn test_multiple_positions() {
+        use PositionField::*;
+
+        let mut values = ReportValues::new();
+
+        // Kategorie 1, Positionen 1-3
+        values.set_position_row(1, 1, "Personal", 5000.0, 2500.0, 2500.0, "");
+        values.set_position_row(1, 2, "Reisen", 2000.0, 1800.0, 1800.0, "");
+        values.set_position_row(1, 3, "Material", 1000.0, 500.0, 500.0, "");
+
+        // Kategorie 2, Position 1
+        values.set_position_row(2, 1, "Externe", 3000.0, 1500.0, 1500.0, "");
+
+        // Prüfe verschiedene Positionen
+        assert_eq!(
+            values.get_position(1, 1, Description).as_text(),
+            Some("Personal")
+        );
+        assert_eq!(
+            values.get_position(1, 3, Approved).as_number(),
+            Some(1000.0)
+        );
+        assert_eq!(
+            values.get_position(2, 1, Description).as_text(),
+            Some("Externe")
+        );
+
+        // Nicht gesetzte Position gibt Empty zurück
+        assert!(values.get_position(1, 4, Description).is_empty());
     }
 }

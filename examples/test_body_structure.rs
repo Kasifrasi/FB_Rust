@@ -7,6 +7,7 @@ use kmw_fb_rust::v2::lang::build_sheet as build_sprachversionen;
 use kmw_fb_rust::v2::report::layout::setup_sheet;
 use kmw_fb_rust::v2::report::ApiKey;
 use kmw_fb_rust::v2::report::{write_report_v2_with_body, BodyConfig, ReportStyles, ReportValues};
+use kmw_fb_rust::v2::report::{PositionField, SingleRowField};
 use rust_xlsxwriter::Workbook;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -48,6 +49,99 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_positions(3, 4) // Kategorie 3: 4 Positionen
         .with_positions(4, 3) // Kategorie 4: 3 Positionen
         .with_positions(5, 2); // Kategorie 5: 2 Positionen
+
+    // =========================================================================
+    // Kostenpositionen (dynamisch via API)
+    // =========================================================================
+
+    // Kategorie 1: Personalkosten (5 Positionen)
+    values.set_position_row(1, 1, "Projektleitung", 15000.0, 7500.0, 7500.0, "");
+    values.set_position_row(
+        1,
+        2,
+        "Wissenschaftliche Mitarbeiter",
+        25000.0,
+        12000.0,
+        12000.0,
+        "",
+    );
+    values.set_position_row(1, 3, "Studentische Hilfskräfte", 5000.0, 2500.0, 2500.0, "");
+    values.set_position_row(
+        1,
+        4,
+        "Externe Berater",
+        8000.0,
+        4000.0,
+        4000.0,
+        "Beratung IT",
+    );
+    values.set_position_row(1, 5, "Sonstige Personalkosten", 2000.0, 1000.0, 1000.0, "");
+
+    // Kategorie 2: Sachkosten (3 Positionen)
+    values.set_position_row(2, 1, "Büromaterial", 1500.0, 800.0, 800.0, "");
+    values.set_position_row(
+        2,
+        2,
+        "IT-Ausstattung",
+        3000.0,
+        2000.0,
+        2000.0,
+        "Laptop + Monitor",
+    );
+    values.set_position_row(2, 3, "Software-Lizenzen", 2000.0, 1500.0, 1500.0, "");
+
+    // Kategorie 3: Reisekosten (4 Positionen)
+    values.set_position_row(3, 1, "Inlandsreisen", 2000.0, 1200.0, 1200.0, "");
+    values.set_position_row(
+        3,
+        2,
+        "Auslandsreisen",
+        5000.0,
+        2500.0,
+        2500.0,
+        "Konferenz Berlin",
+    );
+    values.set_position_row(3, 3, "Tagegeld", 1000.0, 500.0, 500.0, "");
+    values.set_position_row(3, 4, "Fahrtkosten", 800.0, 400.0, 400.0, "");
+
+    // Kategorie 4: Investitionen (3 Positionen)
+    values.set_position_row(4, 1, "Laborgeräte", 10000.0, 5000.0, 5000.0, "");
+    values.set_position_row(4, 2, "Messgeräte", 8000.0, 4000.0, 4000.0, "Anschaffung Q2");
+    values.set_position_row(4, 3, "Sonstige Investitionen", 2000.0, 1000.0, 1000.0, "");
+
+    // Kategorie 5: Sonstige Kosten (2 Positionen)
+    values.set_position_row(
+        5,
+        1,
+        "Publikationskosten",
+        3000.0,
+        1500.0,
+        1500.0,
+        "Open Access",
+    );
+    values.set_position_row(5, 2, "Allgemeine Verwaltung", 1500.0, 750.0, 750.0, "");
+
+    // Einzelne Position mit individuellem Feld setzen (zur Demonstration)
+    values.set_position(1, 1, PositionField::Remark, "Senior Developer");
+
+    // =========================================================================
+    // Single-Row Kategorien (6, 7, 8) - nur eine Zeile pro Kategorie
+    // =========================================================================
+
+    // Kategorie 6: Sonstige direkte Kosten
+    values.set_single_row_values(6, 4000.0, 2000.0, 2000.0, "Diverse");
+
+    // Kategorie 7: Indirekte Kosten
+    values.set_single_row_values(7, 6000.0, 3000.0, 3000.0, "Overhead");
+
+    // Kategorie 8: Eigenmittel/Drittmittel (Einzelfeld-Demonstration)
+    values.set_single_row(8, SingleRowField::Approved, 2500.0);
+    values.set_single_row(8, SingleRowField::IncomeReport, 1250.0);
+    values.set_single_row(8, SingleRowField::IncomeTotal, 1250.0);
+    values.set_single_row(8, SingleRowField::Remark, "Eigenbeitrag");
+
+    println!("Positions-Werte gesetzt für {} Multi-Row Kategorien", 5);
+    println!("Single-Row-Werte gesetzt für {} Kategorien (6, 7, 8)", 3);
 
     // Report schreiben
     let result = write_report_v2_with_body(ws, &styles, "v2-body-test", &values, &body_config)?;

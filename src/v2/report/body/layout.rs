@@ -3,6 +3,8 @@
 //! Berechnet die Zeilen-Positionen basierend auf BodyConfig.
 
 use super::config::{BodyConfig, BODY_START_ROW, MULTI_ROW_CATEGORIES};
+use crate::v2::report::api::{PositionField, SingleRowField};
+use crate::v2::report::registry::CellAddr;
 
 /// Kategorie-Metadaten (VLOOKUP-Indizes)
 #[derive(Debug, Clone, Copy)]
@@ -208,6 +210,51 @@ impl BodyLayout {
     pub fn row_count(&self) -> u32 {
         self.last_row - BODY_START_ROW + 1
     }
+
+    /// Berechnet die Zelladresse für ein Positions-Feld
+    ///
+    /// # Arguments
+    /// * `category` - Kategorie-Nummer (1-5, Multi-Row Kategorien)
+    /// * `position` - Position innerhalb der Kategorie (1-N, 1-basiert!)
+    /// * `field` - Welches Feld der Position
+    ///
+    /// # Returns
+    /// `Some(CellAddr)` wenn gültig, `None` wenn:
+    /// - Kategorie nicht existiert
+    /// - Kategorie keine Positionen hat (Single-Row)
+    /// - Position außerhalb des Bereichs
+    pub fn position_addr(
+        &self,
+        category: u8,
+        position: u16,
+        field: PositionField,
+    ) -> Option<CellAddr> {
+        let cat = self.categories.iter().find(|c| c.meta.num == category)?;
+        let positions = cat.positions.as_ref()?;
+
+        if position < 1 || position > positions.count {
+            return None;
+        }
+
+        let row = positions.start_row + (position - 1) as u32;
+        Some(CellAddr::new(row, field.col()))
+    }
+
+    /// Berechnet die Zelladresse für ein Single-Row-Feld
+    ///
+    /// # Arguments
+    /// * `category` - Kategorie-Nummer (6, 7 oder 8)
+    /// * `field` - Welches Feld
+    ///
+    /// # Returns
+    /// `Some(CellAddr)` wenn gültig, `None` wenn:
+    /// - Kategorie nicht existiert
+    /// - Kategorie keine Single-Row ist
+    pub fn single_row_addr(&self, category: u8, field: SingleRowField) -> Option<CellAddr> {
+        let cat = self.categories.iter().find(|c| c.meta.num == category)?;
+        let row = cat.single_row?;
+        Some(CellAddr::new(row, field.col()))
+    }
 }
 
 impl CategoryLayout {
@@ -287,5 +334,41 @@ mod tests {
         // + 1 Gesamt-Zeile
         // = 19 Zeilen mit Ratio-Formel
         assert_eq!(ratio_rows.len(), 19);
+    }
+
+    #[test]
+    fn test_position_addr() {
+        use PositionField::*;
+
+        let config = BodyConfig::new().with_positions(1, 5);
+        let layout = BodyLayout::compute(&config);
+
+        // Kategorie 1: Header=26, Pos=27-31, Footer=32
+        // Position 1 (erste) = Row 27
+        let addr = layout.position_addr(1, 1, Description).unwrap();
+        assert_eq!(addr.row, 27);
+        assert_eq!(addr.col, 2); // C
+
+        // Position 1, Spalte D
+        let addr = layout.position_addr(1, 1, Approved).unwrap();
+        assert_eq!(addr.row, 27);
+        assert_eq!(addr.col, 3); // D
+
+        // Position 5 (letzte) = Row 31
+        let addr = layout.position_addr(1, 5, IncomeTotal).unwrap();
+        assert_eq!(addr.row, 31);
+        assert_eq!(addr.col, 5); // F
+
+        // Position 6 existiert nicht
+        assert!(layout.position_addr(1, 6, Description).is_none());
+
+        // Position 0 ist ungültig (1-basiert!)
+        assert!(layout.position_addr(1, 0, Description).is_none());
+
+        // Kategorie 6 (Single-Row) hat keine Positionen
+        assert!(layout.position_addr(6, 1, Description).is_none());
+
+        // Kategorie 9 existiert nicht
+        assert!(layout.position_addr(9, 1, Description).is_none());
     }
 }

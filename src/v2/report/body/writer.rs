@@ -2,7 +2,7 @@
 //!
 //! Schreibt:
 //! - Kategorie-Header (Nummer + VLOOKUP Label)
-//! - Position-Zeilen (Nummer + Blanks)
+//! - Position-Zeilen (Nummer + API-Werte)
 //! - Kategorie-Footer (VLOOKUP Sum-Label + SUMPRODUCT Formeln)
 //! - Single-Row Kategorien
 //! - Gesamt-Zeile (VLOOKUP Label + SUM Formeln)
@@ -10,7 +10,9 @@
 
 use super::config::BodyConfig;
 use super::layout::{BodyLayout, CategoryLayout, TOTAL_LABEL_INDEX};
+use crate::v2::report::api::{ApiKey, PositionField, SingleRowField};
 use crate::v2::report::formats::FormatMatrix;
+use crate::v2::report::values::{CellValue, ReportValues};
 use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
 
 /// Ergebnis der Body-Generierung
@@ -27,11 +29,29 @@ pub struct BodyResult {
 /// Ratio-Formel für G-Spalte
 const RATIO_FORMULA: &str = "=IFERROR(INDEX($F$1:$F$1001,ROW())/INDEX($D$1:$D$1001,ROW()),0)";
 
-/// Schreibt die komplette Body-Struktur
+/// Schreibt die komplette Body-Struktur (ohne API-Werte, nur Blanks)
+///
+/// Für API-Werte verwende `write_body_structure_with_values()`.
 pub fn write_body_structure(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
     config: &BodyConfig,
+) -> Result<BodyResult, XlsxError> {
+    write_body_structure_with_values(ws, fmt, config, None)
+}
+
+/// Schreibt die komplette Body-Struktur MIT API-Werten
+///
+/// # Arguments
+/// * `ws` - Worksheet
+/// * `fmt` - FormatMatrix
+/// * `config` - BodyConfig
+/// * `values` - Optional: ReportValues für API-Werte
+pub fn write_body_structure_with_values(
+    ws: &mut Worksheet,
+    fmt: &FormatMatrix,
+    config: &BodyConfig,
+    values: Option<&ReportValues>,
 ) -> Result<BodyResult, XlsxError> {
     // 1. Layout berechnen
     let layout = BodyLayout::compute(config);
@@ -39,9 +59,9 @@ pub fn write_body_structure(
     // 2. Kategorien schreiben
     for cat in &layout.categories {
         if cat.is_multi_row() {
-            write_multi_row_category(ws, fmt, cat)?;
+            write_multi_row_category(ws, fmt, cat, &layout, values)?;
         } else {
-            write_single_row_category(ws, fmt, cat)?;
+            write_single_row_category(ws, fmt, cat, &layout, values)?;
         }
     }
 
@@ -63,6 +83,8 @@ fn write_multi_row_category(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
     cat: &CategoryLayout,
+    layout: &BodyLayout,
+    values: Option<&ReportValues>,
 ) -> Result<(), XlsxError> {
     let header_row = cat.header_row.expect("Multi-row must have header");
     let positions = cat
@@ -85,15 +107,29 @@ fn write_multi_row_category(
     }
 
     // === Position-Zeilen ===
-    for (i, row) in (positions.start_row..=positions.end_row).enumerate() {
-        let pos_num = i + 1;
+    for (i, _row) in (positions.start_row..=positions.end_row).enumerate() {
+        let pos_num = (i + 1) as u16;
 
         // B: Positions-Nummer
-        write_with_format(ws, fmt, row, 1, &format!("{}.{}", cat.meta.num, pos_num))?;
+        write_with_format(
+            ws,
+            fmt,
+            positions.start_row + i as u32,
+            1,
+            &format!("{}.{}", cat.meta.num, pos_num),
+        )?;
 
-        // C-H: Blanks (werden später von API gefüllt)
-        for col in 2..=7 {
-            write_blank_with_format(ws, fmt, row, col)?;
+        // C-H: API-Werte oder Blanks
+        if let Some(values) = values {
+            write_position_values(ws, fmt, layout, values, cat.meta.num, pos_num)?;
+        } else {
+            // Fallback: Blanks
+            for col in 2..=7 {
+                if col != 6 {
+                    // G ist Ratio-Formel
+                    write_blank_with_format(ws, fmt, positions.start_row + i as u32, col)?;
+                }
+            }
         }
     }
 
@@ -120,6 +156,8 @@ fn write_single_row_category(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
     cat: &CategoryLayout,
+    layout: &BodyLayout,
+    values: Option<&ReportValues>,
 ) -> Result<(), XlsxError> {
     let row = cat.single_row.expect("Single-row must have single_row");
 
@@ -130,9 +168,15 @@ fn write_single_row_category(
     let label_formula = vlookup_formula(cat.meta.label_index);
     write_formula_with_format(ws, fmt, row, 2, &label_formula)?;
 
-    // D-H: Blanks (werden später von API gefüllt oder bleiben leer)
-    for col in 3..=7 {
-        write_blank_with_format(ws, fmt, row, col)?;
+    // D, E, F, H: API-Werte oder Blanks (G ist Ratio-Formel)
+    if let Some(values) = values {
+        write_single_row_values(ws, fmt, layout, values, cat.meta.num)?;
+    } else {
+        // Fallback: Blanks
+        for col in [3, 4, 5, 7] {
+            // D, E, F, H - nicht G (Ratio)
+            write_blank_with_format(ws, fmt, row, col)?;
+        }
     }
 
     Ok(())
@@ -264,6 +308,90 @@ fn write_blank_with_format(
 ) -> Result<(), XlsxError> {
     if let Some(format) = fmt.get(row, col) {
         ws.write_blank(row, col, format)?;
+    }
+    Ok(())
+}
+
+/// Schreibt API-Werte für eine Position (C, D, E, F, H - nicht G!)
+fn write_position_values(
+    ws: &mut Worksheet,
+    fmt: &FormatMatrix,
+    layout: &BodyLayout,
+    values: &ReportValues,
+    category: u8,
+    position: u16,
+) -> Result<(), XlsxError> {
+    for field in PositionField::all() {
+        let key = ApiKey::Position {
+            category,
+            position,
+            field,
+        };
+        let value = values.get(key);
+
+        if let Some(addr) = layout.position_addr(category, position, field) {
+            write_cell_value(ws, fmt, addr.row, addr.col, value)?;
+        }
+    }
+    Ok(())
+}
+
+/// Schreibt API-Werte für eine Single-Row Kategorie (D, E, F, H - nicht C, G!)
+fn write_single_row_values(
+    ws: &mut Worksheet,
+    fmt: &FormatMatrix,
+    layout: &BodyLayout,
+    values: &ReportValues,
+    category: u8,
+) -> Result<(), XlsxError> {
+    for field in SingleRowField::all() {
+        let key = ApiKey::SingleRow { category, field };
+        let value = values.get(key);
+
+        if let Some(addr) = layout.single_row_addr(category, field) {
+            write_cell_value(ws, fmt, addr.row, addr.col, value)?;
+        }
+    }
+    Ok(())
+}
+
+/// Schreibt einen CellValue mit Format
+fn write_cell_value(
+    ws: &mut Worksheet,
+    fmt: &FormatMatrix,
+    row: u32,
+    col: u16,
+    value: &CellValue,
+) -> Result<(), XlsxError> {
+    match value {
+        CellValue::Empty => {
+            // Blank mit Format
+            if let Some(format) = fmt.get(row, col) {
+                ws.write_blank(row, col, format)?;
+            }
+        }
+        CellValue::Text(s) => {
+            if let Some(format) = fmt.get(row, col) {
+                ws.write_string_with_format(row, col, s, format)?;
+            } else {
+                ws.write_string(row, col, s)?;
+            }
+        }
+        CellValue::Number(n) => {
+            if let Some(format) = fmt.get(row, col) {
+                ws.write_number_with_format(row, col, *n, format)?;
+            } else {
+                ws.write_number(row, col, *n)?;
+            }
+        }
+        CellValue::Date(d) => {
+            // Date als String schreiben (mit Datumsformat)
+            if let Some(format) = fmt.get(row, col) {
+                ws.write_string_with_format(row, col, d, format)?;
+            } else {
+                ws.write_string(row, col, d)?;
+            }
+        }
     }
     Ok(())
 }
