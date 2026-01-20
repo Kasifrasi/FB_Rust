@@ -5,7 +5,10 @@
 //! - Automatische Auswertungsreihenfolge
 //! - Unterstützung dynamischer Bereiche
 
-use super::body::{write_body_structure_with_values, BodyConfig, BodyLayout, BodyResult};
+use super::body::{
+    write_body_structure_with_values, write_footer, write_footer_values, BodyConfig, BodyLayout,
+    BodyResult,
+};
 use super::definitions::build_registry;
 use super::formats::{
     build_format_matrix, extend_format_matrix_with_body, FormatMatrix, ReportStyles, SectionStyles,
@@ -94,7 +97,22 @@ pub fn write_report_v2_with_body(
     // 7. Dynamischen Body schreiben (mit API-Werten)
     let body_result = write_body_structure_with_values(ws, &fmt, body_config, Some(values))?;
 
-    // 8. Freeze Pane
+    // 8. Footer schreiben (3 Zeilen nach Total)
+    // income_row = 19 (0-indexed, Zeile 20 in Excel)
+    let income_row = 19u32;
+    let footer_layout = write_footer(ws, styles, body_result.layout.total_row, income_row)?;
+
+    // 9. Footer-Werte schreiben (Bank, Kasse, Sonstiges)
+    write_footer_values(
+        ws,
+        &footer_layout,
+        styles,
+        values.footer_bank(),
+        values.footer_kasse(),
+        values.footer_sonstiges(),
+    )?;
+
+    // 10. Freeze Pane
     layout::setup_freeze_panes(ws, 9)?;
 
     Ok(body_result)

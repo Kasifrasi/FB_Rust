@@ -285,6 +285,47 @@ define_api_cells! {
 }
 
 // =============================================================================
+// Footer API-Keys (dynamische Adressen, abhängig von Body-Layout)
+// =============================================================================
+
+/// Footer-Eingabefeld im Saldenabstimmungs-Bereich
+///
+/// Diese Felder befinden sich im Footer nach dem dynamischen Body-Bereich.
+/// Die genauen Zeilenpositionen werden zur Laufzeit basierend auf dem
+/// `FooterLayout` berechnet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FooterField {
+    /// Bank-Saldo (E-Spalte, Footer Zeile 7)
+    Bank,
+    /// Kassen-Saldo (E-Spalte, Footer Zeile 8)
+    Kasse,
+    /// Sonstige Salden (E-Spalte, Footer Zeile 9)
+    /// (noch nicht eingelöste Schecks, Vorschüsse, Darlehen, etc.)
+    Sonstiges,
+}
+
+impl FooterField {
+    /// Gibt alle FooterFields zurück
+    pub const fn all() -> [FooterField; 3] {
+        [Self::Bank, Self::Kasse, Self::Sonstiges]
+    }
+
+    /// Gibt den Index im input_rows Array zurück
+    pub const fn index(&self) -> usize {
+        match self {
+            Self::Bank => 0,
+            Self::Kasse => 1,
+            Self::Sonstiges => 2,
+        }
+    }
+
+    /// Spalte (immer E = 4)
+    pub const fn col(&self) -> u16 {
+        4 // E-Spalte
+    }
+}
+
+// =============================================================================
 // Tests
 // =============================================================================
 

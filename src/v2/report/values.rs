@@ -92,6 +92,14 @@ impl From<f64> for CellValue {
 pub struct ReportValues {
     /// Speicher für alle Zellwerte, indexiert durch ApiKey
     values: HashMap<ApiKey, CellValue>,
+
+    // Footer-Salden (dynamische Adressen, abhängig von Body-Layout)
+    /// Bank-Saldo für Saldenabstimmung
+    footer_bank: Option<f64>,
+    /// Kassen-Saldo für Saldenabstimmung
+    footer_kasse: Option<f64>,
+    /// Sonstige Salden (Schecks, Vorschüsse, Darlehen, etc.)
+    footer_sonstiges: Option<f64>,
 }
 
 impl ReportValues {
@@ -316,6 +324,70 @@ impl ReportValues {
             position,
             field,
         })
+    }
+
+    // ========================================================================
+    // Footer-Werte (Saldenabstimmung)
+    // ========================================================================
+
+    /// Setzt den Bank-Saldo für die Saldenabstimmung im Footer
+    pub fn with_footer_bank(mut self, value: f64) -> Self {
+        self.footer_bank = Some(value);
+        self
+    }
+
+    /// Setzt den Kassen-Saldo für die Saldenabstimmung im Footer
+    pub fn with_footer_kasse(mut self, value: f64) -> Self {
+        self.footer_kasse = Some(value);
+        self
+    }
+
+    /// Setzt den Sonstiges-Saldo für die Saldenabstimmung im Footer
+    /// (noch nicht eingelöste Schecks, Vorschüsse, Darlehen, etc.)
+    pub fn with_footer_sonstiges(mut self, value: f64) -> Self {
+        self.footer_sonstiges = Some(value);
+        self
+    }
+
+    /// Setzt alle Footer-Salden auf einmal
+    pub fn with_footer_salden(mut self, bank: f64, kasse: f64, sonstiges: f64) -> Self {
+        self.footer_bank = Some(bank);
+        self.footer_kasse = Some(kasse);
+        self.footer_sonstiges = Some(sonstiges);
+        self
+    }
+
+    /// Setzt den Bank-Saldo (mutierend)
+    pub fn set_footer_bank(&mut self, value: f64) -> &mut Self {
+        self.footer_bank = Some(value);
+        self
+    }
+
+    /// Setzt den Kassen-Saldo (mutierend)
+    pub fn set_footer_kasse(&mut self, value: f64) -> &mut Self {
+        self.footer_kasse = Some(value);
+        self
+    }
+
+    /// Setzt den Sonstiges-Saldo (mutierend)
+    pub fn set_footer_sonstiges(&mut self, value: f64) -> &mut Self {
+        self.footer_sonstiges = Some(value);
+        self
+    }
+
+    /// Holt den Bank-Saldo
+    pub fn footer_bank(&self) -> Option<f64> {
+        self.footer_bank
+    }
+
+    /// Holt den Kassen-Saldo
+    pub fn footer_kasse(&self) -> Option<f64> {
+        self.footer_kasse
+    }
+
+    /// Holt den Sonstiges-Saldo
+    pub fn footer_sonstiges(&self) -> Option<f64> {
+        self.footer_sonstiges
     }
 }
 

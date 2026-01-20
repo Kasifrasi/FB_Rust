@@ -191,6 +191,12 @@ mod integrated_api_tests {
         values.set_header_input(7, 5000.0, 2500.0, 2500.0, "");
         values.set_header_input(8, 3000.0, 1500.0, 1500.0, "Reserve für Unvorhergesehenes");
 
+        // Footer-Werte (Saldenabstimmung)
+        values
+            .set_footer_bank(15000.0)
+            .set_footer_kasse(2500.0)
+            .set_footer_sonstiges(500.0);
+
         let body_config = BodyConfig::new()
             .with_positions(1, 10)
             .with_positions(2, 15)
@@ -366,6 +372,12 @@ mod integrated_api_tests {
         values.set_header_input(6, 12000.0, 6000.0, 6000.0, "Infrastruktur");
         values.set_header_input(7, 8000.0, 4000.0, 4000.0, "");
         values.set_header_input(8, 5000.0, 2500.0, 2500.0, "");
+
+        // Footer-Werte (Saldenabstimmung) - Großprojekt
+        values
+            .set_footer_bank(85000.0)
+            .set_footer_kasse(12000.0)
+            .set_footer_sonstiges(3000.0);
 
         let body_config = BodyConfig::new()
             .with_positions(1, 20)
