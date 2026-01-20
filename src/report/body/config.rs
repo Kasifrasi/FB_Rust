@@ -16,7 +16,7 @@
 //!   - N Positions-Zeilen (Eingabe)
 //!   - Footer-Zeile (Summen)
 
-use crate::report::types::Category;
+use crate::report::api::Category;
 use std::collections::HashMap;
 
 /// Start-Zeile für den dynamischen Body (0-basiert)

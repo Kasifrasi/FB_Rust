@@ -44,16 +44,12 @@ mod tests;
 
 // Public API re-exports
 pub use report::{
-    api::ApiKey,
+    api::{ApiKey, Category, Currency, DateError, Language, ReportDate, ReportValues},
     body::BodyConfig,
-    formats::ReportStyles,
-    protection::{
-        FieldValidation, HiddenRanges, ReportOptions, SheetProtection, ValidationError,
-        ValidationErrorStyle, ValidationRule, ValidationRuleType, ValidationTarget,
+    format::{
+        FieldValidation, HiddenRanges, ReportOptions, ReportStyles, SheetProtection,
+        ValidationError, ValidationErrorStyle, ValidationRule, ValidationRuleType,
+        ValidationTarget,
     },
-    types::{Category, Currency, DateError, Language, ReportDate},
-    values::ReportValues,
-    writer::{
-        apply_report_options, write_report, write_report_with_body, write_report_with_options,
-    },
+    writer::{apply_report_options, write_report_with_options},
 };

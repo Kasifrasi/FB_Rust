@@ -11,10 +11,10 @@
 //! **Hinweis:** Header-Formeln (J11, Q11, L13-O13, S13-V13) werden von
 //! `write_cells_from_registry()` geschrieben. Body-Rows werden hier geschrieben.
 
+use super::super::layout::MergeRange;
 use crate::lang::data::TEXT_MATRIX;
-use crate::report::formats::FormatMatrix;
-use crate::report::layout::MergeRange;
-use crate::report::values::ReportValues;
+use crate::report::api::ReportValues;
+use crate::report::format::FormatMatrix;
 use rust_xlsxwriter::{Formula, Worksheet, XlsxError};
 
 /// Merge-Bereiche für Panel Header

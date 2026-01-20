@@ -6,10 +6,10 @@
 //!
 //! Dieses Modul stellt die Infrastruktur für den dynamischen Teil bereit.
 
-use super::formats::FormatMatrix;
 use super::registry::CellAddr;
-use super::values::{CellValue, ReportValues};
 use crate::lang::data::TEXT_MATRIX;
+use crate::report::api::{CellValue, ReportValues};
+use crate::report::format::FormatMatrix;
 use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
 use std::collections::HashMap;
 

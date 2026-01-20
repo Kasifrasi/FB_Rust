@@ -24,7 +24,7 @@
 //!   - Eingabe in separaten Positions-Zeilen
 //!   - Alle Felder verfügbar (C, D, E, F, H)
 
-use super::registry::{CellAddr, CellRegistry, RegistryError};
+use crate::report::core::{CellAddr, CellRegistry, RegistryError};
 
 // =============================================================================
 // PositionField - Felder einer Kostenposition

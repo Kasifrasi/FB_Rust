@@ -12,7 +12,7 @@
 //! - Static ∩ Formula = ∅
 //! - Formel-Dependencies bilden DAG (kein Zyklus)
 
-use super::values::{CellValue, ReportValues};
+use crate::report::api::{CellValue, ReportValues};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
@@ -85,7 +85,7 @@ pub mod addr {
 
 // ApiKey wird jetzt in api.rs definiert und von dort exportiert.
 // Siehe api.rs für die vollständige Definition aller API-Zellen.
-pub use super::api::ApiKey;
+pub use crate::report::api::ApiKey;
 
 // ============================================================================
 // Static Values - Für Formeln benötigte Konstanten

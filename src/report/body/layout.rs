@@ -34,7 +34,7 @@
 
 use super::config::{BodyConfig, ALL_CATEGORIES, BODY_START_ROW};
 use crate::report::api::PositionField;
-use crate::report::registry::CellAddr;
+use crate::report::core::CellAddr;
 
 /// Kategorie-Metadaten (VLOOKUP-Indizes)
 #[derive(Debug, Clone, Copy)]

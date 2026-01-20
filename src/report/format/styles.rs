@@ -5,7 +5,7 @@
 //! - SectionStyles: Abgeleitete Styles für spezifische Bereiche
 //! - FormatMatrix: Zell-spezifische Format-Zuordnung
 
-use super::body::BodyLayout;
+use crate::report::body::BodyLayout;
 use rust_xlsxwriter::{Color, Format, FormatAlign, FormatBorder, FormatPattern};
 use std::collections::HashMap;
 
@@ -830,7 +830,7 @@ impl BodyStyles {
         let cat_header_b = s
             .base
             .clone()
-            .set_align(FormatAlign::Right)
+            .set_align(FormatAlign::Left)
             .set_bold()
             .set_num_format("@")
             .set_border_left(medium)
@@ -876,7 +876,7 @@ impl BodyStyles {
         let pos_b = s
             .base
             .clone()
-            .set_align(FormatAlign::Right)
+            .set_align(FormatAlign::Left)
             .set_num_format("@")
             .set_border_left(medium)
             .set_border_top(thin)
@@ -967,7 +967,7 @@ impl BodyStyles {
         let single_b = s
             .base
             .clone()
-            .set_align(FormatAlign::Right)
+            .set_align(FormatAlign::Left)
             .set_bold()
             .set_num_format("@")
             .set_border_left(medium)
@@ -1054,7 +1054,7 @@ pub fn extend_format_matrix_with_body(
     styles: &ReportStyles,
     layout: &BodyLayout,
 ) {
-    use super::body::CategoryMode;
+    use crate::report::body::CategoryMode;
 
     let body = BodyStyles::new(styles);
 

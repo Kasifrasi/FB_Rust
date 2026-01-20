@@ -1,62 +1,26 @@
 //! Report writer with registry-based formula evaluation.
+//!
+//! Die Haupt-API ist `write_report_with_options()`.
 
-use super::body::{
-    write_body_structure_with_values, write_footer, write_footer_values, BodyConfig, BodyLayout,
-    BodyResult,
-};
-use super::definitions::build_registry;
-use super::formats::{
-    build_format_matrix, extend_format_matrix_with_body, FormatMatrix, ReportStyles, SectionStyles,
-};
 use super::layout;
-use super::protection::ReportOptions;
-use super::registry::{CellAddr, CellKind, CellRegistry, EvalContext};
 use super::sections::{
     write_header_section, write_panel_section, write_prebody_section, write_table_section,
 };
-use super::values::{CellValue, ReportValues};
+use crate::report::api::{CellValue, ReportValues};
+use crate::report::body::{
+    write_body_structure_with_values, write_footer, write_footer_values, BodyConfig, BodyLayout,
+    BodyResult,
+};
+use crate::report::core::{build_registry, CellAddr, CellKind, CellRegistry, EvalContext};
+use crate::report::format::{
+    build_format_matrix, extend_format_matrix_with_body, FormatMatrix, ReportOptions, ReportStyles,
+    SectionStyles,
+};
 use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
 use std::collections::HashMap;
 
-/// Schreibt den kompletten Finanzbericht (Registry-basiert)
-pub fn write_report(
-    ws: &mut Worksheet,
-    styles: &ReportStyles,
-    suffix: &str,
-    values: &ReportValues,
-) -> Result<(), XlsxError> {
-    // Standardwert für Formel-Ergebnisse auf "" setzen (statt 0)
-    ws.set_formula_result_default("");
-
-    // 1. Registry erstellen
-    let registry = build_registry().map_err(|e| {
-        // Konvertiere RegistryError zu XlsxError
-        XlsxError::ParameterError(format!("Registry error: {}", e))
-    })?;
-
-    // 2. Alle Zellen evaluieren
-    let computed = evaluate_all_cells(&registry, values);
-
-    // 3. Styles und FormatMatrix erstellen
-    let sec = SectionStyles::new(styles);
-    let fmt = build_format_matrix(styles, &sec);
-
-    // 4. Statische Sections schreiben (Layout, Merges, Blanks)
-    write_header_section(ws, &fmt, suffix, values.language())?;
-    write_table_section(ws, &fmt)?;
-    write_panel_section(ws, &fmt, values)?;
-
-    // 5. Alle Zellen aus Registry schreiben (API-Werte + Formeln)
-    write_cells_from_registry(ws, &registry, &computed, &fmt)?;
-
-    // 6. Freeze Pane
-    layout::setup_freeze_panes(ws, 9)?;
-
-    Ok(())
-}
-
-/// Schreibt den kompletten Finanzbericht MIT dynamischem Body-Bereich
-pub fn write_report_with_body(
+/// Interne Funktion: Schreibt den Report mit Body-Bereich
+fn write_report_with_body(
     ws: &mut Worksheet,
     styles: &ReportStyles,
     suffix: &str,
@@ -202,7 +166,7 @@ pub fn apply_report_options(
 /// Wendet HiddenRanges auf ein Worksheet an
 fn apply_hidden_ranges(
     ws: &mut Worksheet,
-    hidden: &super::protection::HiddenRanges,
+    hidden: &crate::report::format::HiddenRanges,
 ) -> Result<(), XlsxError> {
     // Spalten verstecken
     for range in hidden.column_ranges() {
@@ -259,7 +223,7 @@ fn evaluate_all_cells(
 /// Holt API-Wert aus ReportValues
 ///
 /// Verwendet `get_owned()` um alle Keys inkl. Footer-Keys zu unterstützen.
-fn get_api_value(values: &ReportValues, key: super::api::ApiKey) -> CellValue {
+fn get_api_value(values: &ReportValues, key: crate::report::api::ApiKey) -> CellValue {
     values.get_owned(key)
 }
 

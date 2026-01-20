@@ -8,12 +8,9 @@
 #[cfg(test)]
 mod report_tests {
     use crate::lang::builder::build_sheet as build_trans_sheet;
-    use crate::report::api::ApiKey;
-    use crate::report::formats::ReportStyles;
-    use crate::report::layout::setup_sheet;
-    use crate::report::protection::ReportOptions;
-    use crate::report::values::ReportValues;
-    use crate::report::writer::write_report_with_options;
+    use crate::report::api::{ApiKey, ReportValues};
+    use crate::report::format::{ReportOptions, ReportStyles};
+    use crate::report::writer::{setup_sheet, write_report_with_options};
     use crate::report::BodyConfig;
     use rust_xlsxwriter::{Format, Workbook};
 
@@ -724,7 +721,7 @@ mod report_tests {
     // ========================================================================
     #[test]
     fn test_typesafe_api() {
-        use crate::report::types::{Category, Currency, Language, ReportDate};
+        use crate::report::api::{Category, Currency, Language, ReportDate};
 
         let sheet_name = "Finanzbericht";
         let mut workbook = create_workbook_with_sheet(sheet_name);

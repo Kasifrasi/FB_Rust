@@ -9,9 +9,11 @@
 
 use kmw_fb_rust::common::{LANG_CONFIG, LANG_SUFFIXES};
 use kmw_fb_rust::lang::build_sheet as build_sprachversionen;
-use kmw_fb_rust::report::layout::setup_sheet;
+use kmw_fb_rust::report::writer::setup_sheet;
 use kmw_fb_rust::report::ApiKey;
-use kmw_fb_rust::report::{write_report_with_body, BodyConfig, ReportStyles, ReportValues};
+use kmw_fb_rust::{
+    write_report_with_options, BodyConfig, ReportOptions, ReportStyles, ReportValues,
+};
 use rust_xlsxwriter::{Format, Workbook};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -129,11 +131,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         values.set_footer_kasse(2000.0);
         values.set_footer_sonstiges(500.0);
 
-        // Report schreiben
-        write_report_with_body(ws, &styles, suffix, &values, &body_config)?;
-
-        // Blattschutz aktivieren
-        ws.protect();
+        // Report schreiben mit Optionen (Protection + versteckte Spalten)
+        let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
+        write_report_with_options(ws, &styles, suffix, &values, &body_config, &options)?;
 
         // Datei speichern
         let filename = format!("tests/output/{}.xlsx", config.base);

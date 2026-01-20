@@ -10,9 +10,9 @@
 //! **Hinweis:** Formeln werden von `write_cells_from_registry()` geschrieben.
 //! Dieser Section-Writer schreibt nur Layout (Merges, Blanks, Werte, Validierungen).
 
+use super::super::layout::MergeRange;
 use crate::lang::data::CURRENCIES;
-use crate::report::formats::FormatMatrix;
-use crate::report::layout::MergeRange;
+use crate::report::format::FormatMatrix;
 use rust_xlsxwriter::{DataValidation, Worksheet, XlsxError};
 
 /// Merge-Bereiche für Header Section

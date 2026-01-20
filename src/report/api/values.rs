@@ -3,7 +3,7 @@
 //! Dieses Modul speichert alle Eingabewerte.
 //! Nutzt direkt `ApiKey` als Schlüssel - keine redundanten Enums.
 
-use super::api::{ApiKey, FooterField, PositionField};
+use super::keys::{ApiKey, FooterField, PositionField};
 use super::types::{Category, Currency, Language, ReportDate};
 use std::collections::HashMap;
 

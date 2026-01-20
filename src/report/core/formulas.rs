@@ -7,8 +7,8 @@
 //! - Die Rust-Evaluierungsfunktion (für Berechnungen)
 
 use super::cells::CellAddress;
-use super::values::{CellValue, ReportValues};
 use crate::lang::data::TEXT_MATRIX;
+use crate::report::api::{CellValue, ReportValues};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 

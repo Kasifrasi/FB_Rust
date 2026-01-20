@@ -7,13 +7,12 @@
 //! - Formula: Hat Excel-Formel + Rust-Evaluator
 //! - Empty: Nicht registriert = Standardwert
 
-use super::api::register_all_api_cells;
 use super::registry::{
     addr, builder::FormulaBuilder, CellAddr, CellRegistry, EvalContext, FormulaCell,
     FormulaCellDeps, Inputs, RegistryError, Sheets, Statics,
 };
-use super::values::CellValue;
 use crate::lang::data::TEXT_MATRIX;
+use crate::report::api::{register_all_api_cells, CellValue};
 
 // ============================================================================
 // Öffentliche VLOOKUP-Evaluierung

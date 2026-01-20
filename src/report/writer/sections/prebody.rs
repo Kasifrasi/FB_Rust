@@ -15,8 +15,8 @@
 //! Für Backward-Kompatibilität existiert weiterhin die Legacy-Version
 //! `write_prebody_section`, die die Formeln selbst schreibt.
 
-use crate::report::definitions::lookup_text_string;
-use crate::report::ReportStyles;
+use crate::report::core::lookup_text_string;
+use crate::report::format::ReportStyles;
 use rust_xlsxwriter::{FormatAlign, Formula, Worksheet, XlsxError};
 
 /// Schreibt die Pre-Body Section (Zeilen 20-25) - Legacy-Version

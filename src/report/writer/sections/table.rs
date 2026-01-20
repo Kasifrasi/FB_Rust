@@ -8,8 +8,8 @@
 //! **Hinweis:** Formeln werden von `write_cells_from_registry()` geschrieben.
 //! Dieser Section-Writer schreibt nur Layout (Merges, Blanks, Body-Werte).
 
-use crate::report::formats::FormatMatrix;
-use crate::report::layout::MergeRange;
+use super::super::layout::MergeRange;
+use crate::report::format::FormatMatrix;
 use rust_xlsxwriter::{Worksheet, XlsxError};
 
 /// Merge-Bereiche für Table Header

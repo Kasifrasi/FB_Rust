@@ -21,8 +21,8 @@
 
 use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Formula, Worksheet, XlsxError};
 
-use crate::report::definitions::lookup_text_string;
-use crate::report::formats::ReportStyles;
+use crate::report::core::lookup_text_string;
+use crate::report::format::ReportStyles;
 
 /// Footer-Layout mit berechneten Zeilenpositionen
 #[derive(Debug, Clone)]
