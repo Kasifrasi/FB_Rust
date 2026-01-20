@@ -48,6 +48,11 @@ pub struct CategoryMeta {
 }
 
 /// Alle Kategorie-Metadaten
+/// VLOOKUP-Indizes aus Sprachversionen-Sheet:
+/// - Kategorien 1-6: Label + Sum-Label Paare (29/30, 31/32, 33/34, 35/36, 37/38, 39/-)
+/// - Kategorie 7 (Audit): Index 40
+/// - Kategorie 8 (Reserve): Index 41
+/// - Gesamt: Index 42
 pub const CATEGORY_META: [CategoryMeta; 8] = [
     CategoryMeta {
         num: 1,
@@ -77,22 +82,22 @@ pub const CATEGORY_META: [CategoryMeta; 8] = [
     CategoryMeta {
         num: 6,
         label_index: 39,
-        sum_label_index: 40, // Jetzt auch für Kategorie 6 verfügbar!
+        sum_label_index: 39, // Kategorie 6 hat kein separates Sum-Label
     },
     CategoryMeta {
         num: 7,
-        label_index: 41,
-        sum_label_index: 42, // Jetzt auch für Kategorie 7 verfügbar!
+        label_index: 40, // Audit
+        sum_label_index: 40,
     },
     CategoryMeta {
         num: 8,
-        label_index: 43,
-        sum_label_index: 44, // Jetzt auch für Kategorie 8 verfügbar!
+        label_index: 41, // Reserve
+        sum_label_index: 41,
     },
 ];
 
 /// VLOOKUP-Index für "Gesamt" Label
-pub const TOTAL_LABEL_INDEX: usize = 45;
+pub const TOTAL_LABEL_INDEX: usize = 42;
 
 /// Berechnetes Body-Layout
 #[derive(Debug, Clone)]

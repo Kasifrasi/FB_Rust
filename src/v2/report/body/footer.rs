@@ -237,12 +237,11 @@ pub fn write_footer(
         .set_border_bottom(border_thin);
     ws.write_blank(s + 4, 2, &fmt_c_s4)?;
 
-    // D: Check-Formel ✓, zentriert, top+bottom+right thin border
+    // D: Check-Formel ✓, zentriert, top+bottom border (KEIN right border - sonst erscheint er als E left!)
     let fmt_d_s4 = center
         .clone()
         .set_border_top(border_thin)
-        .set_border_bottom(border_thin)
-        .set_border_right(border_thin);
+        .set_border_bottom(border_thin);
     let check_formula = format!(
         "=IF(ROUND(E{},2)=(ROUND(F{}-F{},2)),\"✓\",\"\")",
         s + 4 + 1,      // E saldo (1-indexed)
@@ -251,11 +250,10 @@ pub fn write_footer(
     );
     ws.write_formula_with_format(s + 4, 3, check_formula.as_str(), &fmt_d_s4)?;
 
-    // E: Differenz-Formel, right+left+top+bottom border
+    // E: Differenz-Formel, right+top+bottom border (KEIN left border!)
     let fmt_e_s4 = number_right
         .clone()
         .set_border_right(border_medium)
-        .set_border_left(border_thin)
         .set_border_top(border_thin)
         .set_border_bottom(border_thin);
     let diff_formula = format!("=E{}-E{}", income_row + 1, total_row + 1);
@@ -268,12 +266,10 @@ pub fn write_footer(
     let fmt_b_s5 = normal.clone().set_border_left(border_medium);
     ws.write_blank(s + 5, 1, &fmt_b_s5)?;
     ws.write_blank(s + 5, 2, &normal)?;
-    let fmt_d_s5 = normal.clone().set_border_right(border_thin);
-    ws.write_blank(s + 5, 3, &fmt_d_s5)?;
-    let fmt_e_s5 = normal
-        .clone()
-        .set_border_right(border_medium)
-        .set_border_left(border_thin);
+    // D: KEIN right border (sonst erscheint er als E left!)
+    ws.write_blank(s + 5, 3, &normal)?;
+    // E: right border only (KEIN left border!)
+    let fmt_e_s5 = normal.clone().set_border_right(border_medium);
     ws.write_blank(s + 5, 4, &fmt_e_s5)?;
 
     // =========================================================================
@@ -292,15 +288,11 @@ pub fn write_footer(
     // C: leer
     ws.write_blank(s + 6, 2, &normal)?;
 
-    // D: right thin border
-    let fmt_d_s6 = normal.clone().set_border_right(border_thin);
-    ws.write_blank(s + 6, 3, &fmt_d_s6)?;
+    // D: KEIN right border (sonst erscheint er als E left!)
+    ws.write_blank(s + 6, 3, &normal)?;
 
-    // E: OK-Check, grau zentriert, right+left border
-    let fmt_e_s6 = gray_center
-        .clone()
-        .set_border_right(border_medium)
-        .set_border_left(border_thin);
+    // E: OK-Check, grau zentriert, right border only (KEIN left border!)
+    let fmt_e_s6 = gray_center.clone().set_border_right(border_medium);
     let ok_formula = format!(
         "=IF(E{}=SUM(E{}:E{}),\"OK\",\"\")",
         s + 4 + 1, // saldo row (1-indexed)
