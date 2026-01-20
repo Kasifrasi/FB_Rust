@@ -175,10 +175,8 @@ pub fn apply_report_options(
     options: &ReportOptions,
     _body_result: &BodyResult,
 ) -> Result<(), XlsxError> {
-    // 1. Spalten Q:V verstecken (wenn aktiviert)
-    if options.hide_columns_qv {
-        layout::hide_columns_qv(ws)?;
-    }
+    // 1. Spalten und Zeilen verstecken
+    apply_hidden_ranges(ws, &options.hidden)?;
 
     // 2. Sheet Protection anwenden (wenn konfiguriert)
     if let Some(ref protection) = options.protection {
@@ -196,6 +194,28 @@ pub fn apply_report_options(
     if let Some(ref _validation) = options.validation {
         // TODO: Validation targets zu Zelladressen auflösen und anwenden
         // Dies erfordert Zugriff auf BodyLayout für dynamische Adressen
+    }
+
+    Ok(())
+}
+
+/// Wendet HiddenRanges auf ein Worksheet an
+fn apply_hidden_ranges(
+    ws: &mut Worksheet,
+    hidden: &super::protection::HiddenRanges,
+) -> Result<(), XlsxError> {
+    // Spalten verstecken
+    for range in hidden.column_ranges() {
+        for col in range.start..=range.end {
+            ws.set_column_hidden(col as u16)?;
+        }
+    }
+
+    // Zeilen verstecken
+    for range in hidden.row_ranges() {
+        for row in range.start..=range.end {
+            ws.set_row_hidden(row)?;
+        }
     }
 
     Ok(())

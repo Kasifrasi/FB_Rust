@@ -35,12 +35,10 @@ pub use formats::{
 pub use formulas::{
     evaluate_formula, FormulaCache, FormulaDefinition, FormulaType, HEADER_FORMULAS,
 };
-pub use layout::{
-    hide_columns_qv, setup_default_column_format, setup_freeze_panes, setup_sheet, MergeRange,
-};
+pub use layout::{setup_default_column_format, setup_freeze_panes, setup_sheet, MergeRange};
 pub use protection::{
-    FieldValidation, NumericRule, ReportOptions, SheetProtection, ValidationError,
-    ValidationErrorStyle, ValidationRule, ValidationRuleType, ValidationTarget,
+    FieldValidation, HiddenRange, HiddenRanges, NumericRule, ReportOptions, SheetProtection,
+    ValidationError, ValidationErrorStyle, ValidationRule, ValidationRuleType, ValidationTarget,
 };
 pub use registry::{
     CellAddr, CellEvaluator, CellKind, CellRegistry, EvalContext, FormulaCell, FormulaCellDeps,

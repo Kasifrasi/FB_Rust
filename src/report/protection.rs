@@ -682,6 +682,125 @@ impl std::fmt::Display for ValidationError {
 impl std::error::Error for ValidationError {}
 
 // ============================================================================
+// Hidden Ranges (Columns and Rows)
+// ============================================================================
+
+/// Configuration for hiding columns and rows
+#[derive(Debug, Clone, Default)]
+pub struct HiddenRanges {
+    /// Columns to hide (0-indexed)
+    columns: Vec<HiddenRange>,
+    /// Rows to hide (0-indexed)
+    rows: Vec<HiddenRange>,
+}
+
+/// A range to hide (inclusive start and end)
+#[derive(Debug, Clone, Copy)]
+pub struct HiddenRange {
+    /// Start index (0-indexed)
+    pub start: u32,
+    /// End index (0-indexed, inclusive)
+    pub end: u32,
+}
+
+impl HiddenRange {
+    /// Creates a new range from start to end (inclusive)
+    pub const fn new(start: u32, end: u32) -> Self {
+        Self { start, end }
+    }
+
+    /// Creates a range for a single column/row
+    pub const fn single(index: u32) -> Self {
+        Self {
+            start: index,
+            end: index,
+        }
+    }
+
+    /// Creates a range from Excel column letters (e.g., "Q", "V")
+    pub fn from_col_letters(start: &str, end: &str) -> Self {
+        Self {
+            start: col_letter_to_index(start),
+            end: col_letter_to_index(end),
+        }
+    }
+}
+
+/// Converts Excel column letter(s) to 0-indexed number
+/// A=0, B=1, ..., Z=25, AA=26, AB=27, ...
+fn col_letter_to_index(col: &str) -> u32 {
+    let mut result = 0u32;
+    for c in col.to_uppercase().chars() {
+        if c.is_ascii_alphabetic() {
+            result = result * 26 + (c as u32 - 'A' as u32 + 1);
+        }
+    }
+    result.saturating_sub(1) // Convert to 0-indexed
+}
+
+impl HiddenRanges {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Hides a single column (0-indexed)
+    pub fn hide_column(mut self, col: u16) -> Self {
+        self.columns.push(HiddenRange::single(col as u32));
+        self
+    }
+
+    /// Hides a range of columns (0-indexed, inclusive)
+    pub fn hide_columns(mut self, start: u16, end: u16) -> Self {
+        self.columns
+            .push(HiddenRange::new(start as u32, end as u32));
+        self
+    }
+
+    /// Hides columns by Excel letter notation (e.g., "Q", "V")
+    pub fn hide_columns_by_letter(mut self, start: &str, end: &str) -> Self {
+        self.columns.push(HiddenRange::from_col_letters(start, end));
+        self
+    }
+
+    /// Hides a single row (0-indexed)
+    pub fn hide_row(mut self, row: u32) -> Self {
+        self.rows.push(HiddenRange::single(row));
+        self
+    }
+
+    /// Hides a range of rows (0-indexed, inclusive)
+    pub fn hide_rows(mut self, start: u32, end: u32) -> Self {
+        self.rows.push(HiddenRange::new(start, end));
+        self
+    }
+
+    /// Preset: Hide columns Q:V (16-21, right panel duplicate)
+    pub fn preset_hide_qv() -> Self {
+        Self::new().hide_columns(16, 21)
+    }
+
+    /// Returns all column ranges to hide
+    pub fn column_ranges(&self) -> &[HiddenRange] {
+        &self.columns
+    }
+
+    /// Returns all row ranges to hide
+    pub fn row_ranges(&self) -> &[HiddenRange] {
+        &self.rows
+    }
+
+    /// Returns true if any ranges are configured
+    pub fn has_ranges(&self) -> bool {
+        !self.columns.is_empty() || !self.rows.is_empty()
+    }
+
+    /// Returns true if no ranges are configured
+    pub fn is_empty(&self) -> bool {
+        self.columns.is_empty() && self.rows.is_empty()
+    }
+}
+
+// ============================================================================
 // Report Options (combines Protection + Validation + other settings)
 // ============================================================================
 
@@ -694,8 +813,8 @@ pub struct ReportOptions {
     /// Field validations
     pub validation: Option<FieldValidation>,
 
-    /// Hide columns Q:V (right panel duplicate)
-    pub hide_columns_qv: bool,
+    /// Hidden columns and rows
+    pub hidden: HiddenRanges,
 
     /// Language for error messages (uses LANG_CONFIG)
     pub language: Option<String>,
@@ -726,9 +845,27 @@ impl ReportOptions {
         self
     }
 
-    /// Hides columns Q:V
+    /// Sets hidden ranges configuration
+    pub fn with_hidden(mut self, hidden: HiddenRanges) -> Self {
+        self.hidden = hidden;
+        self
+    }
+
+    /// Convenience: Hides columns Q:V (right panel duplicate)
     pub fn with_hidden_columns_qv(mut self) -> Self {
-        self.hide_columns_qv = true;
+        self.hidden = HiddenRanges::preset_hide_qv();
+        self
+    }
+
+    /// Convenience: Hides specific columns by letter
+    pub fn hide_columns(mut self, start: &str, end: &str) -> Self {
+        self.hidden = self.hidden.hide_columns_by_letter(start, end);
+        self
+    }
+
+    /// Convenience: Hides specific rows
+    pub fn hide_rows(mut self, start: u32, end: u32) -> Self {
+        self.hidden = self.hidden.hide_rows(start, end);
         self
     }
 
@@ -825,7 +962,8 @@ mod tests {
             .with_language("Englisch");
 
         assert!(opts.protection.is_some());
-        assert!(opts.hide_columns_qv);
+        assert!(!opts.hidden.is_empty());
+        assert_eq!(opts.hidden.column_ranges().len(), 1);
         assert_eq!(opts.language(), "Englisch");
     }
 

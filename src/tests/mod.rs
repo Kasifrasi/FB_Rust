@@ -1,8 +1,9 @@
-//! Unit tests for the report generator.
+//! Tests für den Finanzbericht-Generator
+//!
+//! Aktive Tests: report_tests.rs (generiert Excel-Dateien in tests/output/)
+//! Legacy Tests: legacy/ (auskommentiert, zur Referenz aufbewahrt)
 
-mod body_config;
-mod body_layout;
-mod integrated_api;
-mod legacy;
-mod position_api;
-mod right_panel;
+mod report_tests;
+
+// Legacy tests - uncomment to run old tests:
+// mod legacy;

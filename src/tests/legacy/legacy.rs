@@ -2,7 +2,8 @@
 mod tests {
     use crate::lang::builder::build_sheet as build_trans_sheet;
     use crate::report::formats::ReportStyles;
-    use crate::report::layout::{hide_columns_qv, setup_sheet};
+    use crate::report::layout::setup_sheet;
+    use crate::report::protection::HiddenRanges;
     use crate::report::values::ReportValues;
     use crate::report::writer::write_report;
     use rust_xlsxwriter::{Format, Workbook};
@@ -49,7 +50,12 @@ mod tests {
         write_report(ws, &styles, suffix, &values).expect("Failed to write header");
 
         // 9. Spalten Q:V verstecken und Sheet schützen
-        hide_columns_qv(ws).expect("Failed to hide columns");
+        let hidden = HiddenRanges::preset_hide_qv();
+        for range in hidden.column_ranges() {
+            for col in range.start..=range.end {
+                ws.set_column_hidden(col as u16).ok();
+            }
+        }
         ws.protect();
 
         // 10. Save to file for inspection
@@ -110,7 +116,12 @@ mod tests {
         write_report(ws, &styles, suffix, &values).expect("Failed to write report v2");
 
         // 9. Spalten Q:V verstecken und Sheet schützen
-        hide_columns_qv(ws).expect("Failed to hide columns");
+        let hidden = HiddenRanges::preset_hide_qv();
+        for range in hidden.column_ranges() {
+            for col in range.start..=range.end {
+                ws.set_column_hidden(col as u16).ok();
+            }
+        }
         ws.protect();
 
         // 10. Save to file
@@ -196,7 +207,12 @@ mod tests {
         write_report(ws, &styles, suffix, &values).expect("Failed to write report");
 
         // 9. Spalten Q:V verstecken und Sheet schützen
-        hide_columns_qv(ws).expect("Failed to hide columns");
+        let hidden = HiddenRanges::preset_hide_qv();
+        for range in hidden.column_ranges() {
+            for col in range.start..=range.end {
+                ws.set_column_hidden(col as u16).ok();
+            }
+        }
         ws.protect();
 
         // 10. Save to file
