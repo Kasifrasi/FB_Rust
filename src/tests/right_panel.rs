@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests_right_panel {
+    use crate::lang::builder::build_sheet as build_trans_sheet;
     use crate::report::api::ApiKey;
     use crate::report::formats::ReportStyles;
-    use crate::report::layout::setup_sheet;
+    use crate::report::layout::{hide_columns_qv, setup_sheet};
     use crate::report::values::ReportValues;
     use crate::report::writer::write_report;
-    use crate::lang::builder::build_sheet as build_trans_sheet;
     use rust_xlsxwriter::{Format, Workbook};
 
     /// Test mit vollständigen Right Panel Daten
@@ -84,6 +84,8 @@ mod tests_right_panel {
         let suffix = "_de";
         write_report(ws, &styles, suffix, &values).expect("Failed to write report");
 
+        // Spalten Q:V verstecken und Sheet schützen
+        hide_columns_qv(ws).expect("Failed to hide columns");
         ws.protect();
 
         let path = "tests/output/right_panel_complete_data.xlsx";
@@ -167,6 +169,8 @@ mod tests_right_panel {
         let suffix = "_de";
         write_report(ws, &styles, suffix, &values).expect("Failed to write report");
 
+        // Spalten Q:V verstecken und Sheet schützen
+        hide_columns_qv(ws).expect("Failed to hide columns");
         ws.protect();
 
         let path = "tests/output/right_panel_realistic_data.xlsx";

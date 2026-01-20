@@ -8,6 +8,7 @@
 //! - `layout`: Column widths, merges, freeze panes
 //! - `sections`: Static sections (header, table, panel)
 //! - `body`: Dynamic cost position sections
+//! - `protection`: Sheet protection and data validation
 //! - `writer`: Main entry points
 
 pub mod api;
@@ -18,6 +19,7 @@ pub mod dynamic;
 pub mod formats;
 pub mod formulas;
 pub mod layout;
+pub mod protection;
 pub mod registry;
 pub mod sections;
 pub mod values;
@@ -33,10 +35,18 @@ pub use formats::{
 pub use formulas::{
     evaluate_formula, FormulaCache, FormulaDefinition, FormulaType, HEADER_FORMULAS,
 };
-pub use layout::{setup_default_column_format, setup_freeze_panes, setup_sheet, MergeRange};
+pub use layout::{
+    hide_columns_qv, setup_default_column_format, setup_freeze_panes, setup_sheet, MergeRange,
+};
+pub use protection::{
+    FieldValidation, NumericRule, ReportOptions, SheetProtection, ValidationError,
+    ValidationErrorStyle, ValidationRule, ValidationRuleType, ValidationTarget,
+};
 pub use registry::{
     CellAddr, CellEvaluator, CellKind, CellRegistry, EvalContext, FormulaCell, FormulaCellDeps,
     FormulaDeps, Inputs, RegistryError, SheetRef, Sheets, StaticVal, Statics,
 };
 pub use values::{CellValue, ReportValues};
-pub use writer::{write_report, write_report_with_body};
+pub use writer::{
+    apply_report_options, write_report, write_report_with_body, write_report_with_options,
+};

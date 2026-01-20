@@ -5,16 +5,18 @@
 //! - Kategorien 6-8: Standardmäßig Header-Input Mode (position=0)
 //! - Right Panel Daten (L, M, N, S, T, U Spalten)
 //! - Statischen Header und Tabellen-Daten
+//! - Sheet Protection und versteckten Spalten (Q:V)
 
 #[cfg(test)]
 mod integrated_api_tests {
+    use crate::lang::builder::build_sheet as build_trans_sheet;
     use crate::report::api::ApiKey;
     use crate::report::formats::ReportStyles;
     use crate::report::layout::setup_sheet;
+    use crate::report::protection::ReportOptions;
     use crate::report::values::ReportValues;
-    use crate::report::writer::write_report_with_body;
+    use crate::report::writer::write_report_with_options;
     use crate::report::BodyConfig;
-    use crate::lang::builder::build_sheet as build_trans_sheet;
     use rust_xlsxwriter::{Format, Workbook};
 
     // ========================================================================
@@ -207,10 +209,11 @@ mod integrated_api_tests {
             .with_positions(7, 0) // Header-Input
             .with_positions(8, 0); // Header-Input
 
-        write_report_with_body(ws, &styles, "_de", &values, &body_config)
-            .expect("Failed to write report");
+        // Neue API mit ReportOptions: Protection + versteckte Spalten Q:V
+        let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
 
-        ws.protect();
+        write_report_with_options(ws, &styles, "_de", &values, &body_config, &options)
+            .expect("Failed to write report");
 
         let path = "tests/output/test_realistic_medium_project.xlsx";
         workbook.save(path).expect("Failed to save workbook");
@@ -389,10 +392,10 @@ mod integrated_api_tests {
             .with_positions(7, 0) // Header-Input
             .with_positions(8, 0); // Header-Input
 
-        write_report_with_body(ws, &styles, "_de", &values, &body_config)
-            .expect("Failed to write report");
+        let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
 
-        ws.protect();
+        write_report_with_options(ws, &styles, "_de", &values, &body_config, &options)
+            .expect("Failed to write report");
 
         let path = "tests/output/test_large_project_maximum.xlsx";
         workbook.save(path).expect("Failed to save workbook");
@@ -534,10 +537,10 @@ mod integrated_api_tests {
             .with_positions(7, 0) // Header-Input
             .with_positions(8, 0); // Header-Input
 
-        write_report_with_body(ws, &styles, "_de", &values, &body_config)
-            .expect("Failed to write report");
+        let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
 
-        ws.protect();
+        write_report_with_options(ws, &styles, "_de", &values, &body_config, &options)
+            .expect("Failed to write report");
 
         let path = "tests/output/test_minimal_project.xlsx";
         workbook.save(path).expect("Failed to save workbook");
@@ -704,10 +707,10 @@ mod integrated_api_tests {
             .with_positions(7, 0) // Header-Input
             .with_positions(8, 0); // Header-Input
 
-        write_report_with_body(ws, &styles, "_de", &values, &body_config)
-            .expect("Failed to write report");
+        let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
 
-        ws.protect();
+        write_report_with_options(ws, &styles, "_de", &values, &body_config, &options)
+            .expect("Failed to write report");
 
         let path = "tests/output/test_category_6_with_positions.xlsx";
         workbook.save(path).expect("Failed to save workbook");
@@ -909,10 +912,10 @@ mod integrated_api_tests {
             .with_positions(7, 0) // Header-Input
             .with_positions(8, 4); // 4 Positionen als seltene Reserve-Ausnahme
 
-        write_report_with_body(ws, &styles, "_de", &values, &body_config)
-            .expect("Failed to write report");
+        let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
 
-        ws.protect();
+        write_report_with_options(ws, &styles, "_de", &values, &body_config, &options)
+            .expect("Failed to write report");
 
         let path = "tests/output/test_reserve_with_positions.xlsx";
         workbook.save(path).expect("Failed to save workbook");

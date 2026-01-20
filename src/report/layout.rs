@@ -117,6 +117,21 @@ pub fn setup_default_column_format(
 }
 
 // ============================================================================
+// Column Hiding
+// ============================================================================
+
+/// Hides columns Q through V (cols 16-21, 0-indexed)
+///
+/// The right panel has duplicate data in Q:V that is typically hidden
+/// from end users while still being available for formulas.
+pub fn hide_columns_qv(ws: &mut Worksheet) -> Result<(), XlsxError> {
+    for col in 16..=21u16 {
+        ws.set_column_hidden(col)?;
+    }
+    Ok(())
+}
+
+// ============================================================================
 // Merge-Bereiche für Header
 // ============================================================================
 

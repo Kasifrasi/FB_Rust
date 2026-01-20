@@ -9,6 +9,7 @@ use super::formats::{
     build_format_matrix, extend_format_matrix_with_body, FormatMatrix, ReportStyles, SectionStyles,
 };
 use super::layout;
+use super::protection::ReportOptions;
 use super::registry::{CellAddr, CellKind, CellRegistry, EvalContext};
 use super::sections::{
     write_header_section, write_panel_section, write_prebody_section, write_table_section,
@@ -133,6 +134,71 @@ pub fn write_report_with_body(
     layout::setup_freeze_panes(ws, 9)?;
 
     Ok(body_result)
+}
+
+/// Schreibt den kompletten Finanzbericht MIT dynamischem Body-Bereich UND Optionen
+///
+/// Diese Funktion unterstützt:
+/// - Sheet Protection mit konfigurierbaren Einstellungen
+/// - Data Validation für Input-Felder
+/// - Column Hiding (Q:V)
+///
+/// # Arguments
+/// * `ws` - Worksheet
+/// * `styles` - Report styles
+/// * `suffix` - Dateiname-Suffix
+/// * `values` - Eingabewerte
+/// * `body_config` - Body-Konfiguration
+/// * `options` - Protection, Validation und Display-Optionen
+pub fn write_report_with_options(
+    ws: &mut Worksheet,
+    styles: &ReportStyles,
+    suffix: &str,
+    values: &ReportValues,
+    body_config: &BodyConfig,
+    options: &ReportOptions,
+) -> Result<BodyResult, XlsxError> {
+    // Basis-Report schreiben
+    let body_result = write_report_with_body(ws, styles, suffix, values, body_config)?;
+
+    // Optionen anwenden
+    apply_report_options(ws, options, &body_result)?;
+
+    Ok(body_result)
+}
+
+/// Wendet ReportOptions auf ein Worksheet an
+///
+/// Kann nach dem Schreiben des Reports aufgerufen werden.
+pub fn apply_report_options(
+    ws: &mut Worksheet,
+    options: &ReportOptions,
+    _body_result: &BodyResult,
+) -> Result<(), XlsxError> {
+    // 1. Spalten Q:V verstecken (wenn aktiviert)
+    if options.hide_columns_qv {
+        layout::hide_columns_qv(ws)?;
+    }
+
+    // 2. Sheet Protection anwenden (wenn konfiguriert)
+    if let Some(ref protection) = options.protection {
+        let prot_options = protection.to_protection_options();
+
+        if let Some(ref password) = protection.password {
+            ws.protect_with_password(password);
+        }
+        ws.protect_with_options(&prot_options);
+    }
+
+    // 3. Validierungen anwenden (wenn konfiguriert)
+    // Note: Die eigentliche Anwendung erfordert Adress-Auflösung über BodyLayout
+    // Dies wird in einer späteren Version implementiert
+    if let Some(ref _validation) = options.validation {
+        // TODO: Validation targets zu Zelladressen auflösen und anwenden
+        // Dies erfordert Zugriff auf BodyLayout für dynamische Adressen
+    }
+
+    Ok(())
 }
 
 /// Evaluates all cells and returns computed values.
