@@ -6,6 +6,7 @@
 //!
 //! K14:K31 und R14:R31 sind FORMELN und dürfen NICHT befüllt werden!
 
+use kmw_fb_rust::v2::report::api::ApiKey;
 use kmw_fb_rust::v2::report::formats::ReportStyles;
 use kmw_fb_rust::v2::report::layout::setup_sheet;
 use kmw_fb_rust::v2::report::values::ReportValues;
@@ -60,23 +61,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_report_end("2024-03-31");
 
     // Tabellendaten setzen (D15-F19)
-    use kmw_fb_rust::v2::report::cells::{RightPanelInputCell, TableInputCell};
-
-    println!("📝 Setze Tabellendaten (D15-F19)...");
+    println!("Setze Tabellendaten (D15-F19)...");
     for i in 0..5u8 {
         values
-            .set(TableInputCell::ApprovedBudget(i), 1000.0 + i as f64 * 500.0)
-            .set(
-                TableInputCell::IncomeReportPeriod(i),
-                100.0 + i as f64 * 200.0,
-            )
-            .set(TableInputCell::IncomeTotal(i), 500.0 + i as f64 * 300.0);
+            .set(ApiKey::ApprovedBudget(i), 1000.0 + i as f64 * 500.0)
+            .set(ApiKey::IncomeReportPeriod(i), 100.0 + i as f64 * 200.0)
+            .set(ApiKey::IncomeTotal(i), 500.0 + i as f64 * 300.0);
     }
 
     // Right Panel Daten setzen - NUR L, M, N (links) und S, T, U (rechts)
     // K14:K31 und R14:R31 sind FORMELN, nicht befüllen!
-    println!("📝 Setze Right Panel Daten (L14-N31, S14-U31)...");
-    println!("   HINWEIS: K14:K31 und R14:R31 sind Formeln - nicht befüllen!");
+    println!("Setze Right Panel Daten (L14-N31, S14-U31)...");
+    println!("   HINWEIS: K14:K31 und R14:R31 sind Formeln - nicht befuellen!");
     for i in 0..18u8 {
         let amount_eur = 100.0 + i as f64 * 250.0;
         let amount_local = 110.0 + i as f64 * 275.0;
@@ -88,13 +84,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         values
             // Linke Seite: L, M, N (Datum, Euro, Lokal)
-            .set(RightPanelInputCell::LeftDate(i), date_str.clone())
-            .set(RightPanelInputCell::LeftAmount1(i), amount_eur)
-            .set(RightPanelInputCell::LeftAmount2(i), amount_local)
+            .set(ApiKey::LeftDate(i), date_str.clone())
+            .set(ApiKey::LeftAmountEuro(i), amount_eur)
+            .set(ApiKey::LeftAmountLocal(i), amount_local)
             // Rechte Seite: S, T, U (Datum, Euro, Lokal)
-            .set(RightPanelInputCell::RightDate(i), date_str)
-            .set(RightPanelInputCell::RightAmount1(i), amount_eur * 1.5)
-            .set(RightPanelInputCell::RightAmount2(i), amount_local * 1.5);
+            .set(ApiKey::RightDate(i), date_str)
+            .set(ApiKey::RightAmountEuro(i), amount_eur * 1.5)
+            .set(ApiKey::RightAmountLocal(i), amount_local * 1.5);
     }
 
     println!("✓ Alle Daten gesetzt");

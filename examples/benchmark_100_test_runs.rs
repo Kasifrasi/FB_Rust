@@ -2,6 +2,7 @@
 //!
 //! Generiert multiple Dateien sequenziell und misst die Performance
 
+use kmw_fb_rust::v2::report::api::ApiKey;
 use kmw_fb_rust::v2::report::formats::ReportStyles;
 use kmw_fb_rust::v2::report::layout::setup_sheet;
 use kmw_fb_rust::v2::report::values::ReportValues;
@@ -41,20 +42,15 @@ fn generate_file(
         .with_language("deutsch")
         .with_currency("EUR")
         .with_project_number(&format!("TEST-{}", index))
-        .with_project_title(&format!("Test {}", index))
-        .with_exchange_rate(1.0);
+        .with_project_title(&format!("Test {}", index));
 
     // Variiere die Datengröße
-    use kmw_fb_rust::v2::report::cells::TableInputCell;
     let max_rows = std::cmp::min(num_data_rows, 5);
     for i in 0..max_rows as u8 {
         values
-            .set(TableInputCell::ApprovedBudget(i), 1000.0 + i as f64 * 500.0)
-            .set(
-                TableInputCell::IncomeReportPeriod(i),
-                100.0 + i as f64 * 200.0,
-            )
-            .set(TableInputCell::IncomeTotal(i), 500.0 + i as f64 * 300.0);
+            .set(ApiKey::ApprovedBudget(i), 1000.0 + i as f64 * 500.0)
+            .set(ApiKey::IncomeReportPeriod(i), 100.0 + i as f64 * 200.0)
+            .set(ApiKey::IncomeTotal(i), 500.0 + i as f64 * 300.0);
     }
 
     write_report_v2(ws, &styles, "_de", &values)?;

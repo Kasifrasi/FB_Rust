@@ -90,61 +90,10 @@ fn evaluate_all_cells(
 
 /// Holt API-Wert aus ReportValues
 ///
-/// NUR diese Zellen sind API-Eingabefelder:
-/// - E2:E3 (Sprache, Währung)
-/// - D5, D6 (Projektnummer, Projekttitel)
-/// - E8:E9, G8:G9 (Projektstart/-ende, Berichtszeitraum)
-/// - D15:F19 (Budget, Einnahmen Berichtszeitraum, Einnahmen Gesamt)
-/// - H15:H19 (Begründung)
-/// - L14:N31 (Datum, Euro, Lokal - linke Seite)
-/// - S14:U31 (Datum, Euro, Lokal - rechte Seite)
-fn get_api_value(values: &ReportValues, key: super::registry::ApiKey) -> CellValue {
-    use super::cells::{HeaderInputCell, RightPanelInputCell, TableInputCell};
-    use super::registry::ApiKey;
-
-    match key {
-        // Header Cells - E2:E3
-        ApiKey::Language => values
-            .language()
-            .map(|s| CellValue::Text(s.to_string()))
-            .unwrap_or(CellValue::Empty),
-        ApiKey::Currency => values
-            .currency()
-            .map(|s| CellValue::Text(s.to_string()))
-            .unwrap_or(CellValue::Empty),
-        // Header Cells - D5, D6
-        ApiKey::ProjectNumber => values
-            .project_number()
-            .map(|s| CellValue::Text(s.to_string()))
-            .unwrap_or(CellValue::Empty),
-        ApiKey::ProjectTitle => values
-            .project_title()
-            .map(|s| CellValue::Text(s.to_string()))
-            .unwrap_or(CellValue::Empty),
-        // Header Cells - E8:E9, G8:G9
-        ApiKey::ProjectStart => values.get(HeaderInputCell::ProjectStartDate).clone(),
-        ApiKey::ProjectEnd => values.get(HeaderInputCell::ProjectEndDate).clone(),
-        ApiKey::ReportStart => values.get(HeaderInputCell::ReportPeriodStart).clone(),
-        ApiKey::ReportEnd => values.get(HeaderInputCell::ReportPeriodEnd).clone(),
-
-        // Table Cells (D15-D19, E15-E19, F15-F19, H15-H19)
-        ApiKey::ApprovedBudget(i) => values.get(TableInputCell::ApprovedBudget(i)).clone(),
-        ApiKey::IncomeReportPeriod(i) => values.get(TableInputCell::IncomeReportPeriod(i)).clone(),
-        ApiKey::IncomeTotal(i) => values.get(TableInputCell::IncomeTotal(i)).clone(),
-        ApiKey::IncomeReason(i) => values.get(TableInputCell::IncomeReason(i)).clone(),
-
-        // Right Panel Left (L14-L31, M14-M31, N14-N31)
-        // K14:K31 sind Formeln, nicht API!
-        ApiKey::LeftDate(i) => values.get(RightPanelInputCell::LeftDate(i)).clone(),
-        ApiKey::LeftAmountEuro(i) => values.get(RightPanelInputCell::LeftAmount1(i)).clone(),
-        ApiKey::LeftAmountLocal(i) => values.get(RightPanelInputCell::LeftAmount2(i)).clone(),
-
-        // Right Panel Right (S14-S31, T14-T31, U14-U31)
-        // R14:R31 sind Formeln, nicht API!
-        ApiKey::RightDate(i) => values.get(RightPanelInputCell::RightDate(i)).clone(),
-        ApiKey::RightAmountEuro(i) => values.get(RightPanelInputCell::RightAmount1(i)).clone(),
-        ApiKey::RightAmountLocal(i) => values.get(RightPanelInputCell::RightAmount2(i)).clone(),
-    }
+/// Durch die neue api.rs Definition ist diese Funktion jetzt trivial:
+/// ReportValues nutzt direkt ApiKey als Schlüssel.
+fn get_api_value(values: &ReportValues, key: super::api::ApiKey) -> CellValue {
+    values.get(key).clone()
 }
 
 /// Schreibt alle Zellen aus der Registry (API-Werte und Formeln mit Cache)

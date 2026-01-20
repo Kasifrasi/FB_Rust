@@ -169,36 +169,28 @@ mod tests {
             .with_project_number("TEST-12345")
             .with_project_title("Formel-Test Projekt");
 
-        // Tabellen-Werte setzen (D15:F19)
-        // D15-D19: Bewilligtes Budget
-        values.set(
-            crate::v2::report::cells::HeaderInputCell::Language,
-            "deutsch",
-        );
-
-        // Wir müssen die generischen set-Methode verwenden
-        use crate::v2::report::cells::TableInputCell;
+        // Tabellen-Werte setzen (D15:F19) - nutze direkt ApiKey
 
         // D15-D19: Bewilligtes Budget (1000, 2000, 3000, 4000, 5000)
-        values.set(TableInputCell::ApprovedBudget(0), 1000.0);
-        values.set(TableInputCell::ApprovedBudget(1), 2000.0);
-        values.set(TableInputCell::ApprovedBudget(2), 3000.0);
-        values.set(TableInputCell::ApprovedBudget(3), 4000.0);
-        values.set(TableInputCell::ApprovedBudget(4), 5000.0);
+        values.set(ApiKey::ApprovedBudget(0), 1000.0);
+        values.set(ApiKey::ApprovedBudget(1), 2000.0);
+        values.set(ApiKey::ApprovedBudget(2), 3000.0);
+        values.set(ApiKey::ApprovedBudget(3), 4000.0);
+        values.set(ApiKey::ApprovedBudget(4), 5000.0);
 
         // E15-E19: Einnahmen Berichtszeitraum (100, 200, 300, 400, 500)
-        values.set(TableInputCell::IncomeReportPeriod(0), 100.0);
-        values.set(TableInputCell::IncomeReportPeriod(1), 200.0);
-        values.set(TableInputCell::IncomeReportPeriod(2), 300.0);
-        values.set(TableInputCell::IncomeReportPeriod(3), 400.0);
-        values.set(TableInputCell::IncomeReportPeriod(4), 500.0);
+        values.set(ApiKey::IncomeReportPeriod(0), 100.0);
+        values.set(ApiKey::IncomeReportPeriod(1), 200.0);
+        values.set(ApiKey::IncomeReportPeriod(2), 300.0);
+        values.set(ApiKey::IncomeReportPeriod(3), 400.0);
+        values.set(ApiKey::IncomeReportPeriod(4), 500.0);
 
         // F15-F19: Einnahmen gesamt (500, 1000, 1500, 2000, 2500)
-        values.set(TableInputCell::IncomeTotal(0), 500.0);
-        values.set(TableInputCell::IncomeTotal(1), 1000.0);
-        values.set(TableInputCell::IncomeTotal(2), 1500.0);
-        values.set(TableInputCell::IncomeTotal(3), 2000.0);
-        values.set(TableInputCell::IncomeTotal(4), 2500.0);
+        values.set(ApiKey::IncomeTotal(0), 500.0);
+        values.set(ApiKey::IncomeTotal(1), 1000.0);
+        values.set(ApiKey::IncomeTotal(2), 1500.0);
+        values.set(ApiKey::IncomeTotal(3), 2000.0);
+        values.set(ApiKey::IncomeTotal(4), 2500.0);
 
         // 8. Write Report
         let suffix = "_de";

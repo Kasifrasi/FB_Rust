@@ -2,13 +2,14 @@
 //!
 //! Hier werden ALLE Zellen im Bereich A1:V31 registriert.
 //! Jede Zelle gehört zu genau einer Kategorie:
-//! - Api: Wert kommt von außen (ReportValues)
+//! - Api: Wert kommt von außen (ReportValues) - definiert in api.rs
 //! - Static: Fester Wert im Code (aktuell keine)
 //! - Formula: Hat Excel-Formel + Rust-Evaluator
 //! - Empty: Nicht registriert = Standardwert
 
+use super::api::register_all_api_cells;
 use super::registry::{
-    addr, builder::FormulaBuilder, ApiKey, CellAddr, CellRegistry, EvalContext, FormulaCell,
+    addr, builder::FormulaBuilder, CellAddr, CellRegistry, EvalContext, FormulaCell,
     FormulaCellDeps, Inputs, RegistryError, Sheets, Statics,
 };
 use super::values::CellValue;
@@ -23,8 +24,8 @@ pub fn build_registry(
 ) -> Result<CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>, RegistryError> {
     let mut registry = CellRegistry::new();
 
-    // 1. API-Zellen registrieren (MÜSSEN ZUERST kommen)
-    register_api_cells(&mut registry)?;
+    // 1. API-Zellen registrieren (aus api.rs - EINZIGE QUELLE DER WAHRHEIT)
+    register_all_api_cells(&mut registry)?;
 
     // 2. Statische Zellen registrieren (aktuell keine)
     // register_static_cells(&mut registry)?;
@@ -33,52 +34,6 @@ pub fn build_registry(
     register_formula_cells(&mut registry)?;
 
     Ok(registry)
-}
-
-// ============================================================================
-// API Cells
-// ============================================================================
-
-fn register_api_cells(
-    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
-) -> Result<(), RegistryError> {
-    // Header Input Cells
-    registry.register_api(ApiKey::Language)?; // E2
-    registry.register_api(ApiKey::Currency)?; // E3
-    registry.register_api(ApiKey::ProjectNumber)?; // D5
-    registry.register_api(ApiKey::ProjectTitle)?; // D6
-    registry.register_api(ApiKey::ProjectStart)?; // E8
-    registry.register_api(ApiKey::ProjectEnd)?; // G8
-    registry.register_api(ApiKey::ReportStart)?; // E9
-    registry.register_api(ApiKey::ReportEnd)?; // G9
-                                               // J7, J8, J9 sind KEINE API-Felder!
-                                               // J7/J8 = Formeln, J9 = Benutzereingabe im Excel
-
-    // Table Input Cells (5 Zeilen: 0-4 für Rows 15-19)
-    // HINWEIS: G15-G19 sind FORMELN (=IFERROR(F/D,0)), nicht API!
-    for i in 0..5u8 {
-        registry.register_api(ApiKey::ApprovedBudget(i))?; // D15-D19
-        registry.register_api(ApiKey::IncomeReportPeriod(i))?; // E15-E19
-        registry.register_api(ApiKey::IncomeTotal(i))?; // F15-F19
-        registry.register_api(ApiKey::IncomeReason(i))?; // H15-H19
-    }
-
-    // Right Panel Input Cells (18 Zeilen: 0-17 für Rows 14-31)
-    // NUR L, M, N (links) und S, T, U (rechts)
-    // K14:K31 und R14:R31 sind FORMELN, nicht API!
-    for i in 0..18u8 {
-        // Left Panel: L14-L31, M14-M31, N14-N31
-        registry.register_api(ApiKey::LeftDate(i))?; // L14-L31
-        registry.register_api(ApiKey::LeftAmountEuro(i))?; // M14-M31
-        registry.register_api(ApiKey::LeftAmountLocal(i))?; // N14-N31
-
-        // Right Panel: S14-S31, T14-T31, U14-U31
-        registry.register_api(ApiKey::RightDate(i))?; // S14-S31
-        registry.register_api(ApiKey::RightAmountEuro(i))?; // T14-T31
-        registry.register_api(ApiKey::RightAmountLocal(i))?; // U14-U31
-    }
-
-    Ok(())
 }
 
 // ============================================================================

@@ -2,6 +2,7 @@
 //!
 //! Vergleicht sequenzielle vs. parallele Verarbeitung
 
+use kmw_fb_rust::v2::report::api::ApiKey;
 use kmw_fb_rust::v2::report::formats::ReportStyles;
 use kmw_fb_rust::v2::report::layout::setup_sheet;
 use kmw_fb_rust::v2::report::values::ReportValues;
@@ -9,7 +10,6 @@ use kmw_fb_rust::v2::report::writer::write_report_v2;
 use kmw_fb_rust::v2::Sprachversion::builder::build_sheet as build_trans_sheet;
 use rust_xlsxwriter::{Format, Workbook};
 use std::fs;
-use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -40,18 +40,13 @@ fn generate_file_sequential(index: usize) -> Result<Duration, Box<dyn std::error
         .with_language("deutsch")
         .with_currency("EUR")
         .with_project_number(&format!("SEQ-{:03}", index))
-        .with_project_title(&format!("Sequential Test {}", index))
-        .with_exchange_rate(1.0);
+        .with_project_title(&format!("Sequential Test {}", index));
 
-    use kmw_fb_rust::v2::report::cells::TableInputCell;
     for i in 0..5u8 {
         values
-            .set(TableInputCell::ApprovedBudget(i), 1000.0 + i as f64 * 500.0)
-            .set(
-                TableInputCell::IncomeReportPeriod(i),
-                100.0 + i as f64 * 200.0,
-            )
-            .set(TableInputCell::IncomeTotal(i), 500.0 + i as f64 * 300.0);
+            .set(ApiKey::ApprovedBudget(i), 1000.0 + i as f64 * 500.0)
+            .set(ApiKey::IncomeReportPeriod(i), 100.0 + i as f64 * 200.0)
+            .set(ApiKey::IncomeTotal(i), 500.0 + i as f64 * 300.0);
     }
 
     write_report_v2(ws, &styles, "_de", &values)?;
@@ -90,18 +85,13 @@ fn generate_file_threaded(index: usize) -> Result<Duration, Box<dyn std::error::
         .with_language("deutsch")
         .with_currency("EUR")
         .with_project_number(&format!("THR-{:03}", index))
-        .with_project_title(&format!("Threaded Test {}", index))
-        .with_exchange_rate(1.0);
+        .with_project_title(&format!("Threaded Test {}", index));
 
-    use kmw_fb_rust::v2::report::cells::TableInputCell;
     for i in 0..5u8 {
         values
-            .set(TableInputCell::ApprovedBudget(i), 1000.0 + i as f64 * 500.0)
-            .set(
-                TableInputCell::IncomeReportPeriod(i),
-                100.0 + i as f64 * 200.0,
-            )
-            .set(TableInputCell::IncomeTotal(i), 500.0 + i as f64 * 300.0);
+            .set(ApiKey::ApprovedBudget(i), 1000.0 + i as f64 * 500.0)
+            .set(ApiKey::IncomeReportPeriod(i), 100.0 + i as f64 * 200.0)
+            .set(ApiKey::IncomeTotal(i), 500.0 + i as f64 * 300.0);
     }
 
     write_report_v2(ws, &styles, "_de", &values)?;

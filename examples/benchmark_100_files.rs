@@ -3,6 +3,7 @@
 //! Nutzt die neue V2 API mit write_report_v2()
 //! Misst die Generierungszeit mit vollständigen API-Werten
 
+use kmw_fb_rust::v2::report::api::ApiKey;
 use kmw_fb_rust::v2::report::formats::ReportStyles;
 use kmw_fb_rust::v2::report::layout::setup_sheet;
 use kmw_fb_rust::v2::report::values::ReportValues;
@@ -55,21 +56,18 @@ fn generate_single_file(index: usize) -> Result<Duration, Box<dyn std::error::Er
         .with_project_start("2024-01-01")
         .with_project_end("2024-12-31")
         .with_report_start("2024-01-01")
-        .with_report_end("2024-03-31")
-        .with_exchange_rate(1.0);
+        .with_report_end("2024-03-31");
 
     // Tabellendaten setzen (D15-F19)
-    use kmw_fb_rust::v2::report::cells::TableInputCell;
-
     for i in 0..5u8 {
         let budget = 1000.0 + i as f64 * 500.0;
         let income_period = 100.0 + i as f64 * 200.0;
         let income_total = 500.0 + i as f64 * 300.0;
 
         values
-            .set(TableInputCell::ApprovedBudget(i), budget)
-            .set(TableInputCell::IncomeReportPeriod(i), income_period)
-            .set(TableInputCell::IncomeTotal(i), income_total);
+            .set(ApiKey::ApprovedBudget(i), budget)
+            .set(ApiKey::IncomeReportPeriod(i), income_period)
+            .set(ApiKey::IncomeTotal(i), income_total);
     }
 
     // 8. Write Report mit V2 Writer

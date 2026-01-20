@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests_right_panel {
+    use crate::v2::report::api::ApiKey;
     use crate::v2::report::formats::ReportStyles;
     use crate::v2::report::layout::setup_sheet;
     use crate::v2::report::values::ReportValues;
@@ -51,17 +52,12 @@ mod tests_right_panel {
             .with_report_start("2024-01-01")
             .with_report_end("2024-03-31");
 
-        use crate::v2::report::cells::{RightPanelInputCell, TableInputCell};
-
         // Tabellendaten (D15-F19, H15-H19)
         for i in 0..5u8 {
             values
-                .set(TableInputCell::ApprovedBudget(i), 1000.0 + i as f64 * 500.0)
-                .set(
-                    TableInputCell::IncomeReportPeriod(i),
-                    100.0 + i as f64 * 200.0,
-                )
-                .set(TableInputCell::IncomeTotal(i), 500.0 + i as f64 * 300.0);
+                .set(ApiKey::ApprovedBudget(i), 1000.0 + i as f64 * 500.0)
+                .set(ApiKey::IncomeReportPeriod(i), 100.0 + i as f64 * 200.0)
+                .set(ApiKey::IncomeTotal(i), 500.0 + i as f64 * 300.0);
         }
 
         // Right Panel Daten - NUR L, M, N (links) und S, T, U (rechts)
@@ -76,13 +72,13 @@ mod tests_right_panel {
 
             values
                 // Linke Seite: L, M, N (Datum, Euro, Lokal)
-                .set(RightPanelInputCell::LeftDate(i), date_str.clone())
-                .set(RightPanelInputCell::LeftAmount1(i), amount_eur)
-                .set(RightPanelInputCell::LeftAmount2(i), amount_local)
+                .set(ApiKey::LeftDate(i), date_str.clone())
+                .set(ApiKey::LeftAmountEuro(i), amount_eur)
+                .set(ApiKey::LeftAmountLocal(i), amount_local)
                 // Rechte Seite: S, T, U (Datum, Euro, Lokal)
-                .set(RightPanelInputCell::RightDate(i), date_str)
-                .set(RightPanelInputCell::RightAmount1(i), amount_eur * 1.5)
-                .set(RightPanelInputCell::RightAmount2(i), amount_local * 1.5);
+                .set(ApiKey::RightDate(i), date_str)
+                .set(ApiKey::RightAmountEuro(i), amount_eur * 1.5)
+                .set(ApiKey::RightAmountLocal(i), amount_local * 1.5);
         }
 
         let suffix = "_de";
@@ -93,14 +89,14 @@ mod tests_right_panel {
         let path = "src/v2/tests/right_panel_complete_data.xlsx";
         workbook.save(path).expect("Failed to save workbook");
 
-        println!("✅ Right Panel Test erfolgreich!");
+        println!("Right Panel Test erfolgreich!");
         println!("   Datei: {}", path);
         println!("   - L14-L31: Datumswerte");
-        println!("   - M14-M31: Euro-Beträge");
-        println!("   - N14-N31: Lokal-Beträge");
+        println!("   - M14-M31: Euro-Betraege");
+        println!("   - N14-N31: Lokal-Betraege");
         println!("   - S14-S31: Datumswerte");
-        println!("   - T14-T31: Euro-Beträge (1.5x)");
-        println!("   - U14-U31: Lokal-Beträge (1.5x)");
+        println!("   - T14-T31: Euro-Betraege (1.5x)");
+        println!("   - U14-U31: Lokal-Betraege (1.5x)");
         println!("   - K14:K31, R14:R31 bleiben als Formeln erhalten!");
     }
 
@@ -141,8 +137,6 @@ mod tests_right_panel {
             .with_report_start("2024-01-01")
             .with_report_end("2024-03-31");
 
-        use crate::v2::report::cells::RightPanelInputCell;
-
         // Realistische Daten mit variierenden Beträgen
         let realistic_amounts = vec![
             250.50, 500.75, 1200.00, 450.25, 850.00, 650.50, 920.75, 1100.00, 380.25, 760.00,
@@ -161,13 +155,13 @@ mod tests_right_panel {
 
             values
                 // Linke Seite: L, M, N (Datum, Euro, Lokal)
-                .set(RightPanelInputCell::LeftDate(i), date_str.clone())
-                .set(RightPanelInputCell::LeftAmount1(i), amount)
-                .set(RightPanelInputCell::LeftAmount2(i), amount_local)
+                .set(ApiKey::LeftDate(i), date_str.clone())
+                .set(ApiKey::LeftAmountEuro(i), amount)
+                .set(ApiKey::LeftAmountLocal(i), amount_local)
                 // Rechte Seite: S, T, U (Datum, Euro, Lokal)
-                .set(RightPanelInputCell::RightDate(i), date_str)
-                .set(RightPanelInputCell::RightAmount1(i), amount * 1.25)
-                .set(RightPanelInputCell::RightAmount2(i), amount_local * 1.25);
+                .set(ApiKey::RightDate(i), date_str)
+                .set(ApiKey::RightAmountEuro(i), amount * 1.25)
+                .set(ApiKey::RightAmountLocal(i), amount_local * 1.25);
         }
 
         let suffix = "_de";
@@ -178,11 +172,11 @@ mod tests_right_panel {
         let path = "src/v2/tests/right_panel_realistic_data.xlsx";
         workbook.save(path).expect("Failed to save workbook");
 
-        println!("✅ Realistic Right Panel Test erfolgreich!");
+        println!("Realistic Right Panel Test erfolgreich!");
         println!("   Datei: {}", path);
-        println!("   - Datumswerte März-April 2024");
-        println!("   - Variierte Beträge (250-1300 EUR)");
-        println!("   - Lokale Währung berechnet (EUR * Wechselkurs 1.15)");
+        println!("   - Datumswerte Maerz-April 2024");
+        println!("   - Variierte Betraege (250-1300 EUR)");
+        println!("   - Lokale Waehrung berechnet (EUR * Wechselkurs 1.15)");
         println!("   - K14:K31, R14:R31 bleiben als Formeln erhalten!");
     }
 }

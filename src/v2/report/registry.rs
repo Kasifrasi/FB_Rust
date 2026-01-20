@@ -80,100 +80,12 @@ pub mod addr {
 }
 
 // ============================================================================
-// API Keys - Welche Werte von außen kommen können
+// API Keys - Re-export aus api.rs (EINZIGE QUELLE DER WAHRHEIT)
 // ============================================================================
 
-/// Schlüssel für API-Werte (von ReportValues)
-///
-/// NUR diese Zellen sind API-Eingabefelder:
-/// - E2:E3 (Sprache, Währung)
-/// - D5, D6 (Projektnummer, Projekttitel)
-/// - E8:E9, G8:G9 (Projektstart/-ende, Berichtszeitraum)
-/// - D15:F19 (Budget, Einnahmen Berichtszeitraum, Einnahmen Gesamt)
-/// - H15:H19 (Begründung)
-/// - L14:N31 (Datum, Euro, Lokal - linke Seite)
-/// - S14:U31 (Datum, Euro, Lokal - rechte Seite)
-///
-/// NICHT API (sind Formeln oder Benutzereingaben):
-/// - J7, J8, J9 (Wechselkurs - sind Formeln/Benutzereingaben im Excel, NICHT von API!)
-/// - K14:K31, R14:R31 (Nummern - sind Formeln!)
-/// - G15:G19 (Prozent - sind Formeln!)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ApiKey {
-    // Header - E2:E3
-    Language,
-    Currency,
-    // Header - D5, D6
-    ProjectNumber,
-    ProjectTitle,
-    // Header - E8:E9, G8:G9
-    ProjectStart,
-    ProjectEnd,
-    ReportStart,
-    ReportEnd,
-
-    // Table (mit Index 0-4 für Zeilen 15-19)
-    /// D15-D19: Bewilligtes Budget
-    ApprovedBudget(u8),
-    /// E15-E19: Einnahmen im Berichtszeitraum
-    IncomeReportPeriod(u8),
-    /// F15-F19: Einnahmen gesamt
-    IncomeTotal(u8),
-    /// H15-H19: Begründung (Freitext)
-    IncomeReason(u8),
-    // HINWEIS: G15-G19 (IncomePercent) sind FORMELN, keine API-Eingaben!
-
-    // Right Panel - NUR L, M, N (links) und S, T, U (rechts)
-    // K14:K31 und R14:R31 sind FORMELN, keine API-Eingaben!
-    /// L14-L31: Datum links
-    LeftDate(u8),
-    /// M14-M31: Betrag Euro links
-    LeftAmountEuro(u8),
-    /// N14-N31: Betrag Lokalwährung links
-    LeftAmountLocal(u8),
-    /// S14-S31: Datum rechts
-    RightDate(u8),
-    /// T14-T31: Betrag Euro rechts
-    RightAmountEuro(u8),
-    /// U14-U31: Betrag Lokalwährung rechts
-    RightAmountLocal(u8),
-}
-
-impl ApiKey {
-    /// Gibt die zugehörige Zelladresse zurück
-    pub const fn addr(&self) -> CellAddr {
-        match self {
-            // Header - E2:E3, D5:D6, E8:E9, G8:G9
-            Self::Language => addr::E2,
-            Self::Currency => addr::E3,
-            Self::ProjectNumber => addr::D5,
-            Self::ProjectTitle => addr::D6,
-            Self::ProjectStart => addr::E8,
-            Self::ProjectEnd => addr::G8,
-            Self::ReportStart => addr::E9,
-            Self::ReportEnd => addr::G9,
-
-            // Table: D15-D19, E15-E19, F15-F19, H15-H19
-            // (G15-G19 sind Formeln, nicht hier)
-            Self::ApprovedBudget(i) => CellAddr::new(14 + *i as u32, 3), // D
-            Self::IncomeReportPeriod(i) => CellAddr::new(14 + *i as u32, 4), // E
-            Self::IncomeTotal(i) => CellAddr::new(14 + *i as u32, 5),    // F
-            Self::IncomeReason(i) => CellAddr::new(14 + *i as u32, 7),   // H
-
-            // Right Panel Left: L14-L31, M14-M31, N14-N31
-            // (K14-K31 sind Formeln, nicht hier!)
-            Self::LeftDate(i) => CellAddr::new(13 + *i as u32, 11), // L
-            Self::LeftAmountEuro(i) => CellAddr::new(13 + *i as u32, 12), // M
-            Self::LeftAmountLocal(i) => CellAddr::new(13 + *i as u32, 13), // N
-
-            // Right Panel Right: S14-S31, T14-T31, U14-U31
-            // (R14-R31 sind Formeln, nicht hier!)
-            Self::RightDate(i) => CellAddr::new(13 + *i as u32, 18), // S
-            Self::RightAmountEuro(i) => CellAddr::new(13 + *i as u32, 19), // T
-            Self::RightAmountLocal(i) => CellAddr::new(13 + *i as u32, 20), // U
-        }
-    }
-}
+// ApiKey wird jetzt in api.rs definiert und von dort exportiert.
+// Siehe api.rs für die vollständige Definition aller API-Zellen.
+pub use super::api::ApiKey;
 
 // ============================================================================
 // Static Values - Für Formeln benötigte Konstanten
