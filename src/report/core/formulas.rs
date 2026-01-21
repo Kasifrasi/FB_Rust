@@ -469,6 +469,7 @@ pub static HEADER_FORMULAS: Lazy<Vec<FormulaDefinition>> = Lazy::new(|| {
 });
 
 /// Generiert Formeln für das Right Panel (K14-K31 und R14-R31 Text, O14-O31 und V14-V31 Calc)
+#[cfg(test)]
 pub fn generate_right_panel_formulas() -> Vec<FormulaDefinition> {
     let mut formulas = Vec::new();
 

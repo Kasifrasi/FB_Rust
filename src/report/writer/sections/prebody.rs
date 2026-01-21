@@ -19,10 +19,9 @@ use crate::report::core::lookup_text_string;
 use crate::report::format::ReportStyles;
 use rust_xlsxwriter::{FormatAlign, Formula, Worksheet, XlsxError};
 
-/// Schreibt die Pre-Body Section (Zeilen 20-25) - Legacy-Version
+/// Schreibt die Pre-Body Section (Zeilen 20-25)
 ///
-/// Diese Version schreibt die VLOOKUP-Formeln selbst mit gecachten Ergebnissen.
-/// Für die einheitliche Registry-basierte Version siehe `write_prebody_section_unified`.
+/// Diese Funktion schreibt die VLOOKUP-Formeln mit gecachten Ergebnissen.
 ///
 /// # Arguments
 /// * `ws` - Das Worksheet
@@ -37,32 +36,6 @@ pub fn write_prebody_section(
     ws.set_row_height(20, 13.5)?;
 
     // Footer-Tabelle (Rows 22-25, 0-basiert: 22-25)
-    write_footer_table(ws, styles, language)?;
-
-    Ok(())
-}
-
-/// Schreibt die Pre-Body Section mit Registry-evaluierten Werten
-///
-/// Diese Version nutzt die zentrale Registry für die VLOOKUP-Evaluierung,
-/// schreibt aber die Formeln selbst mit den korrekten Formaten (Borders, Bold).
-///
-/// Die Formeln sind in der Registry registriert (`definitions.rs::register_prebody_formulas`),
-/// aber diese Funktion schreibt sie mit den spezifischen Formatierungen.
-///
-/// # Arguments
-/// * `ws` - Das Worksheet
-/// * `styles` - Report-Styles
-/// * `language` - Die Sprache für VLOOKUP-Evaluierung
-pub fn write_prebody_section_unified(
-    ws: &mut Worksheet,
-    styles: &ReportStyles,
-    language: Option<&str>,
-) -> Result<(), XlsxError> {
-    // Spacer Row 20 (0-basiert: 20 = Excel 21)
-    ws.set_row_height(20, 13.5)?;
-
-    // Footer-Tabelle mit Formeln und korrekten Formaten
     write_footer_table(ws, styles, language)?;
 
     Ok(())
