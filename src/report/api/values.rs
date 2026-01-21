@@ -91,16 +91,14 @@ impl From<f64> for CellValue {
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct ReportValues {
-    /// Speicher für alle Zellwerte, indexiert durch ApiKey
+    /// Speicher für ALLE Zellwerte, indexiert durch ApiKey
+    ///
+    /// Einheitlicher Zugriffspunkt für:
+    /// - Header-Werte (Language, Currency, etc.)
+    /// - Positions-Werte (dynamisch)
+    /// - Footer-Werte (Bank, Kasse, Sonstiges)
+    /// - Rechtes Panel (Währungsumrechnungen)
     values: HashMap<ApiKey, CellValue>,
-
-    // Footer-Salden (dynamische Adressen, abhängig von Body-Layout)
-    /// Bank-Saldo für Saldenabstimmung
-    footer_bank: Option<f64>,
-    /// Kassen-Saldo für Saldenabstimmung
-    footer_kasse: Option<f64>,
-    /// Sonstige Salden (Schecks, Vorschüsse, Darlehen, etc.)
-    footer_sonstiges: Option<f64>,
 }
 
 impl ReportValues {
@@ -116,33 +114,18 @@ impl ReportValues {
 
     /// Holt einen Wert für eine API-Zelle (Referenz)
     ///
-    /// **Hinweis:** Für `ApiKey::Footer` Keys verwende `get_owned()` stattdessen,
-    /// da diese Werte nicht in der HashMap gespeichert sind.
+    /// Einheitlicher Getter für ALLE Keys (Header, Positions, Footer, Panel).
+    /// Gibt `&CellValue::Empty` zurück wenn nicht gesetzt.
     pub fn get(&self, key: ApiKey) -> &CellValue {
         self.values.get(&key).unwrap_or(&CellValue::Empty)
     }
 
     /// Holt einen Wert für eine API-Zelle (owned)
     ///
-    /// Diese Methode unterstützt alle Keys inkl. Footer-Keys.
+    /// Einheitlicher Getter für ALLE Keys (Header, Positions, Footer, Panel).
+    /// Gibt `CellValue::Empty` zurück wenn nicht gesetzt.
     pub fn get_owned(&self, key: ApiKey) -> CellValue {
-        match key {
-            ApiKey::Footer(field) => match field {
-                FooterField::Bank => self
-                    .footer_bank
-                    .map(CellValue::Number)
-                    .unwrap_or(CellValue::Empty),
-                FooterField::Kasse => self
-                    .footer_kasse
-                    .map(CellValue::Number)
-                    .unwrap_or(CellValue::Empty),
-                FooterField::Sonstiges => self
-                    .footer_sonstiges
-                    .map(CellValue::Number)
-                    .unwrap_or(CellValue::Empty),
-            },
-            _ => self.values.get(&key).cloned().unwrap_or(CellValue::Empty),
-        }
+        self.values.get(&key).cloned().unwrap_or(CellValue::Empty)
     }
 
     /// Prüft ob eine Zelle einen Wert hat
@@ -504,65 +487,89 @@ impl ReportValues {
     // ========================================================================
     // Footer-Werte (Saldenabstimmung)
     // ========================================================================
+    //
+    // Alle Footer-Werte werden nun in der HashMap gespeichert.
+    // Diese Convenience-Methoden sind nur Wrapper um set()/get().
 
     /// Setzt den Bank-Saldo für die Saldenabstimmung im Footer
     pub fn with_footer_bank(mut self, value: f64) -> Self {
-        self.footer_bank = Some(value);
+        self.set(ApiKey::Footer(FooterField::Bank), value);
         self
     }
 
     /// Setzt den Kassen-Saldo für die Saldenabstimmung im Footer
     pub fn with_footer_kasse(mut self, value: f64) -> Self {
-        self.footer_kasse = Some(value);
+        self.set(ApiKey::Footer(FooterField::Kasse), value);
         self
     }
 
     /// Setzt den Sonstiges-Saldo für die Saldenabstimmung im Footer
     /// (noch nicht eingelöste Schecks, Vorschüsse, Darlehen, etc.)
     pub fn with_footer_sonstiges(mut self, value: f64) -> Self {
-        self.footer_sonstiges = Some(value);
+        self.set(ApiKey::Footer(FooterField::Sonstiges), value);
         self
     }
 
     /// Setzt alle Footer-Salden auf einmal
     pub fn with_footer_salden(mut self, bank: f64, kasse: f64, sonstiges: f64) -> Self {
-        self.footer_bank = Some(bank);
-        self.footer_kasse = Some(kasse);
-        self.footer_sonstiges = Some(sonstiges);
+        self.set(ApiKey::Footer(FooterField::Bank), bank);
+        self.set(ApiKey::Footer(FooterField::Kasse), kasse);
+        self.set(ApiKey::Footer(FooterField::Sonstiges), sonstiges);
         self
     }
 
     /// Setzt den Bank-Saldo (mutierend)
     pub fn set_footer_bank(&mut self, value: f64) -> &mut Self {
-        self.footer_bank = Some(value);
+        self.set(ApiKey::Footer(FooterField::Bank), value);
         self
     }
 
     /// Setzt den Kassen-Saldo (mutierend)
     pub fn set_footer_kasse(&mut self, value: f64) -> &mut Self {
-        self.footer_kasse = Some(value);
+        self.set(ApiKey::Footer(FooterField::Kasse), value);
         self
     }
 
     /// Setzt den Sonstiges-Saldo (mutierend)
     pub fn set_footer_sonstiges(&mut self, value: f64) -> &mut Self {
-        self.footer_sonstiges = Some(value);
+        self.set(ApiKey::Footer(FooterField::Sonstiges), value);
         self
     }
 
     /// Holt den Bank-Saldo
     pub fn footer_bank(&self) -> Option<f64> {
-        self.footer_bank
+        self.get(ApiKey::Footer(FooterField::Bank)).as_number()
     }
 
     /// Holt den Kassen-Saldo
     pub fn footer_kasse(&self) -> Option<f64> {
-        self.footer_kasse
+        self.get(ApiKey::Footer(FooterField::Kasse)).as_number()
     }
 
     /// Holt den Sonstiges-Saldo
     pub fn footer_sonstiges(&self) -> Option<f64> {
-        self.footer_sonstiges
+        self.get(ApiKey::Footer(FooterField::Sonstiges)).as_number()
+    }
+
+    // ========================================================================
+    // Validierungs-Methoden (Saldenabstimmung)
+    // ========================================================================
+
+    /// Berechnet die Summe aller Footer-Salden
+    ///
+    /// Wird für die Saldenabstimmung verwendet.
+    pub fn footer_balance_total(&self) -> f64 {
+        self.footer_bank().unwrap_or(0.0)
+            + self.footer_kasse().unwrap_or(0.0)
+            + self.footer_sonstiges().unwrap_or(0.0)
+    }
+
+    /// Validiert ob alle erforderlichen Footer-Werte gesetzt sind
+    ///
+    /// Für eine vollständige Saldenabstimmung sollten mindestens
+    /// Bank und Kasse gesetzt sein.
+    pub fn validate_footer_complete(&self) -> bool {
+        self.footer_bank().is_some() && self.footer_kasse().is_some()
     }
 }
 
@@ -780,5 +787,88 @@ mod tests {
             values.get_position(6, 0, Approved).as_number(),
             Some(4000.0)
         );
+    }
+
+    #[test]
+    fn test_footer_values_in_hashmap() {
+        let values = ReportValues::new()
+            .with_footer_bank(1500.50)
+            .with_footer_kasse(250.25)
+            .with_footer_sonstiges(100.0);
+
+        // Prüfe Footer-Werte über die Convenience-Methoden
+        assert_eq!(values.footer_bank(), Some(1500.50));
+        assert_eq!(values.footer_kasse(), Some(250.25));
+        assert_eq!(values.footer_sonstiges(), Some(100.0));
+
+        // Prüfe dass Footer-Werte in der HashMap sind (einheitlicher Zugriff!)
+        assert_eq!(
+            values.get(ApiKey::Footer(FooterField::Bank)).as_number(),
+            Some(1500.50)
+        );
+        assert_eq!(
+            values.get(ApiKey::Footer(FooterField::Kasse)).as_number(),
+            Some(250.25)
+        );
+        assert_eq!(
+            values
+                .get(ApiKey::Footer(FooterField::Sonstiges))
+                .as_number(),
+            Some(100.0)
+        );
+
+        // Prüfe Saldenabstimmungs-Logik
+        assert_eq!(values.footer_balance_total(), 1850.75);
+        assert!(values.validate_footer_complete());
+    }
+
+    #[test]
+    fn test_footer_mutating_setters() {
+        let mut values = ReportValues::new();
+
+        values
+            .set_footer_bank(2000.0)
+            .set_footer_kasse(500.0)
+            .set_footer_sonstiges(50.0);
+
+        assert_eq!(values.footer_balance_total(), 2550.0);
+    }
+
+    #[test]
+    fn test_footer_validation_incomplete() {
+        let values = ReportValues::new().with_footer_bank(1000.0);
+
+        // Nur Bank gesetzt, Kasse fehlt
+        assert!(!values.validate_footer_complete());
+
+        let values = values.with_footer_kasse(500.0);
+        assert!(values.validate_footer_complete());
+    }
+
+    #[test]
+    fn test_unified_access_all_types() {
+        // Dieser Test zeigt die Eleganz der HashMap-Lösung:
+        // ALLE Werte (Header, Positions, Footer) über denselben Mechanismus!
+
+        let mut values = ReportValues::new()
+            .with_language("deutsch")
+            .with_footer_bank(1000.0);
+
+        values.set_position(1, 1, PositionField::Approved, 5000.0);
+
+        // Einheitlicher Zugriff über get()
+        assert!(values.get(ApiKey::Language).as_text().is_some());
+        assert!(values
+            .get(ApiKey::Footer(FooterField::Bank))
+            .as_number()
+            .is_some());
+        assert!(values
+            .get(ApiKey::Position {
+                category: 1,
+                position: 1,
+                field: PositionField::Approved
+            })
+            .as_number()
+            .is_some());
     }
 }
