@@ -472,17 +472,9 @@ impl<E> CellRegistry<E> {
         Ok(())
     }
 
-    /// Gibt die Zelle zurück (oder Empty wenn nicht registriert)
-    pub fn get(&self, addr: CellAddr) -> &CellKind<E> {
-        static EMPTY: CellKind<fn(&EvalContext) -> CellValue> = CellKind::Empty;
-
-        // Safety: Wir geben entweder die echte Zelle zurück oder EMPTY
-        // Der Typ-Parameter E ist hier egal weil Empty keine Funktion hat
-        self.cells.get(&addr).map(|c| c).unwrap_or(
-            // Trick: Wir casten EMPTY zu unserem E typ
-            // Das ist safe weil Empty keinen E-Wert enthält
-            unsafe { std::mem::transmute(&EMPTY) },
-        )
+    /// Gibt die Zelle zurück (oder None wenn nicht registriert)
+    pub fn get(&self, addr: CellAddr) -> Option<&CellKind<E>> {
+        self.cells.get(&addr)
     }
 
     /// Prüft ob eine Adresse registriert ist
@@ -510,7 +502,7 @@ impl<E> CellRegistry<E> {
         &self.formula_cells
     }
 
-    /// Berechnet die topologische Sortierung der Formeln
+    /// Berechnet die topologische Sortierung der Formeln (mit Cache)
     pub fn compute_eval_order(&mut self) -> Result<&[CellAddr], RegistryError> {
         if self.eval_order.is_some() {
             return Ok(self.eval_order.as_ref().unwrap());
@@ -519,6 +511,15 @@ impl<E> CellRegistry<E> {
         let order = self.topological_sort()?;
         self.eval_order = Some(order);
         Ok(self.eval_order.as_ref().unwrap())
+    }
+
+    /// Gibt die topologische Sortierung zurück (ohne Cache zu ändern)
+    pub fn get_eval_order(&self) -> Result<Vec<CellAddr>, RegistryError> {
+        if let Some(order) = &self.eval_order {
+            Ok(order.clone())
+        } else {
+            self.topological_sort()
+        }
     }
 
     /// Topologische Sortierung mit Kahn's Algorithmus
@@ -535,7 +536,7 @@ impl<E> CellRegistry<E> {
 
         // Baue Graph: Kante von dep -> formula (dep muss vor formula berechnet werden)
         for addr in &self.formula_cells {
-            if let CellKind::Formula(f) = self.cells.get(addr).unwrap() {
+            if let Some(CellKind::Formula(f)) = self.cells.get(addr) {
                 for dep in &f.deps.formula_deps.0 {
                     if self.formula_cells.contains(dep) {
                         graph.get_mut(dep).unwrap().push(*addr);
@@ -721,9 +722,10 @@ impl<'a> EvalContext<'a> {
     ///
     /// # Arguments
     /// * `index` - Der VLOOKUP-Index (1-basiert, wie in Excel)
+    /// * `default` - Optionaler Default-Wert falls nicht gefunden
     ///
     /// # Returns
-    /// Der Text aus TEXT_MATRIX oder Empty wenn nicht gefunden
+    /// Der Text aus TEXT_MATRIX, Default-Wert, oder Empty
     pub fn vlookup_text(&self, index: usize) -> CellValue {
         super::definitions::lookup_text(self.language(), index)
     }
@@ -731,42 +733,35 @@ impl<'a> EvalContext<'a> {
     /// Evaluiert einen VLOOKUP-Index und gibt den Text als String zurück
     ///
     /// Convenience-Methode für Fälle wo nur der String-Wert benötigt wird.
-    pub fn vlookup_text_string(&self, index: usize) -> Option<String> {
-        match self.vlookup_text(index) {
-            CellValue::Text(s) => Some(s),
-            _ => None,
-        }
-    }
-
-    /// Evaluiert einen VLOOKUP mit Default-Wert
     ///
     /// # Arguments
     /// * `index` - Der VLOOKUP-Index (1-basiert)
-    /// * `default` - Wert falls Sprache nicht gesetzt oder nicht gefunden
-    pub fn vlookup_text_default(&self, index: usize, default: &str) -> CellValue {
+    /// * `default` - Optionaler Default-String falls nicht gefunden
+    pub fn vlookup_text_string(&self, index: usize, default: Option<&str>) -> String {
         match self.vlookup_text(index) {
-            CellValue::Empty => CellValue::Text(default.to_string()),
-            v => v,
+            CellValue::Text(s) => s,
+            CellValue::Empty => default.unwrap_or("").to_string(),
+            _ => default.unwrap_or("").to_string(),
         }
     }
 
     /// Berechnet IFERROR(numerator/denominator, 0)
     ///
     /// Einheitliche Methode für Ratio-Berechnungen in allen Bereichen.
+    /// Unterstützt sowohl Zell-Adressen als auch direkte Werte.
     pub fn iferror_division(&self, numerator: CellAddr, denominator: CellAddr) -> CellValue {
         let num = self.cell(numerator).as_number();
         let denom = self.cell(denominator).as_number();
 
-        match (num, denom) {
-            (Some(n), Some(d)) if d != 0.0 => CellValue::Number(n / d),
-            _ => CellValue::Number(0.0),
-        }
+        CellValue::Number(Self::safe_divide(num.unwrap_or(0.0), denom.unwrap_or(0.0)))
     }
 
-    /// Berechnet IFERROR(numerator/denominator, 0) mit direkten f64-Werten
+    /// Sichere Division mit Null-Check
     ///
-    /// Für dynamische Bereiche wo die Werte nicht aus Zellen kommen.
-    pub fn iferror_division_values(&self, numerator: f64, denominator: f64) -> f64 {
+    /// Gibt 0.0 zurück wenn Denominator 0 ist, sonst numerator/denominator.
+    /// Kann als Hilfsfunktion für alle Division-Operationen genutzt werden.
+    #[inline]
+    pub fn safe_divide(numerator: f64, denominator: f64) -> f64 {
         if denominator == 0.0 {
             0.0
         } else {
@@ -819,7 +814,7 @@ where
     pub fn evaluate_all(&mut self) -> Result<(), RegistryError> {
         // 1. API-Werte eintragen
         for addr in self.registry.api_cells() {
-            if let CellKind::Api(api) = self.registry.get(*addr) {
+            if let Some(CellKind::Api(api)) = self.registry.get(*addr) {
                 let value = self.get_api_value(api.key);
                 self.computed.insert(*addr, value);
             }
@@ -827,28 +822,16 @@ where
 
         // 2. Statische Werte eintragen
         for addr in &self.registry.static_cells {
-            if let CellKind::Static(s) = self.registry.get(*addr) {
+            if let Some(CellKind::Static(s)) = self.registry.get(*addr) {
                 self.computed.insert(*addr, s.value.clone());
             }
         }
 
         // 3. Formeln in topologischer Reihenfolge auswerten
-        // Wir müssen das hier anders machen weil wir &mut self haben
-        let eval_order: Vec<CellAddr> = {
-            let mut registry_clone = CellRegistry::<E>::new();
-            // Kopiere nur die formula_cells und ihre deps für die Sortierung
-            registry_clone.formula_cells = self.registry.formula_cells.clone();
-
-            // Wir brauchen eigentlich nur die topologische Sortierung neu berechnen
-            // Aber das erfordert Zugriff auf die Formeln für ihre deps
-            // Vereinfachung: Sortiere nach Adresse (funktioniert wenn Formeln in Reihenfolge definiert)
-            let mut cells: Vec<CellAddr> = self.registry.formula_cells.iter().copied().collect();
-            cells.sort();
-            cells
-        };
+        let eval_order = self.registry.get_eval_order()?;
 
         for addr in eval_order {
-            if let CellKind::Formula(f) = self.registry.get(addr) {
+            if let Some(CellKind::Formula(f)) = self.registry.get(addr) {
                 let ctx = EvalContext {
                     computed: &self.computed,
                     api_values: self.api_values,

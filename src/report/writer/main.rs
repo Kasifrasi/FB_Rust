@@ -194,7 +194,7 @@ fn evaluate_all_cells(
 
     // 1. API-Werte eintragen
     for addr in registry.api_cells() {
-        if let CellKind::Api(api) = registry.get(*addr) {
+        if let Some(CellKind::Api(api)) = registry.get(*addr) {
             let value = get_api_value(values, api.key);
             computed.insert(*addr, value);
         }
@@ -207,7 +207,7 @@ fn evaluate_all_cells(
     formula_addrs.sort(); // Sortiere nach Adresse für konsistente Reihenfolge
 
     for addr in formula_addrs {
-        if let CellKind::Formula(f) = registry.get(addr) {
+        if let Some(CellKind::Formula(f)) = registry.get(addr) {
             let ctx = EvalContext {
                 computed: &computed,
                 api_values: values,
@@ -245,7 +245,7 @@ fn write_cells_from_registry(
 
     // 2. Formel-Zellen schreiben (mit gecachten Ergebnissen)
     for addr in registry.formula_cells() {
-        if let CellKind::Formula(f) = registry.get(*addr) {
+        if let Some(CellKind::Formula(f)) = registry.get(*addr) {
             let result = computed.get(addr).cloned().unwrap_or(CellValue::Empty);
 
             // Formula mit Result erstellen (Cache für Excel)

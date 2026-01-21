@@ -247,7 +247,7 @@ fn register_ratio_formula(registry: &mut DynRegistry, row: u32) -> Result<(), Re
     let eval_fn: Box<dyn Fn(&EvalContext) -> CellValue> = Box::new(move |ctx: &EvalContext| {
         let d = ctx.cell(d_addr).as_number().unwrap_or(0.0);
         let f = ctx.cell(f_addr).as_number().unwrap_or(0.0);
-        CellValue::Number(ctx.iferror_division_values(f, d))
+        CellValue::Number(EvalContext::safe_divide(f, d))
     });
 
     let formula = FormulaCell {
