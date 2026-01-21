@@ -72,6 +72,7 @@ fn write_report_with_body(
     let footer_layout = write_footer(
         ws,
         styles,
+        &sec,
         body_result.layout.total_row,
         income_row,
         values.language(),
@@ -88,7 +89,7 @@ fn write_report_with_body(
     write_footer_values(
         ws,
         &footer_layout,
-        styles,
+        &sec,
         values.footer_bank(),
         values.footer_kasse(),
         values.footer_sonstiges(),

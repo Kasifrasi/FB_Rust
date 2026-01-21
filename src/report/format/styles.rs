@@ -112,6 +112,12 @@ pub struct ReportStyles {
     pub rp_date: Format,
     pub rp_number: Format,
     pub rp_calc: Format,
+
+    // --- Footer ---
+    pub footer_center_wrap: Format,
+    pub footer_gray_center: Format,
+    pub footer_number_right: Format,
+    pub footer_input: Format,
 }
 
 impl ReportStyles {
@@ -280,6 +286,19 @@ impl ReportStyles {
             .set_align(FormatAlign::Right)
             .set_num_format("0.0000");
 
+        // Footer Styles
+        let footer_center_wrap = center_center_bold.clone().set_text_wrap();
+
+        let footer_gray_center = center_center.clone().set_font_color(Color::RGB(0x808080));
+
+        let footer_number_right = base
+            .clone()
+            .set_align(FormatAlign::Right)
+            .set_align(FormatAlign::VerticalCenter)
+            .set_num_format("#,##0.00");
+
+        let footer_input = footer_number_right.clone().set_background_color(fill_input);
+
         Self {
             fill_input,
             fill_value,
@@ -319,6 +338,10 @@ impl ReportStyles {
             rp_date,
             rp_number,
             rp_calc,
+            footer_center_wrap,
+            footer_gray_center,
+            footer_number_right,
+            footer_input,
         }
     }
 }
@@ -378,6 +401,32 @@ pub struct SectionStyles {
     pub rp_num_last: Format,
     pub rp_calc: Format,
     pub rp_calc_last: Format,
+
+    // Footer Section
+    pub ft_b_top_left: Format,           // B: top+left border
+    pub ft_c_top: Format,                // C: top border
+    pub ft_d_top_right: Format,          // D: top+right thin border
+    pub ft_e_merged_top: Format,         // E merged: top+left thin+right medium, center wrap
+    pub ft_bcd_merged: Format,           // B:D merged: left medium+right thin, center bold
+    pub ft_e_center: Format,             // E: left thin+right medium, center
+    pub ft_b_left: Format,               // B: left medium only
+    pub ft_d_right: Format,              // D: right thin only
+    pub ft_e_right: Format,              // E: right medium only
+    pub ft_b_label_box: Format,          // B: left+top+bottom, bold (label in box)
+    pub ft_c_box: Format,                // C: top+bottom
+    pub ft_d_box: Format,                // D: top+bottom (no right - prevents E left)
+    pub ft_e_number_box: Format,         // E: top+bottom+right medium, number format
+    pub ft_e_gray_box: Format,           // E: right medium, gray center (OK check)
+    pub ft_b_input_label_top: Format,    // B: left+top, label for input row
+    pub ft_c_input_top: Format,          // C: top
+    pub ft_d_input_top_right: Format,    // D: top+right thin
+    pub ft_e_input_top: Format,          // E: input format with top+left thin+right medium
+    pub ft_b_input_label_bottom: Format, // B: left+top+bottom medium
+    pub ft_c_input_bottom: Format,       // C: top+bottom medium
+    pub ft_d_input_bottom_right: Format, // D: top+bottom medium+right thin
+    pub ft_e_input_bottom: Format,       // E: input format with all borders
+    pub ft_signature: Format,            // Signature: bold with top thin
+    pub ft_signature_top: Format,        // Signature row: normal with top thin
 }
 
 impl SectionStyles {
@@ -515,6 +564,131 @@ impl SectionStyles {
             .set_border_top(s.border_thin);
         let rp_calc_last = rp_calc.clone().set_border_bottom(s.border_thin);
 
+        // Footer Section
+        let ft_b_top_left = s
+            .left_center
+            .clone()
+            .set_border_top(s.border_medium)
+            .set_border_left(s.border_medium);
+
+        let ft_c_top = s.left_center.clone().set_border_top(s.border_medium);
+
+        let ft_d_top_right = s
+            .left_center
+            .clone()
+            .set_border_top(s.border_medium)
+            .set_border_right(s.border_thin);
+
+        let ft_e_merged_top = s
+            .footer_center_wrap
+            .clone()
+            .set_border_top(s.border_medium)
+            .set_border_left(s.border_thin)
+            .set_border_right(s.border_medium);
+
+        let ft_bcd_merged = s
+            .left_center_bold
+            .clone()
+            .set_align(FormatAlign::Center)
+            .set_border_left(s.border_medium)
+            .set_border_right(s.border_thin);
+
+        let ft_e_center = s
+            .center_center
+            .clone()
+            .set_border_left(s.border_thin)
+            .set_border_right(s.border_medium);
+
+        let ft_b_left = s.left_center.clone().set_border_left(s.border_medium);
+
+        let ft_d_right = s.left_center.clone().set_border_right(s.border_thin);
+
+        let ft_e_right = s.left_center.clone().set_border_right(s.border_medium);
+
+        let ft_b_label_box = s
+            .left_center_bold
+            .clone()
+            .set_border_left(s.border_medium)
+            .set_border_top(s.border_thin)
+            .set_border_bottom(s.border_thin);
+
+        let ft_c_box = s
+            .left_center
+            .clone()
+            .set_border_top(s.border_thin)
+            .set_border_bottom(s.border_thin);
+
+        let ft_d_box = s
+            .center_center
+            .clone()
+            .set_border_top(s.border_thin)
+            .set_border_bottom(s.border_thin);
+
+        let ft_e_number_box = s
+            .footer_number_right
+            .clone()
+            .set_border_top(s.border_thin)
+            .set_border_bottom(s.border_thin)
+            .set_border_right(s.border_medium);
+
+        let ft_e_gray_box = s
+            .footer_gray_center
+            .clone()
+            .set_border_right(s.border_medium);
+
+        let ft_b_input_label_top = s
+            .left_center
+            .clone()
+            .set_border_left(s.border_medium)
+            .set_border_top(s.border_thin);
+
+        let ft_c_input_top = s.left_center.clone().set_border_top(s.border_thin);
+
+        let ft_d_input_top_right = s
+            .left_center
+            .clone()
+            .set_border_top(s.border_thin)
+            .set_border_right(s.border_thin);
+
+        let ft_e_input_top = s
+            .footer_input
+            .clone()
+            .set_border_top(s.border_thin)
+            .set_border_left(s.border_thin)
+            .set_border_right(s.border_medium);
+
+        let ft_b_input_label_bottom = s
+            .left_center
+            .clone()
+            .set_border_left(s.border_medium)
+            .set_border_top(s.border_thin)
+            .set_border_bottom(s.border_medium);
+
+        let ft_c_input_bottom = s
+            .left_center
+            .clone()
+            .set_border_top(s.border_thin)
+            .set_border_bottom(s.border_medium);
+
+        let ft_d_input_bottom_right = s
+            .left_center
+            .clone()
+            .set_border_top(s.border_thin)
+            .set_border_bottom(s.border_medium)
+            .set_border_right(s.border_thin);
+
+        let ft_e_input_bottom = s
+            .footer_input
+            .clone()
+            .set_border_top(s.border_thin)
+            .set_border_bottom(s.border_medium)
+            .set_border_left(s.border_thin)
+            .set_border_right(s.border_medium);
+
+        let ft_signature = s.left_center_bold.clone().set_border_top(s.border_thin);
+
+        let ft_signature_top = s.left_center.clone().set_border_top(s.border_thin);
+
         Self {
             fmt_top_med,
             fmt_top_right_med,
@@ -551,6 +725,30 @@ impl SectionStyles {
             rp_num_last,
             rp_calc,
             rp_calc_last,
+            ft_b_top_left,
+            ft_c_top,
+            ft_d_top_right,
+            ft_e_merged_top,
+            ft_bcd_merged,
+            ft_e_center,
+            ft_b_left,
+            ft_d_right,
+            ft_e_right,
+            ft_b_label_box,
+            ft_c_box,
+            ft_d_box,
+            ft_e_number_box,
+            ft_e_gray_box,
+            ft_b_input_label_top,
+            ft_c_input_top,
+            ft_d_input_top_right,
+            ft_e_input_top,
+            ft_b_input_label_bottom,
+            ft_c_input_bottom,
+            ft_d_input_bottom_right,
+            ft_e_input_bottom,
+            ft_signature,
+            ft_signature_top,
         }
     }
 }
