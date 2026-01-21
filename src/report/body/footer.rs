@@ -22,7 +22,7 @@
 use rust_xlsxwriter::{Formula, Worksheet, XlsxError};
 
 use crate::report::core::lookup_text_string;
-use crate::report::format::{ReportStyles, SectionStyles};
+use crate::report::format::FormatMatrix;
 
 /// Footer-Layout mit berechneten Zeilenpositionen
 #[derive(Debug, Clone)]
@@ -61,8 +61,7 @@ impl FooterLayout {
 ///
 /// # Arguments
 /// * `ws` - Das Worksheet
-/// * `styles` - Report-Styles
-/// * `sec` - Section-Styles
+/// * `fmt` - FormatMatrix
 /// * `total_row` - Die Total-Zeile des Body (0-indexed)
 /// * `income_row` - Die Einnahmen-Zeile (Zeile 20, 0-indexed = 19)
 /// * `language` - Die Sprache für VLOOKUP-Evaluierung (z.B. Some("deutsch"))
@@ -78,8 +77,7 @@ impl FooterLayout {
 /// Das berechnete Footer-Layout
 pub fn write_footer(
     ws: &mut Worksheet,
-    styles: &ReportStyles,
-    sec: &SectionStyles,
+    fmt: &FormatMatrix,
     total_row: u32,
     income_row: u32,
     language: Option<&str>,
@@ -98,50 +96,50 @@ pub fn write_footer(
     // ZEILE 0 (s): "Kontrolle" / "Saldo für den Berichtszeitraum"
     // =========================================================================
 
-    ws.write_blank(s, 1, &sec.ft_b_top_left)?;
-    ws.write_blank(s, 2, &sec.ft_c_top)?;
-    ws.write_blank(s, 3, &sec.ft_d_top_right)?;
+    write_blank(ws, fmt, s, 1)?;
+    write_blank(ws, fmt, s, 2)?;
+    write_blank(ws, fmt, s, 3)?;
 
     // E(s):E(s+1) merged mit VLOOKUP 44 ("Saldo für den Berichtszeitraum")
-    write_merged_vlookup_formula(ws, s, 4, s + 1, 4, 44, &sec.ft_e_merged_top, language)?;
+    write_merged_vlookup_formula(ws, fmt, s, 4, s + 1, 4, 44, language)?;
 
     // =========================================================================
     // ZEILE 1 (s+1): "ABSCHLUSS"
     // =========================================================================
 
     // B:D(s+1) merged mit VLOOKUP 43 ("ABSCHLUSS")
-    write_merged_vlookup_formula(ws, s + 1, 1, s + 1, 3, 43, &sec.ft_bcd_merged, language)?;
+    write_merged_vlookup_formula(ws, fmt, s + 1, 1, s + 1, 3, 43, language)?;
     // E ist bereits in merge von oben
 
     // =========================================================================
     // ZEILE 2 (s+2): Währungs-Referenz
     // =========================================================================
 
-    ws.write_blank(s + 2, 1, &sec.ft_b_left)?;
-    ws.write_blank(s + 2, 2, &styles.center_center)?;
-    ws.write_blank(s + 2, 3, &sec.ft_d_right)?;
+    write_blank(ws, fmt, s + 2, 1)?;
+    write_blank(ws, fmt, s + 2, 2)?;
+    write_blank(ws, fmt, s + 2, 3)?;
 
     // E: VLOOKUP(10) (Währung)
-    write_vlookup_formula(ws, s + 2, 4, 10, &sec.ft_e_center, language)?;
+    write_vlookup_formula(ws, fmt, s + 2, 4, 10, language)?;
 
     // =========================================================================
     // ZEILE 3 (s+3): Leer
     // =========================================================================
 
-    ws.write_blank(s + 3, 1, &sec.ft_b_left)?;
-    ws.write_blank(s + 3, 2, &styles.left_center)?;
-    ws.write_blank(s + 3, 3, &sec.ft_d_right)?;
-    ws.write_blank(s + 3, 4, &sec.ft_e_right)?;
+    write_blank(ws, fmt, s + 3, 1)?;
+    write_blank(ws, fmt, s + 3, 2)?;
+    write_blank(ws, fmt, s + 3, 3)?;
+    write_blank(ws, fmt, s + 3, 4)?;
 
     // =========================================================================
     // ZEILE 4 (s+4): Saldo-Differenz
     // =========================================================================
 
     // B: VLOOKUP 45 ("Saldo...")
-    write_vlookup_formula(ws, s + 4, 1, 45, &sec.ft_b_label_box, language)?;
+    write_vlookup_formula(ws, fmt, s + 4, 1, 45, language)?;
 
     // C: blank
-    ws.write_blank(s + 4, 2, &sec.ft_c_box)?;
+    write_blank(ws, fmt, s + 4, 2)?;
 
     // D: Check-Formel ✓
     let check_formula_str = format!(
@@ -162,7 +160,7 @@ pub fn write_footer(
         }
         _ => Formula::new(&check_formula_str),
     };
-    ws.write_formula_with_format(s + 4, 3, check_formula, &sec.ft_d_box)?;
+    write_formula_locked(ws, fmt, s + 4, 3, check_formula)?;
 
     // E: Differenz-Formel (E_income - E_total)
     let diff_formula_str = format!("=E{}-E{}", income_row + 1, total_row + 1);
@@ -172,27 +170,27 @@ pub fn write_footer(
         }
         _ => Formula::new(&diff_formula_str),
     };
-    ws.write_formula_with_format(s + 4, 4, diff_formula, &sec.ft_e_number_box)?;
+    write_formula_locked(ws, fmt, s + 4, 4, diff_formula)?;
 
     // =========================================================================
     // ZEILE 5 (s+5): Leer
     // =========================================================================
 
-    ws.write_blank(s + 5, 1, &sec.ft_b_left)?;
-    ws.write_blank(s + 5, 2, &styles.left_center)?;
-    ws.write_blank(s + 5, 3, &styles.left_center)?;
-    ws.write_blank(s + 5, 4, &sec.ft_e_right)?;
+    write_blank(ws, fmt, s + 5, 1)?;
+    write_blank(ws, fmt, s + 5, 2)?;
+    write_blank(ws, fmt, s + 5, 3)?;
+    write_blank(ws, fmt, s + 5, 4)?;
 
     // =========================================================================
     // ZEILE 6 (s+6): Saldenabstimmung
     // =========================================================================
 
     // B: VLOOKUP 46 ("Saldenabstimmung:")
-    write_vlookup_formula(ws, s + 6, 1, 46, &sec.ft_b_left, language)?;
+    write_vlookup_formula(ws, fmt, s + 6, 1, 46, language)?;
 
     // C, D: blank
-    ws.write_blank(s + 6, 2, &styles.left_center)?;
-    ws.write_blank(s + 6, 3, &styles.left_center)?;
+    write_blank(ws, fmt, s + 6, 2)?;
+    write_blank(ws, fmt, s + 6, 3)?;
 
     // E: OK-Check
     let ok_formula_str = format!(
@@ -213,7 +211,7 @@ pub fn write_footer(
         }
         _ => Formula::new(&ok_formula_str),
     };
-    ws.write_formula_with_format(s + 6, 4, ok_formula, &sec.ft_e_gray_box)?;
+    write_formula_locked(ws, fmt, s + 6, 4, ok_formula)?;
 
     // =========================================================================
     // ZEILEN 7-8 (s+7 bis s+8): Bank, Kasse
@@ -223,57 +221,50 @@ pub fn write_footer(
     for (i, vlookup_idx) in vlookup_indices.iter().enumerate() {
         let row = s + 7 + i as u32;
 
-        write_vlookup_formula(
-            ws,
-            row,
-            1,
-            *vlookup_idx,
-            &sec.ft_b_input_label_top,
-            language,
-        )?;
-        ws.write_blank(row, 2, &sec.ft_c_input_top)?;
-        ws.write_blank(row, 3, &sec.ft_d_input_top_right)?;
-        ws.write_blank(row, 4, &sec.ft_e_input_top)?;
+        write_vlookup_formula(ws, fmt, row, 1, *vlookup_idx, language)?;
+        write_blank(ws, fmt, row, 2)?;
+        write_blank(ws, fmt, row, 3)?;
+        write_blank(ws, fmt, row, 4)?;
     }
 
     // =========================================================================
     // ZEILE 9 (s+9): Sonstiges - letzte Zeile mit bottom border
     // =========================================================================
 
-    write_vlookup_formula(ws, s + 9, 1, 49, &sec.ft_b_input_label_bottom, language)?;
-    ws.write_blank(s + 9, 2, &sec.ft_c_input_bottom)?;
-    ws.write_blank(s + 9, 3, &sec.ft_d_input_bottom_right)?;
-    ws.write_blank(s + 9, 4, &sec.ft_e_input_bottom)?;
+    write_vlookup_formula(ws, fmt, s + 9, 1, 49, language)?;
+    write_blank(ws, fmt, s + 9, 2)?;
+    write_blank(ws, fmt, s + 9, 3)?;
+    write_blank(ws, fmt, s + 9, 4)?;
 
     // =========================================================================
     // ZEILE 13 (s+13): Bestätigung 1
     // =========================================================================
 
-    write_vlookup_formula(ws, s + 13, 1, 50, &styles.left_center, language)?;
+    write_vlookup_formula(ws, fmt, s + 13, 1, 50, language)?;
 
     // =========================================================================
     // ZEILE 14 (s+14): Bestätigung 2
     // =========================================================================
 
-    write_vlookup_formula(ws, s + 14, 1, 54, &styles.left_center, language)?;
+    write_vlookup_formula(ws, fmt, s + 14, 1, 54, language)?;
 
     // =========================================================================
     // ZEILE 19 (s+19): Unterschriften
     // =========================================================================
 
-    write_vlookup_formula(ws, s + 19, 1, 51, &sec.ft_signature, language)?;
-    ws.write_blank(s + 19, 2, &sec.ft_signature_top)?;
-    write_vlookup_formula(ws, s + 19, 3, 52, &sec.ft_signature, language)?;
+    write_vlookup_formula(ws, fmt, s + 19, 1, 51, language)?;
+    write_blank(ws, fmt, s + 19, 2)?;
+    write_vlookup_formula(ws, fmt, s + 19, 3, 52, language)?;
 
     for col in 4..=6 {
-        ws.write_blank(s + 19, col, &sec.ft_signature_top)?;
+        write_blank(ws, fmt, s + 19, col)?;
     }
 
     // =========================================================================
     // ZEILE 20 (s+20): Funktion
     // =========================================================================
 
-    write_vlookup_formula(ws, s + 20, 3, 53, &styles.left_center, language)?;
+    write_vlookup_formula(ws, fmt, s + 20, 3, 53, language)?;
 
     Ok(layout)
 }
@@ -282,7 +273,7 @@ pub fn write_footer(
 pub fn write_footer_values(
     ws: &mut Worksheet,
     layout: &FooterLayout,
-    sec: &SectionStyles,
+    fmt: &FormatMatrix,
     bank: Option<f64>,
     kasse: Option<f64>,
     sonstiges: Option<f64>,
@@ -291,29 +282,52 @@ pub fn write_footer_values(
 
     // Bank (E, Zeile 7)
     if let Some(value) = bank {
-        ws.write_number_with_format(s + 7, 4, value, &sec.ft_e_input_top)?;
+        if let Some(format) = fmt.get(s + 7, 4) {
+            ws.write_number_with_format(s + 7, 4, value, format)?;
+        }
     }
 
     // Kasse (E, Zeile 8)
     if let Some(value) = kasse {
-        ws.write_number_with_format(s + 8, 4, value, &sec.ft_e_input_top)?;
+        if let Some(format) = fmt.get(s + 8, 4) {
+            ws.write_number_with_format(s + 8, 4, value, format)?;
+        }
     }
 
     // Sonstiges (E, Zeile 9)
     if let Some(value) = sonstiges {
-        ws.write_number_with_format(s + 9, 4, value, &sec.ft_e_input_bottom)?;
+        if let Some(format) = fmt.get(s + 9, 4) {
+            ws.write_number_with_format(s + 9, 4, value, format)?;
+        }
     }
 
     Ok(())
 }
 
-/// Schreibt eine VLOOKUP-Formel mit gecachtem Text-Ergebnis
+// ============================================================================
+// Helper-Funktionen
+// ============================================================================
+
+/// Schreibt einen Blank mit Format aus FormatMatrix
+fn write_blank(
+    ws: &mut Worksheet,
+    fmt: &FormatMatrix,
+    row: u32,
+    col: u16,
+) -> Result<(), XlsxError> {
+    if let Some(format) = fmt.get(row, col) {
+        ws.write_blank(row, col, format)?;
+    }
+    Ok(())
+}
+
+/// Schreibt eine VLOOKUP-Formel mit gecachtem Text-Ergebnis (locked)
 fn write_vlookup_formula(
     ws: &mut Worksheet,
+    fmt: &FormatMatrix,
     row: u32,
     col: u16,
     index: usize,
-    format: &rust_xlsxwriter::Format,
     language: Option<&str>,
 ) -> Result<(), XlsxError> {
     let formula_str = format!(
@@ -327,19 +341,39 @@ fn write_vlookup_formula(
         Formula::new(&formula_str)
     };
 
-    ws.write_formula_with_format(row, col, formula, format)?;
+    if let Some(format) = fmt.get_locked(row, col) {
+        ws.write_formula_with_format(row, col, formula, &format)?;
+    } else {
+        ws.write_formula(row, col, formula)?;
+    }
     Ok(())
 }
 
-/// Schreibt eine VLOOKUP-Formel in einem gemergten Bereich mit gecachtem Text-Ergebnis
+/// Schreibt eine Formel mit locked Format aus FormatMatrix
+fn write_formula_locked(
+    ws: &mut Worksheet,
+    fmt: &FormatMatrix,
+    row: u32,
+    col: u16,
+    formula: Formula,
+) -> Result<(), XlsxError> {
+    if let Some(format) = fmt.get_locked(row, col) {
+        ws.write_formula_with_format(row, col, formula, &format)?;
+    } else {
+        ws.write_formula(row, col, formula)?;
+    }
+    Ok(())
+}
+
+/// Schreibt eine VLOOKUP-Formel in einem gemergten Bereich mit gecachtem Text-Ergebnis (locked)
 fn write_merged_vlookup_formula(
     ws: &mut Worksheet,
+    fmt: &FormatMatrix,
     row_start: u32,
     col_start: u16,
     row_end: u32,
     col_end: u16,
     index: usize,
-    format: &rust_xlsxwriter::Format,
     language: Option<&str>,
 ) -> Result<(), XlsxError> {
     let formula_str = format!(
@@ -353,8 +387,10 @@ fn write_merged_vlookup_formula(
         Formula::new(&formula_str)
     };
 
-    ws.merge_range(row_start, col_start, row_end, col_end, "", format)?;
-    ws.write_formula_with_format(row_start, col_start, formula, format)?;
+    if let Some(format) = fmt.get_locked(row_start, col_start) {
+        ws.merge_range(row_start, col_start, row_end, col_end, "", &format)?;
+        ws.write_formula_with_format(row_start, col_start, formula, &format)?;
+    }
     Ok(())
 }
 

@@ -13,8 +13,8 @@ use crate::report::body::{
 };
 use crate::report::core::{build_registry, CellAddr, CellKind, CellRegistry, EvalContext};
 use crate::report::format::{
-    build_format_matrix, extend_format_matrix_with_body, FormatMatrix, ReportOptions, ReportStyles,
-    SectionStyles,
+    build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,
+    FormatMatrix, ReportOptions, ReportStyles, SectionStyles,
 };
 use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
 use std::collections::HashMap;
@@ -57,7 +57,10 @@ fn write_report_with_body(
     // 7. Dynamischen Body schreiben (mit API-Werten)
     let body_result = write_body_structure_with_values(ws, &fmt, body_config, Some(values))?;
 
-    // 8. Footer schreiben (3 Zeilen nach Total)
+    // 8. Footer-Formate zur FormatMatrix hinzufügen
+    extend_format_matrix_with_footer(&mut fmt, styles, &sec, body_result.layout.total_row + 3);
+
+    // 9. Footer schreiben (3 Zeilen nach Total)
     // income_row = 19 (0-indexed, Zeile 20 in Excel)
     let income_row = 19u32;
 
@@ -71,8 +74,7 @@ fn write_report_with_body(
 
     let footer_layout = write_footer(
         ws,
-        styles,
-        &sec,
+        &fmt,
         body_result.layout.total_row,
         income_row,
         values.language(),
@@ -85,17 +87,17 @@ fn write_report_with_body(
         values.footer_sonstiges(),
     )?;
 
-    // 9. Footer-Werte schreiben (Bank, Kasse, Sonstiges)
+    // 10. Footer-Werte schreiben (Bank, Kasse, Sonstiges)
     write_footer_values(
         ws,
         &footer_layout,
-        &sec,
+        &fmt,
         values.footer_bank(),
         values.footer_kasse(),
         values.footer_sonstiges(),
     )?;
 
-    // 10. Freeze Pane
+    // 11. Freeze Pane
     layout::setup_freeze_panes(ws, 9)?;
 
     Ok(body_result)

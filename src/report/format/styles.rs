@@ -1314,3 +1314,93 @@ pub fn extend_format_matrix_with_body(
     m.set(layout.total_row, 6, &body.total_pct); // G
     m.set(layout.total_row, 7, &body.total_h); // H
 }
+
+// ============================================================================
+// extend_format_matrix_with_footer: Fügt Footer-Formate zur Matrix hinzu
+// ============================================================================
+
+/// Erweitert die FormatMatrix um die Footer-Formate
+///
+/// # Arguments
+/// * `m` - FormatMatrix
+/// * `styles` - ReportStyles
+/// * `sec` - SectionStyles
+/// * `start_row` - Startzeile des Footers (total_row + 3)
+pub fn extend_format_matrix_with_footer(
+    m: &mut FormatMatrix,
+    _styles: &ReportStyles,
+    sec: &SectionStyles,
+    start_row: u32,
+) {
+    let s = start_row;
+
+    // Zeile 0: B, C, D blanks mit top borders, E merged mit Formel
+    m.set(s, 1, &sec.ft_b_top_left);
+    m.set(s, 2, &sec.ft_c_top);
+    m.set(s, 3, &sec.ft_d_top_right);
+    m.set(s, 4, &sec.ft_e_merged_top); // E(s):E(s+1) merged
+
+    // Zeile 1: B:D merged mit Formel, E in merge von oben
+    m.set(s + 1, 1, &sec.ft_bcd_merged); // B:D(s+1) merged
+
+    // Zeile 2: B, C, D blanks, E Formel
+    m.set(s + 2, 1, &sec.ft_b_left);
+    m.set(s + 2, 2, &_styles.center_center);
+    m.set(s + 2, 3, &sec.ft_d_right);
+    m.set(s + 2, 4, &sec.ft_e_center);
+
+    // Zeile 3: Blanks
+    m.set(s + 3, 1, &sec.ft_b_left);
+    m.set(s + 3, 2, &_styles.left_center);
+    m.set(s + 3, 3, &sec.ft_d_right);
+    m.set(s + 3, 4, &sec.ft_e_right);
+
+    // Zeile 4: Saldo-Box (B: Formel, C: Blank, D: Formel Check, E: Formel Differenz)
+    m.set(s + 4, 1, &sec.ft_b_label_box);
+    m.set(s + 4, 2, &sec.ft_c_box);
+    m.set(s + 4, 3, &sec.ft_d_box);
+    m.set(s + 4, 4, &sec.ft_e_number_box);
+
+    // Zeile 5: Blanks
+    m.set(s + 5, 1, &sec.ft_b_left);
+    m.set(s + 5, 2, &_styles.left_center);
+    m.set(s + 5, 3, &_styles.left_center);
+    m.set(s + 5, 4, &sec.ft_e_right);
+
+    // Zeile 6: Saldenabstimmung (B: Formel, C,D: Blank, E: Formel OK)
+    m.set(s + 6, 1, &sec.ft_b_left);
+    m.set(s + 6, 2, &_styles.left_center);
+    m.set(s + 6, 3, &_styles.left_center);
+    m.set(s + 6, 4, &sec.ft_e_gray_box);
+
+    // Zeilen 7-8: Bank, Kasse (B: Formel Label, C,D: Blank, E: Input)
+    for row in s + 7..=s + 8 {
+        m.set(row, 1, &sec.ft_b_input_label_top);
+        m.set(row, 2, &sec.ft_c_input_top);
+        m.set(row, 3, &sec.ft_d_input_top_right);
+        m.set(row, 4, &sec.ft_e_input_top);
+    }
+
+    // Zeile 9: Sonstiges (B: Formel Label, C,D: Blank, E: Input mit bottom border)
+    m.set(s + 9, 1, &sec.ft_b_input_label_bottom);
+    m.set(s + 9, 2, &sec.ft_c_input_bottom);
+    m.set(s + 9, 3, &sec.ft_d_input_bottom_right);
+    m.set(s + 9, 4, &sec.ft_e_input_bottom);
+
+    // Zeile 13: Bestätigung 1 (B: Formel)
+    m.set(s + 13, 1, &_styles.left_center);
+
+    // Zeile 14: Bestätigung 2 (B: Formel)
+    m.set(s + 14, 1, &_styles.left_center);
+
+    // Zeile 19: Unterschriften (B, D: Formeln, C, E-G: Blanks mit top border)
+    m.set(s + 19, 1, &sec.ft_signature);
+    m.set(s + 19, 2, &sec.ft_signature_top);
+    m.set(s + 19, 3, &sec.ft_signature);
+    for col in 4..=6 {
+        m.set(s + 19, col, &sec.ft_signature_top);
+    }
+
+    // Zeile 20: Funktion (D: Formel)
+    m.set(s + 20, 3, &_styles.left_center);
+}

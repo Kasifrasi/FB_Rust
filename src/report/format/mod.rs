@@ -12,6 +12,6 @@ pub use protection::{
     ValidationError, ValidationErrorStyle, ValidationRule, ValidationRuleType, ValidationTarget,
 };
 pub use styles::{
-    build_format_matrix, extend_format_matrix_with_body, BodyStyles, FormatMatrix, ReportStyles,
-    SectionStyles,
+    build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,
+    BodyStyles, FormatMatrix, ReportStyles, SectionStyles,
 };
