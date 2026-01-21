@@ -3,7 +3,7 @@
 //! Die Haupt-API ist `write_report_with_options()`.
 
 use super::layout;
-use super::sections::{write_header_new, write_panel_section, write_prebody_new, write_table_new};
+use super::sections::{write_header_new, write_panel_new, write_prebody_new, write_table_new};
 use crate::report::api::{CellValue, ReportValues};
 use crate::report::body::{
     write_body_structure_with_values, write_footer, write_footer_values, BodyConfig, BodyLayout,
@@ -41,7 +41,9 @@ fn write_report_with_body(
     // 4. FillColors erstellen (neues System!)
     let fills = FillColors::new();
 
-    // 4b. FormatMatrix erstellen (nur noch für Panel, der noch alt ist)
+    // 4b. FormatMatrix erstellen (für Registry-Formeln und Body)
+    // Alle Section-Writer verwenden jetzt FillColors, aber Registry-Formeln
+    // und Body brauchen noch FormatMatrix
     let sec = SectionStyles::new(styles);
     let mut fmt = build_format_matrix(styles, &sec);
     extend_format_matrix_with_body(&mut fmt, styles, &body_layout);
@@ -49,7 +51,7 @@ fn write_report_with_body(
     // 5. Statische Sections schreiben (NEUES SYSTEM!)
     write_header_new(ws, Some(values), &fills)?;
     write_table_new(ws, &fills)?;
-    write_panel_section(ws, &fmt, values)?; // Panel noch mit altem System
+    write_panel_new(ws, values, &fills)?; // Panel jetzt mit neuem System!
     write_prebody_new(ws, values.language(), &fills)?;
 
     // 6. Statische Zellen aus Registry schreiben

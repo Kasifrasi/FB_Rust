@@ -1,137 +1,437 @@
-//! Header Section (Zeilen 0-9)
+//! Header Section - Neues zellbasiertes System (Proof of Concept)
 //!
-//! Enthält:
-//! - Titel (B1)
-//! - Sprache/Währung (E2, E3)
-//! - Projekt-Infos (D5, D6)
-//! - Projektlaufzeit/Berichtszeitraum (Row 7-8)
-//! - Info-Box (J1-O4)
+//! Dieses Modul demonstriert das neue Format-System:
+//! - Zellbasiert: Jede Zelle explizit mit allen Properties
+//! - Fill via Variable: FillColors für gewollten Welleneffekt
+//! - Merged Cells zuerst: Dann Borders (separate Ebene)
 //!
-//! **Hinweis:** Formeln werden von `write_cells_from_registry()` geschrieben.
-//! Dieser Section-Writer schreibt nur Layout (Merges, Blanks, Werte, Validierungen).
+//! # Beispiel-Zellen im Header
+//!
+//! - E2: Sprache (Input, gelb, unlocked)
+//! - E3: Währung (Input, gelb, unlocked)
+//! - D5: Projektnummer (Input, gelb, unlocked)
+//! - D6:H7: Projekttitel (Input, gelb, unlocked, merged)
 
-use super::super::layout::MergeRange;
-use crate::lang::data::CURRENCIES;
-use crate::report::format::FormatMatrix;
-use rust_xlsxwriter::{DataValidation, Worksheet, XlsxError};
+use crate::report::api::{ApiKey, ReportValues};
+use crate::report::format::{BorderManager, BorderSpec, FillColors, MergedCellRegistry};
+use rust_xlsxwriter::{Format, FormatAlign, Worksheet, XlsxError};
 
-/// Merge-Bereiche für Header Section
-pub const MERGES: &[(MergeRange, u32, u16)] = &[
-    (MergeRange::new(0, 1, 0, 2), 0, 1),  // B1:C1
-    (MergeRange::new(1, 1, 1, 2), 1, 1),  // B2:C2
-    (MergeRange::new(1, 9, 2, 14), 1, 9), // J2:O3
-    (MergeRange::new(2, 1, 2, 2), 2, 1),  // B3:C3
-    (MergeRange::new(3, 9, 3, 14), 3, 9), // J4:O4
-    (MergeRange::new(4, 1, 4, 2), 4, 1),  // B5:C5
-    (MergeRange::new(5, 1, 6, 2), 5, 1),  // B6:C7
-    (MergeRange::new(5, 3, 6, 7), 5, 3),  // D6:H7
-    (MergeRange::new(7, 1, 7, 2), 7, 1),  // B8:C8
-    (MergeRange::new(7, 6, 7, 7), 7, 6),  // G8:H8
-    (MergeRange::new(8, 1, 8, 2), 8, 1),  // B9:C9
-    (MergeRange::new(8, 6, 8, 7), 8, 6),  // G9:H9
-];
-
-/// Blank-Zellen für Header Section
-pub const BLANKS: &[(u32, u16)] = &[
-    (0, 10),
-    (0, 11),
-    (0, 12),
-    (0, 13),
-    (0, 14), // Row 0
-    (2, 4),  // E3
-    (4, 3),  // D5
-    (6, 9),  // J7
-    (7, 4),
-    (7, 9), // E8, J8
-    (8, 4),
-    (8, 6),
-    (8, 9), // E9, G9, J9
-];
-
-/// Schreibt die Header Section (Layout, Merges, Blanks, Werte, Validierungen)
+/// Schreibt Header Section mit neuem zellbasiertem System
 ///
-/// **Hinweis:** Formeln werden von `write_cells_from_registry()` geschrieben,
-/// nicht hier. Die Registry enthält alle Formeln mit korrekten Evaluierungen.
-pub fn write_header_section(
+/// # Workflow
+///
+/// 1. Merged Cells registrieren
+/// 2. Borders konfigurieren (VOR dem Schreiben!)
+/// 3. Zellen schreiben mit gemerged Borders
+///
+/// # Arguments
+///
+/// * `ws` - Worksheet
+/// * `values` - API Values (optional)
+/// * `fills` - Fill Colors (semantische Farben)
+pub fn write_header_new(
     ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    suffix: &str,
-    language: Option<&str>,
+    values: Option<&ReportValues>,
+    fills: &FillColors,
 ) -> Result<(), XlsxError> {
-    // Merges
-    write_merges(ws, fmt)?;
+    // =========================================================================
+    // PHASE 1: MERGED CELLS REGISTRIEREN (ZUERST!)
+    // =========================================================================
 
-    // Blanks
-    write_blanks(ws, fmt)?;
+    let mut merged_cells = MergedCellRegistry::new();
 
-    // Werte (statische Strings, keine Formeln)
-    write_values(ws, fmt, suffix, language.unwrap_or(""))?;
+    // B1:C1 - Titel "NABU-Stiftung..."
+    merged_cells.register_merge(0, 1, 0, 2);
 
-    // Data Validations
-    write_validations(ws)?;
+    // B2:C2 - Suffix Label
+    merged_cells.register_merge(1, 1, 1, 2);
 
-    // Formeln werden von write_cells_from_registry() geschrieben!
-    // Die Registry enthält alle VLOOKUP-Formeln mit korrekten Evaluierungen.
+    // D6:H7 - Projekttitel (2x5 Zellen)
+    merged_cells.register_merge(5, 3, 6, 7);
+
+    // B8:C8 - Label "Projektlaufzeit von:"
+    merged_cells.register_merge(7, 1, 7, 2);
+
+    // G8:H8 - "bis"
+    merged_cells.register_merge(7, 6, 7, 7);
+
+    // B9:C9 - Label "Berichtszeitraum von:"
+    merged_cells.register_merge(8, 1, 8, 2);
+
+    // G9:H9 - "bis"
+    merged_cells.register_merge(8, 6, 8, 7);
+
+    // =========================================================================
+    // PHASE 2: BORDERS KONFIGURIEREN (VOR dem Schreiben!)
+    // =========================================================================
+
+    let mut borders = BorderManager::new();
+    borders.set_merged_cells(merged_cells.clone());
+
+    // Box um Projekt-Info (D5:H7)
+    borders.add_range(4, 3, 6, 7, BorderSpec::all_medium());
+
+    // Box um Projektlaufzeit (B8:H8)
+    borders.add_range(7, 1, 7, 7, BorderSpec::all_thin());
+
+    // Box um Berichtszeitraum (B9:H9)
+    borders.add_range(8, 1, 8, 7, BorderSpec::all_thin());
+
+    // =========================================================================
+    // PHASE 3: ZELLEN SCHREIBEN (Zellbasiert, mit Border-Merge)
+    // =========================================================================
+
+    // --- ZEILE 1 (Row 0) ---
+
+    // B1 (merged B1:C1): Titel
+    let mut fmt_b1 = Format::new()
+        .set_font_name("Arial")
+        .set_font_size(10.0)
+        .set_bold()
+        .set_align(FormatAlign::Left);
+
+    // Merge mit Border falls vorhanden
+    if let Ok(Some(border_fmt)) = borders.get_border_for_cell(0, 1) {
+        fmt_b1 = fmt_b1.merge(&border_fmt);
+    }
+
+    ws.merge_range(0, 1, 0, 2, "NABU-Stiftung Nationales Naturerbe", &fmt_b1)?;
+
+    // --- ZEILE 2 (Row 1) ---
+
+    // B2 (merged B2:C2): Suffix
+    let fmt_b2 = Format::new()
+        .set_font_name("Arial")
+        .set_font_size(10.0)
+        .set_bold()
+        .set_align(FormatAlign::Left);
+
+    let suffix_text = values
+        .and_then(|v| v.get(ApiKey::Language).as_text())
+        .unwrap_or("");
+
+    ws.merge_range(1, 1, 1, 2, suffix_text, &fmt_b2)?;
+
+    // D2: Label "Sprache:"
+    ws.write_string_with_format(
+        1,
+        3,
+        "Sprache:",
+        &Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_bold()
+            .set_align(FormatAlign::Left),
+    )?;
+
+    // E2: Sprache Input (API-Feld, gelb, unlocked)
+    let lang_value = values
+        .and_then(|v| v.get(ApiKey::Language).as_text())
+        .unwrap_or("");
+
+    ws.write_string_with_format(
+        1,
+        4,
+        lang_value,
+        &Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_background_color(fills.input) // ← Fill via Variable!
+            .set_align(FormatAlign::Left)
+            .set_unlocked()
+            .set_num_format("@"), // Text format
+    )?;
+
+    // --- ZEILE 3 (Row 2) ---
+
+    // D3: Label "Währung:"
+    ws.write_string_with_format(
+        2,
+        3,
+        "Währung:",
+        &Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_bold()
+            .set_align(FormatAlign::Left),
+    )?;
+
+    // E3: Währung Input (API-Feld, gelb, unlocked)
+    let currency_value = values
+        .and_then(|v| v.get(ApiKey::Currency).as_text())
+        .unwrap_or("");
+
+    ws.write_string_with_format(
+        2,
+        4,
+        currency_value,
+        &Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_background_color(fills.input) // ← Fill via Variable!
+            .set_align(FormatAlign::Left)
+            .set_unlocked()
+            .set_num_format("@"),
+    )?;
+
+    // --- ZEILE 5 (Row 4) ---
+
+    // D5: Projektnummer Input (API-Feld, gelb, unlocked)
+    let project_number = values
+        .and_then(|v| v.get(ApiKey::ProjectNumber).as_text())
+        .unwrap_or("");
+
+    let fmt_d5 = with_borders(
+        Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_background_color(fills.input) // ← Fill via Variable!
+            .set_align(FormatAlign::Left)
+            .set_unlocked()
+            .set_num_format("@"),
+        &borders,
+        4,
+        3,
+    );
+
+    ws.write_string_with_format(4, 3, project_number, &fmt_d5)?;
+
+    // --- ZEILE 6-7 (Row 5-6, merged D6:H7) ---
+
+    // D6:H7: Projekttitel (merged, Input, gelb, unlocked, mehrzeilig)
+    let fmt_title = with_borders(
+        Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_background_color(fills.input) // ← Fill via Variable!
+            .set_align(FormatAlign::Left)
+            .set_text_wrap()
+            .set_unlocked()
+            .set_num_format("@"),
+        &borders,
+        5,
+        3,
+    );
+
+    let project_title = values
+        .and_then(|v| v.get(ApiKey::ProjectTitle).as_text())
+        .unwrap_or("");
+
+    // 1. Merge mit Format
+    ws.merge_range(5, 3, 6, 7, "", &fmt_title)?;
+    // 2. Write auf top-left
+    ws.write_string_with_format(5, 3, project_title, &fmt_title)?;
+
+    // --- ZEILE 8 (Row 7) ---
+
+    // B8 (merged B8:C8): "Projektlaufzeit von:"
+    let fmt_b8 = with_borders(
+        Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_bold()
+            .set_align(FormatAlign::Left),
+        &borders,
+        7,
+        1,
+    );
+
+    ws.merge_range(7, 1, 7, 2, "Projektlaufzeit von:", &fmt_b8)?;
+
+    // D8: Label "von Datum"
+    ws.write_string_with_format(
+        7,
+        3,
+        "von Datum",
+        &Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_align(FormatAlign::Center),
+    )?;
+
+    // E8: ProjectStart Input (Date, gelb, unlocked)
+    let project_start = values
+        .and_then(|v| v.get(ApiKey::ProjectStart).as_text())
+        .unwrap_or("");
+
+    let fmt_e8 = with_borders(
+        Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_background_color(fills.input) // ← Fill via Variable!
+            .set_align(FormatAlign::Center)
+            .set_unlocked()
+            .set_num_format("dd.mm.yyyy"),
+        &borders,
+        7,
+        4,
+    );
+
+    ws.write_string_with_format(7, 4, project_start, &fmt_e8)?;
+
+    // F8: "bis Datum"
+    ws.write_string_with_format(
+        7,
+        5,
+        "bis Datum",
+        &Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_align(FormatAlign::Center),
+    )?;
+
+    // G8 (merged G8:H8): ProjectEnd Input
+    let project_end = values
+        .and_then(|v| v.get(ApiKey::ProjectEnd).as_text())
+        .unwrap_or("");
+
+    let fmt_g8 = with_borders(
+        Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_background_color(fills.input) // ← Fill via Variable!
+            .set_align(FormatAlign::Center)
+            .set_unlocked()
+            .set_num_format("dd.mm.yyyy"),
+        &borders,
+        7,
+        6,
+    );
+
+    ws.merge_range(7, 6, 7, 7, project_end, &fmt_g8)?;
+
+    // --- ZEILE 9 (Row 8) ---
+
+    // B9 (merged B9:C9): "Berichtszeitraum von:"
+    let fmt_b9 = with_borders(
+        Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_bold()
+            .set_align(FormatAlign::Left),
+        &borders,
+        8,
+        1,
+    );
+
+    ws.merge_range(8, 1, 8, 2, "Berichtszeitraum von:", &fmt_b9)?;
+
+    // D9: "von Datum"
+    ws.write_string_with_format(
+        8,
+        3,
+        "von Datum",
+        &Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_align(FormatAlign::Center),
+    )?;
+
+    // E9: ReportStart Input
+    let report_start = values
+        .and_then(|v| v.get(ApiKey::ReportStart).as_text())
+        .unwrap_or("");
+
+    let fmt_e9 = with_borders(
+        Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_background_color(fills.input) // ← Fill via Variable!
+            .set_align(FormatAlign::Center)
+            .set_unlocked()
+            .set_num_format("dd.mm.yyyy"),
+        &borders,
+        8,
+        4,
+    );
+
+    ws.write_string_with_format(8, 4, report_start, &fmt_e9)?;
+
+    // F9: "bis Datum"
+    ws.write_string_with_format(
+        8,
+        5,
+        "bis Datum",
+        &Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_align(FormatAlign::Center),
+    )?;
+
+    // G9 (merged G9:H9): ReportEnd Input
+    let report_end = values
+        .and_then(|v| v.get(ApiKey::ReportEnd).as_text())
+        .unwrap_or("");
+
+    let fmt_g9 = with_borders(
+        Format::new()
+            .set_font_name("Arial")
+            .set_font_size(10.0)
+            .set_background_color(fills.input) // ← Fill via Variable!
+            .set_align(FormatAlign::Center)
+            .set_unlocked()
+            .set_num_format("dd.mm.yyyy"),
+        &borders,
+        8,
+        6,
+    );
+
+    ws.merge_range(8, 6, 8, 7, report_end, &fmt_g9)?;
 
     Ok(())
 }
 
-fn write_merges(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> {
-    for (range, fmt_row, fmt_col) in MERGES {
-        if let Some(format) = fmt.get(*fmt_row, *fmt_col) {
-            ws.merge_range(
-                range.first_row,
-                range.first_col,
-                range.last_row,
-                range.last_col,
-                "",
-                format,
-            )?;
-        }
+/// Merged ein Format mit Borders falls für die Zelle vorhanden
+///
+/// Helper-Funktion für das Baukastenprinzip: Format + Border = Finales Format
+///
+/// # Arguments
+///
+/// * `format` - Das ursprüngliche Format
+/// * `borders` - BorderManager mit konfigurierten Borders
+/// * `row` - Zeile
+/// * `col` - Spalte
+///
+/// # Returns
+///
+/// Das gemerged Format (mit Borders falls vorhanden)
+fn with_borders(format: Format, borders: &BorderManager, row: u32, col: u16) -> Format {
+    if let Ok(Some(border_fmt)) = borders.get_border_for_cell(row, col) {
+        format.merge(&border_fmt)
+    } else {
+        format
     }
-    Ok(())
 }
 
-fn write_blanks(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> {
-    for (row, col) in BLANKS {
-        if let Some(format) = fmt.get(*row, *col) {
-            ws.write_blank(*row, *col, format)?;
-        }
-    }
-    Ok(())
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_xlsxwriter::Workbook;
 
-fn write_values(
-    ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    suffix: &str,
-    lang_val: &str,
-) -> Result<(), XlsxError> {
-    // Suffix (B2)
-    if let Some(format) = fmt.get(1, 1) {
-        ws.write_string_with_format(1, 1, suffix, format)?;
+    #[test]
+    fn test_header_new_compiles() {
+        let mut wb = Workbook::new();
+        let ws = wb.add_worksheet();
+        let fills = FillColors::new();
+
+        // Sollte ohne Fehler kompilieren und ausführen
+        let result = write_header_new(ws, None, &fills);
+        assert!(result.is_ok());
     }
 
-    // Language (E2)
-    if let Some(format) = fmt.get(1, 4) {
-        ws.write_string_with_format(1, 4, lang_val, format)?;
+    #[test]
+    fn test_header_new_with_values() {
+        let mut wb = Workbook::new();
+        let ws = wb.add_worksheet();
+        let fills = FillColors::new();
+
+        let values = ReportValues::new()
+            .with_language("Deutsch")
+            .with_currency("EUR")
+            .with_project_number("12345")
+            .with_project_title("Test Projekt");
+
+        let result = write_header_new(ws, Some(&values), &fills);
+        assert!(result.is_ok());
     }
-
-    Ok(())
-}
-
-fn write_validations(ws: &mut Worksheet) -> Result<(), XlsxError> {
-    // E2: Sprache
-    let lang_validation =
-        DataValidation::new().allow_list_formula("=Sprachversionen!$B$1:$B$5".into());
-    ws.add_data_validation(1, 4, 1, 4, &lang_validation)?;
-
-    // E3: Währung
-    let currency_count = CURRENCIES.len();
-    let currency_formula = format!("=Sprachversionen!$A$1:$A${}", currency_count);
-    let currency_validation =
-        DataValidation::new().allow_list_formula(currency_formula.as_str().into());
-    ws.add_data_validation(2, 4, 2, 4, &currency_validation)?;
-
-    Ok(())
 }
