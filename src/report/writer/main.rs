@@ -3,7 +3,9 @@
 //! Die Haupt-API ist `write_report_with_options()`.
 
 use super::layout;
-use super::sections::{write_header_new, write_panel_new, write_prebody_new, write_table_new};
+use super::sections::{
+    write_header_section, write_panel_section, write_prebody_section, write_table_section,
+};
 use crate::report::api::{CellValue, ReportValues};
 use crate::report::body::{
     write_body_structure_with_values, write_footer, write_footer_values, BodyConfig, BodyLayout,
@@ -11,8 +13,8 @@ use crate::report::body::{
 };
 use crate::report::core::{build_registry, CellAddr, CellKind, CellRegistry, EvalContext};
 use crate::report::format::{
-    build_format_matrix, extend_format_matrix_with_body, FillColors, FormatMatrix, ReportOptions,
-    ReportStyles, SectionStyles,
+    build_format_matrix, extend_format_matrix_with_body, FormatMatrix, ReportOptions, ReportStyles,
+    SectionStyles,
 };
 use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
 use std::collections::HashMap;
@@ -21,7 +23,7 @@ use std::collections::HashMap;
 fn write_report_with_body(
     ws: &mut Worksheet,
     styles: &ReportStyles,
-    _suffix: &str,
+    suffix: &str,
     values: &ReportValues,
     body_config: &BodyConfig,
 ) -> Result<BodyResult, XlsxError> {
@@ -38,21 +40,16 @@ fn write_report_with_body(
     // 3. Alle statischen Zellen evaluieren
     let computed = evaluate_all_cells(&registry, values);
 
-    // 4. FillColors erstellen (neues System!)
-    let fills = FillColors::new();
-
-    // 4b. FormatMatrix erstellen (für Registry-Formeln und Body)
-    // Alle Section-Writer verwenden jetzt FillColors, aber Registry-Formeln
-    // und Body brauchen noch FormatMatrix
+    // 4. FormatMatrix erstellen (statisch + body)
     let sec = SectionStyles::new(styles);
     let mut fmt = build_format_matrix(styles, &sec);
     extend_format_matrix_with_body(&mut fmt, styles, &body_layout);
 
-    // 5. Statische Sections schreiben (NEUES SYSTEM!)
-    write_header_new(ws, Some(values), &fills)?;
-    write_table_new(ws, &fills)?;
-    write_panel_new(ws, values, &fills)?; // Panel jetzt mit neuem System!
-    write_prebody_new(ws, values.language(), &fills)?;
+    // 5. Statische Sections schreiben (Layout, Merges, Blanks)
+    write_header_section(ws, &fmt, suffix, values.language())?;
+    write_table_section(ws, &fmt)?;
+    write_panel_section(ws, &fmt, values)?;
+    write_prebody_section(ws, styles, values.language())?;
 
     // 6. Statische Zellen aus Registry schreiben
     write_cells_from_registry(ws, &registry, &computed, &fmt)?;

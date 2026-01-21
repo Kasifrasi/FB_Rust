@@ -1,239 +1,182 @@
-//! Pre-Body Section - Neues zellbasiertes System
+//! Pre-Body Section (Zeilen 20-25)
 //!
-//! Finance Table (Zeilen 22-25, Excel 23-26) mit vielen Merged Cells.
+//! Statischer Bereich zwischen Einnahme-Tabelle und dynamischem Body.
+//! Enthält:
+//! - Spacer Row 20-21
+//! - Footer-Tabelle (Rows 22-25) mit vertikalen Merges
 //!
-//! Perfektes Beispiel für:
-//! - Vertikale Merges (D23:D26, E23:E26, F23:F26, G23:G26, H23:H26)
-//! - Horizontale Merges (B24:C24, B25:C25, B26:C26)
-//! - Borders mit Merge-Awareness
+//! ## Registry-Integration
+//!
+//! Die VLOOKUP-Formeln in dieser Section sind jetzt in der zentralen
+//! CellRegistry registriert (siehe `definitions.rs::register_prebody_formulas`).
+//! Die Funktion `write_prebody_section` schreibt nur noch das Layout (Merges, Blanks),
+//! während die Formeln von `write_cells_from_registry` geschrieben werden.
+//!
+//! Für Backward-Kompatibilität existiert weiterhin die Legacy-Version
+//! `write_prebody_section`, die die Formeln selbst schreibt.
 
 use crate::report::core::lookup_text_string;
-use crate::report::format::{BorderManager, BorderSpec, FillColors, MergedCellRegistry};
-use rust_xlsxwriter::{Format, FormatAlign, Formula, Worksheet, XlsxError};
+use crate::report::format::ReportStyles;
+use rust_xlsxwriter::{FormatAlign, Formula, Worksheet, XlsxError};
 
-/// Schreibt PreBody Section mit neuem zellbasiertem System
+/// Schreibt die Pre-Body Section (Zeilen 20-25) - Legacy-Version
 ///
-/// # Workflow
-///
-/// 1. Merged Cells registrieren (ZUERST!)
-/// 2. Borders konfigurieren (VOR dem Schreiben!)
-/// 3. Zellen schreiben mit gemerged Borders
+/// Diese Version schreibt die VLOOKUP-Formeln selbst mit gecachten Ergebnissen.
+/// Für die einheitliche Registry-basierte Version siehe `write_prebody_section_unified`.
 ///
 /// # Arguments
-///
-/// * `ws` - Worksheet
-/// * `language` - Sprache für VLOOKUP (optional)
-/// * `fills` - Fill Colors
-pub fn write_prebody_new(
+/// * `ws` - Das Worksheet
+/// * `styles` - Report-Styles
+/// * `language` - Die Sprache für VLOOKUP-Evaluierung (z.B. Some("deutsch"))
+pub fn write_prebody_section(
     ws: &mut Worksheet,
+    styles: &ReportStyles,
     language: Option<&str>,
-    _fills: &FillColors,
 ) -> Result<(), XlsxError> {
-    // Spacer Row 20 (Excel 21)
+    // Spacer Row 20 (0-basiert: 20 = Excel 21)
     ws.set_row_height(20, 13.5)?;
 
-    // =========================================================================
-    // PHASE 1: MERGED CELLS REGISTRIEREN (ZUERST!)
-    // =========================================================================
-
-    let mut merged_cells = MergedCellRegistry::new();
-
-    // Vertikale Merges (Spaltenüberschriften, Rows 22-25 = Excel 23-26)
-    merged_cells.register_merge(22, 3, 25, 3); // D23:D26
-    merged_cells.register_merge(22, 4, 25, 4); // E23:E26
-    merged_cells.register_merge(22, 5, 25, 5); // F23:F26
-    merged_cells.register_merge(22, 6, 25, 6); // G23:G26
-    merged_cells.register_merge(22, 7, 25, 7); // H23:H26
-
-    // Horizontale Merges (Zeilen-Labels)
-    merged_cells.register_merge(23, 1, 23, 2); // B24:C24
-    merged_cells.register_merge(24, 1, 24, 2); // B25:C25
-    merged_cells.register_merge(25, 1, 25, 2); // B26:C26
-
-    // =========================================================================
-    // PHASE 2: BORDERS KONFIGURIEREN (VOR dem Schreiben!)
-    // =========================================================================
-
-    let mut borders = BorderManager::new();
-    borders.set_merged_cells(merged_cells.clone());
-
-    // Box um gesamte Tabelle (B23:H26)
-    borders.add_range(
-        22,
-        1,
-        25,
-        7,
-        BorderSpec {
-            top: Some(rust_xlsxwriter::FormatBorder::Medium),
-            bottom: Some(rust_xlsxwriter::FormatBorder::Thin),
-            left: Some(rust_xlsxwriter::FormatBorder::Medium),
-            right: Some(rust_xlsxwriter::FormatBorder::Medium),
-        },
-    );
-
-    // Vertikale Trennung zwischen B-C und D-H (thin)
-    borders.add_range(
-        22,
-        2,
-        25,
-        2,
-        BorderSpec {
-            top: None,
-            bottom: None,
-            left: None,
-            right: Some(rust_xlsxwriter::FormatBorder::Thin),
-        },
-    );
-
-    // Vertikale Trennungen zwischen Spalten D-H (thin)
-    for col in 3..7 {
-        borders.add_range(
-            22,
-            col,
-            25,
-            col,
-            BorderSpec {
-                top: None,
-                bottom: None,
-                left: Some(rust_xlsxwriter::FormatBorder::Thin),
-                right: None,
-            },
-        );
-    }
-
-    // =========================================================================
-    // PHASE 3: ZELLEN SCHREIBEN (Zellbasiert, mit Border-Merge)
-    // =========================================================================
-
-    // --- ROW 22 (Excel 23): Spaltenüberschriften ---
-
-    // B23, C23: Leer (ohne Merge)
-    ws.write_blank(
-        22,
-        1,
-        &Format::new()
-            .set_font_name("Arial")
-            .set_font_size(10.0)
-            .set_align(FormatAlign::Center),
-    )?;
-
-    ws.write_blank(
-        22,
-        2,
-        &Format::new()
-            .set_font_name("Arial")
-            .set_font_size(10.0)
-            .set_align(FormatAlign::Center),
-    )?;
-
-    // D23:D26 (merged): VLOOKUP(11)
-    let fmt_d23 = with_borders(
-        Format::new()
-            .set_font_name("Arial")
-            .set_font_size(10.0)
-            .set_align(FormatAlign::Center)
-            .set_text_wrap(),
-        &borders,
-        22,
-        3,
-    );
-
-    let formula_11 = make_vlookup_formula(11, language);
-    ws.merge_range(22, 3, 25, 3, "", &fmt_d23)?;
-    ws.write_formula_with_format(22, 3, formula_11, &fmt_d23)?;
-
-    // E23:E26 (merged): VLOOKUP(25) "Ausgaben" - BOLD
-    let fmt_e23 = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_bold() // ← BOLD für "Ausgaben"
-        .set_align(FormatAlign::Center)
-        .set_text_wrap();
-
-    let formula_25 = make_vlookup_formula(25, language);
-    ws.merge_range(22, 4, 25, 4, "", &fmt_e23)?;
-    ws.write_formula_with_format(22, 4, formula_25, &fmt_e23)?;
-
-    // F23:F26 (merged): VLOOKUP(55)
-    let fmt_f23 = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_align(FormatAlign::Center)
-        .set_text_wrap();
-
-    let formula_55 = make_vlookup_formula(55, language);
-    ws.merge_range(22, 5, 25, 5, "", &fmt_f23)?;
-    ws.write_formula_with_format(22, 5, formula_55, &fmt_f23)?;
-
-    // G23:G26 (merged): VLOOKUP(56)
-    let fmt_g23 = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_align(FormatAlign::Center)
-        .set_text_wrap();
-
-    let formula_56 = make_vlookup_formula(56, language);
-    ws.merge_range(22, 6, 25, 6, "", &fmt_g23)?;
-    ws.write_formula_with_format(22, 6, formula_56, &fmt_g23)?;
-
-    // H23:H26 (merged): VLOOKUP(15)
-    let fmt_h23 = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_align(FormatAlign::Center)
-        .set_text_wrap();
-
-    let formula_15 = make_vlookup_formula(15, language);
-    ws.merge_range(22, 7, 25, 7, "", &fmt_h23)?;
-    ws.write_formula_with_format(22, 7, formula_15, &fmt_h23)?;
-
-    // --- ROW 23 (Excel 24): B24:C24 merged ---
-
-    // B24:C24 (merged): VLOOKUP(24) - BOLD
-    let fmt_b24 = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_bold() // ← BOLD
-        .set_align(FormatAlign::Center);
-
-    let formula_24 = make_vlookup_formula(24, language);
-    ws.merge_range(23, 1, 23, 2, "", &fmt_b24)?;
-    ws.write_formula_with_format(23, 1, formula_24, &fmt_b24)?;
-
-    // --- ROW 24 (Excel 25): B25:C25 merged ---
-
-    // B25:C25 (merged): VLOOKUP(10) "Währung"
-    let fmt_b25 = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_align(FormatAlign::Center);
-
-    let formula_10 = make_vlookup_formula(10, language);
-    ws.merge_range(24, 1, 24, 2, "", &fmt_b25)?;
-    ws.write_formula_with_format(24, 1, formula_10, &fmt_b25)?;
-
-    // --- ROW 25 (Excel 26): B26:C26 merged (leer) ---
-
-    // B26:C26 (merged): Leer
-    let fmt_b26 = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_align(FormatAlign::Center);
-
-    ws.merge_range(25, 1, 25, 2, "", &fmt_b26)?;
+    // Footer-Tabelle (Rows 22-25, 0-basiert: 22-25)
+    write_footer_table(ws, styles, language)?;
 
     Ok(())
 }
 
-/// Merged ein Format mit Borders falls für die Zelle vorhanden
+/// Schreibt die Pre-Body Section mit Registry-evaluierten Werten
 ///
-/// Helper-Funktion für das Baukastenprinzip: Format + Border = Finales Format
-fn with_borders(format: Format, borders: &BorderManager, row: u32, col: u16) -> Format {
-    if let Ok(Some(border_fmt)) = borders.get_border_for_cell(row, col) {
-        format.merge(&border_fmt)
-    } else {
-        format
-    }
+/// Diese Version nutzt die zentrale Registry für die VLOOKUP-Evaluierung,
+/// schreibt aber die Formeln selbst mit den korrekten Formaten (Borders, Bold).
+///
+/// Die Formeln sind in der Registry registriert (`definitions.rs::register_prebody_formulas`),
+/// aber diese Funktion schreibt sie mit den spezifischen Formatierungen.
+///
+/// # Arguments
+/// * `ws` - Das Worksheet
+/// * `styles` - Report-Styles
+/// * `language` - Die Sprache für VLOOKUP-Evaluierung
+pub fn write_prebody_section_unified(
+    ws: &mut Worksheet,
+    styles: &ReportStyles,
+    language: Option<&str>,
+) -> Result<(), XlsxError> {
+    // Spacer Row 20 (0-basiert: 20 = Excel 21)
+    ws.set_row_height(20, 13.5)?;
+
+    // Footer-Tabelle mit Formeln und korrekten Formaten
+    write_footer_table(ws, styles, language)?;
+
+    Ok(())
+}
+
+/// Schreibt die Footer-Tabelle (Zeilen 22-25)
+fn write_footer_table(
+    ws: &mut Worksheet,
+    styles: &ReportStyles,
+    language: Option<&str>,
+) -> Result<(), XlsxError> {
+    let thin = styles.border_thin;
+    let medium = styles.border_medium;
+
+    // === Formate für Footer-Tabelle ===
+
+    // D-H: Vertikale Merge-Zellen (Spaltenüberschriften)
+    let fmt_ft_val = styles
+        .base
+        .clone()
+        .set_align(FormatAlign::Center)
+        .set_align(FormatAlign::VerticalCenter)
+        .set_text_wrap()
+        .set_border_top(medium)
+        .set_border_left(thin)
+        .set_border_right(thin);
+
+    let fmt_ft_val_bold = fmt_ft_val.clone().set_bold();
+    let fmt_ft_right = fmt_ft_val.clone().set_border_right(medium);
+
+    // B-C: Zeilen-Labels (B hat keine rechte border, da merged mit C)
+    let fmt_ft_lbl_b = styles
+        .base
+        .clone()
+        .set_align(FormatAlign::Center)
+        .set_align(FormatAlign::VerticalCenter)
+        .set_text_wrap()
+        .set_border_left(medium)
+        .set_border_top(medium);
+    // Keine rechte border auf B!
+
+    let fmt_ft_lbl_c = styles
+        .base
+        .clone()
+        .set_align(FormatAlign::Center)
+        .set_align(FormatAlign::VerticalCenter)
+        .set_text_wrap()
+        .set_border_top(medium)
+        .set_border_right(thin);
+
+    // B24:C24 und B25:C25 merged - Format für merge
+    let fmt_ft_mid = styles
+        .base
+        .clone()
+        .set_align(FormatAlign::Center)
+        .set_align(FormatAlign::VerticalCenter)
+        .set_border_left(medium)
+        .set_border_right(thin);
+
+    let fmt_ft_mid_bold = fmt_ft_mid.clone().set_bold();
+
+    // B26:C26 - thin bottom (nicht medium!)
+    let fmt_ft_bot_bc = styles
+        .base
+        .clone()
+        .set_border_left(medium)
+        .set_border_bottom(thin)
+        .set_border_right(thin);
+
+    // === Row 22 (Excel 23): Spaltenüberschriften mit vertikalen Merges ===
+
+    // D23:D26 merged - VLOOKUP(11)
+    ws.merge_range(22, 3, 25, 3, "", &fmt_ft_val)?;
+    let formula_11 = make_vlookup_formula(11, language);
+    ws.write_formula_with_format(22, 3, formula_11, &fmt_ft_val)?;
+
+    // E23:E26 merged - VLOOKUP(25) "Ausgaben"
+    ws.merge_range(22, 4, 25, 4, "", &fmt_ft_val_bold)?;
+    let formula_25 = make_vlookup_formula(25, language);
+    ws.write_formula_with_format(22, 4, formula_25, &fmt_ft_val_bold)?;
+
+    // F23:F26 merged - VLOOKUP(55)
+    ws.merge_range(22, 5, 25, 5, "", &fmt_ft_val)?;
+    let formula_55 = make_vlookup_formula(55, language);
+    ws.write_formula_with_format(22, 5, formula_55, &fmt_ft_val)?;
+
+    // G23:G26 merged - VLOOKUP(56)
+    ws.merge_range(22, 6, 25, 6, "", &fmt_ft_val)?;
+    let formula_56 = make_vlookup_formula(56, language);
+    ws.write_formula_with_format(22, 6, formula_56, &fmt_ft_val)?;
+
+    // H23:H26 merged - VLOOKUP(15)
+    ws.merge_range(22, 7, 25, 7, "", &fmt_ft_right)?;
+    let formula_15 = make_vlookup_formula(15, language);
+    ws.write_formula_with_format(22, 7, formula_15, &fmt_ft_right)?;
+
+    // B23, C23 - Blanks
+    ws.write_blank(22, 1, &fmt_ft_lbl_b)?;
+    ws.write_blank(22, 2, &fmt_ft_lbl_c)?;
+
+    // === Row 23 (Excel 24): B24:C24 merged - VLOOKUP(24) ===
+    ws.merge_range(23, 1, 23, 2, "", &fmt_ft_mid_bold)?;
+    let formula_24 = make_vlookup_formula(24, language);
+    ws.write_formula_with_format(23, 1, formula_24, &fmt_ft_mid_bold)?;
+
+    // === Row 24 (Excel 25): B25:C25 merged - VLOOKUP(10) (Währung) ===
+    ws.merge_range(24, 1, 24, 2, "", &fmt_ft_mid)?;
+    let formula_10 = make_vlookup_formula(10, language);
+    ws.write_formula_with_format(24, 1, formula_10, &fmt_ft_mid)?;
+
+    // === Row 25 (Excel 26): B26:C26 merged mit thin bottom border ===
+    ws.merge_range(25, 1, 25, 2, "", &fmt_ft_bot_bc)?;
+
+    Ok(())
 }
 
 /// Erstellt eine VLOOKUP-Formel mit gecachtem Text-Ergebnis
@@ -247,50 +190,5 @@ fn make_vlookup_formula(index: usize, language: Option<&str>) -> Formula {
         Formula::new(&formula_str).set_result(text)
     } else {
         Formula::new(&formula_str)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rust_xlsxwriter::Workbook;
-
-    #[test]
-    fn test_prebody_new_compiles() {
-        let mut wb = Workbook::new();
-        let ws = wb.add_worksheet();
-        let fills = FillColors::new();
-
-        let result = write_prebody_new(ws, None, &fills);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_prebody_new_with_language() {
-        let mut wb = Workbook::new();
-        let ws = wb.add_worksheet();
-        let fills = FillColors::new();
-
-        let result = write_prebody_new(ws, Some("deutsch"), &fills);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_merged_cells_count() {
-        let mut merged_cells = MergedCellRegistry::new();
-
-        // Vertikale Merges (5)
-        merged_cells.register_merge(22, 3, 25, 3);
-        merged_cells.register_merge(22, 4, 25, 4);
-        merged_cells.register_merge(22, 5, 25, 5);
-        merged_cells.register_merge(22, 6, 25, 6);
-        merged_cells.register_merge(22, 7, 25, 7);
-
-        // Horizontale Merges (3)
-        merged_cells.register_merge(23, 1, 23, 2);
-        merged_cells.register_merge(24, 1, 24, 2);
-        merged_cells.register_merge(25, 1, 25, 2);
-
-        assert_eq!(merged_cells.count(), 8);
     }
 }

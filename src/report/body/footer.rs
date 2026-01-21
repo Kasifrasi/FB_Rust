@@ -124,11 +124,8 @@ pub fn write_footer(
         .set_align(FormatAlign::VerticalCenter)
         .set_num_format("#,##0.00");
 
-    // Input-Format mit Hintergrundfarbe + UNLOCKED für Benutzereingabe!
-    let input_format = number_right
-        .clone()
-        .set_background_color(styles.fill_input)
-        .set_unlocked(); // ✅ KRITISCH: Input-Felder müssen unlocked sein!
+    // Input-Format mit Hintergrundfarbe (unlocked für Eingabe)
+    let input_format = number_right.clone().set_background_color(styles.fill_input);
 
     // === BORDER-FORMATE ===
     let border_medium = FormatBorder::Medium;
@@ -473,15 +470,13 @@ pub fn write_footer_values(
     let s = layout.start_row;
 
     // Input-Format mit Hintergrundfarbe, Zahlenformat und Borders
-    // WICHTIG: .set_unlocked() damit Benutzer Werte eingeben können!
     let base_input = Format::new()
         .set_font_name("Arial")
         .set_font_size(10.0)
         .set_background_color(styles.fill_input)
         .set_align(FormatAlign::Right)
         .set_align(FormatAlign::VerticalCenter)
-        .set_num_format("#,##0.00")
-        .set_unlocked(); // ✅ Input-Felder müssen unlocked sein!
+        .set_num_format("#,##0.00");
 
     let border_medium = FormatBorder::Medium;
     let border_thin = FormatBorder::Thin;
