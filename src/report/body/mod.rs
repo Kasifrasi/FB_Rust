@@ -12,12 +12,16 @@
 
 mod config;
 mod footer;
+mod footer_new;
 mod formulas;
 mod layout;
+mod templates;
 mod writer;
 
 pub use config::BodyConfig;
 pub use footer::{write_footer, write_footer_values, FooterLayout};
+pub use footer_new::write_footer_new;
 pub use formulas::{register_body_formulas, register_footer_formulas, DynRegistry};
 pub use layout::{BodyLayout, CategoryLayout, CategoryMode, PositionRange};
+pub use templates::{CellSpec, FillKey, RowTemplate, RowType};
 pub use writer::{write_body_structure, write_body_structure_with_values, BodyResult};
