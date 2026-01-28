@@ -55,6 +55,5 @@ pub use report::{
         SheetProtection, ValidationError, ValidationErrorStyle, ValidationRule, ValidationRuleType,
         ValidationTarget,
     },
-    workbook_protection::{WorkbookProtection, WorkbookProtectionError},
     writer::{apply_report_options, write_report_with_options},
 };

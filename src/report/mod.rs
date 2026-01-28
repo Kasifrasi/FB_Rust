@@ -7,13 +7,11 @@
 //! - `format`: Styles and protection (ReportStyles, FormatMatrix, SheetProtection)
 //! - `writer`: Excel writer (write_report_with_options, layout, sections)
 //! - `body`: Dynamic cost position sections
-//! - `workbook_protection`: Workbook structure protection (post-processing)
 
 pub mod api;
 pub mod body;
 pub mod core;
 pub mod format;
-pub mod workbook_protection;
 pub mod writer;
 
 // Re-exports for convenient access
@@ -33,7 +31,6 @@ pub use format::{
     SheetProtection, ValidationError, ValidationErrorStyle, ValidationRule, ValidationRuleType,
     ValidationTarget,
 };
-pub use workbook_protection::{WorkbookProtection, WorkbookProtectionError};
 pub use writer::{
     apply_report_options, setup_freeze_panes, setup_sheet, write_report_with_options, MergeRange,
 };
