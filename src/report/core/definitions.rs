@@ -224,24 +224,24 @@ fn register_formula_cells(
 
     register_text_lookup(registry, CellAddr::new(19, 1), 21)?; // B20
 
-    // D20: =SUMPRODUCT(ROUND(D15:D19,2))
-    register_sumproduct_round(
+    // D20: =SUM(D15:D19)
+    register_sum_range(
         registry,
         CellAddr::new(19, 3), // D20
         CellAddr::new(14, 3), // D15
         CellAddr::new(18, 3), // D19
     )?;
 
-    // E20: =SUMPRODUCT(ROUND(E15:E19,2))
-    register_sumproduct_round(
+    // E20: =SUM(E15:E19)
+    register_sum_range(
         registry,
         CellAddr::new(19, 4), // E20
         CellAddr::new(14, 4), // E15
         CellAddr::new(18, 4), // E19
     )?;
 
-    // F20: =SUMPRODUCT(ROUND(F15:F19,2))
-    register_sumproduct_round(
+    // F20: =SUM(F15:F19)
+    register_sum_range(
         registry,
         CellAddr::new(19, 5), // F20
         CellAddr::new(14, 5), // F15
@@ -474,20 +474,15 @@ fn register_iferror_division_formula_deps(
     registry.register_formula(addr, wrap_formula(formula))
 }
 
-/// Registriert eine SUMPRODUCT(ROUND(...,2)) Formel
-fn register_sumproduct_round(
+/// Registriert eine SUM-Formel für einen Bereich
+fn register_sum_range(
     registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
     addr: CellAddr,
     range_start: CellAddr,
     range_end: CellAddr,
 ) -> Result<(), RegistryError> {
     let excel = Box::leak(
-        format!(
-            "=SUMPRODUCT(ROUND({}:{},2))",
-            range_start.to_excel(),
-            range_end.to_excel()
-        )
-        .into_boxed_str(),
+        format!("=SUM({}:{})", range_start.to_excel(), range_end.to_excel()).into_boxed_str(),
     );
 
     // Sammle alle Zellen im Bereich als Inputs
@@ -510,8 +505,7 @@ fn register_sumproduct_round(
             for row in start_row..=end_row {
                 let cell_addr = CellAddr::new(row, col);
                 if let Some(n) = ctx.cell(cell_addr).as_number() {
-                    // ROUND to 2 decimal places
-                    sum += (n * 100.0).round() / 100.0;
+                    sum += n;
                 }
             }
             CellValue::Number(sum)

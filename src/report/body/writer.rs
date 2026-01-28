@@ -8,7 +8,7 @@
 //! ## Positions-Modus (1+ Positionen)
 //! - Header-Zeile: Nummer + VLOOKUP Label
 //! - N Positions-Zeilen: Nummer + API-Eingaben (C, D, E, F, H) + Ratio (G)
-//! - Footer-Zeile: VLOOKUP Sum-Label + SUMPRODUCT Formeln + Ratio (G)
+//! - Footer-Zeile: VLOOKUP Sum-Label + SUM Formeln + Ratio (G)
 //!
 //! Am Ende:
 //! - Gesamt-Zeile: VLOOKUP Label + SUM Formeln + Ratio (G)
@@ -17,7 +17,7 @@
 //!
 //! Alle Formeln werden mit gecachten Ergebnissen geschrieben:
 //! - Ratio (G): F / D mit IFERROR(0)
-//! - SUMPRODUCT: Summe der gerundeten Werte
+//! - SUM: Summe der Werte
 //! - SUM (Total): Summe aller Kategorie-Summen
 
 use std::collections::HashMap;
@@ -34,8 +34,8 @@ use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
 pub struct BodyFormulaCache {
     /// Ratio-Werte (G-Spalte): row -> value
     pub ratios: HashMap<u32, f64>,
-    /// SUMPRODUCT-Werte (Footer D, E, F): (row, col) -> value
-    pub sumproducts: HashMap<(u32, u16), f64>,
+    /// SUM-Werte (Footer D, E, F): (row, col) -> value
+    pub sums: HashMap<(u32, u16), f64>,
     /// Total SUM-Werte (Total D, E, F): col -> value
     pub totals: HashMap<u16, f64>,
     /// VLOOKUP-Texte: (row, col) -> text
@@ -57,9 +57,6 @@ pub struct BodyResult {
     pub f_total: Option<f64>,
 }
 
-/// Ratio-Formel für G-Spalte
-const RATIO_FORMULA: &str = "=IFERROR(INDEX($F$1:$F$1001,ROW())/INDEX($D$1:$D$1001,ROW()),0)";
-
 // ============================================================================
 // Formel-Evaluierung
 // ============================================================================
@@ -69,7 +66,7 @@ const RATIO_FORMULA: &str = "=IFERROR(INDEX($F$1:$F$1001,ROW())/INDEX($D$1:$D$10
 /// Evaluiert in der richtigen Reihenfolge:
 /// 1. VLOOKUP-Texte für Labels (Kategorien, Footer, Total)
 /// 2. Ratio-Formeln für Positions-Zeilen und Header-Input (G = F / D)
-/// 3. SUMPRODUCT-Formeln für Footer (D, E, F = Summe der Positionen)
+/// 3. SUM-Formeln für Footer (D, E, F = Summe der Positionen)
 /// 4. Ratio-Formeln für Footer (G = F / D des Footers)
 /// 5. SUM-Formeln für Total (D, E, F = Summe aller Kategorien)
 /// 6. Ratio-Formel für Total (G = F / D des Totals)
@@ -134,16 +131,16 @@ pub fn evaluate_body_formulas(layout: &BodyLayout, values: &ReportValues) -> Bod
                     let ratio = calculate_ratio(f, d);
                     cache.ratios.insert(row, ratio);
 
-                    // Summiere für SUMPRODUCT (mit Rundung auf 2 Dezimalstellen)
-                    sum_d += round2(d);
-                    sum_e += round2(e);
-                    sum_f += round2(f);
+                    // Summiere für SUM
+                    sum_d += d;
+                    sum_e += e;
+                    sum_f += f;
                 }
 
-                // SUMPRODUCT für Footer
-                cache.sumproducts.insert((*footer_row, 3), sum_d); // D
-                cache.sumproducts.insert((*footer_row, 4), sum_e); // E
-                cache.sumproducts.insert((*footer_row, 5), sum_f); // F
+                // SUM für Footer
+                cache.sums.insert((*footer_row, 3), sum_d); // D
+                cache.sums.insert((*footer_row, 4), sum_e); // E
+                cache.sums.insert((*footer_row, 5), sum_f); // F
 
                 // Speichere Footer-Werte für Total-Berechnung
                 row_values.insert(*footer_row, (sum_d, sum_e, sum_f));
@@ -210,11 +207,6 @@ fn calculate_ratio(f: f64, d: f64) -> f64 {
     } else {
         f / d
     }
-}
-
-/// Rundet auf 2 Dezimalstellen (für SUMPRODUCT ROUND)
-fn round2(value: f64) -> f64 {
-    (value * 100.0).round() / 100.0
 }
 
 /// Schreibt die komplette Body-Struktur (ohne API-Werte, nur Blanks)
@@ -400,10 +392,10 @@ fn write_positions_category(
         cached_sum_text,
     )?;
 
-    // D-F: SUMPRODUCT Formeln mit gecachten Ergebnissen
+    // D-F: SUM Formeln mit gecachten Ergebnissen
     for col in 3..=5 {
-        let formula = sumproduct_formula(col, positions.start_row, positions.end_row);
-        let cached_value = cache.sumproducts.get(&(footer_row, col)).copied();
+        let formula = sum_range_formula(col, positions.start_row, positions.end_row);
+        let cached_value = cache.sums.get(&(footer_row, col)).copied();
         write_formula_with_cached_result(ws, fmt, footer_row, col, &formula, cached_value)?;
     }
 
@@ -445,6 +437,12 @@ fn write_total_row(
     Ok(())
 }
 
+/// Generiert Ratio-Formel für G-Spalte: =IFERROR(F{row}/D{row},0)
+fn ratio_formula(row: u32) -> String {
+    let excel_row = row + 1; // Excel ist 1-basiert
+    format!("=IFERROR(F{}/D{},0)", excel_row, excel_row)
+}
+
 /// Schreibt alle Ratio-Formeln (G-Spalte) mit gecachten Ergebnissen
 fn write_ratio_formulas(
     ws: &mut Worksheet,
@@ -454,7 +452,8 @@ fn write_ratio_formulas(
 ) -> Result<(), XlsxError> {
     for row in layout.ratio_rows() {
         let cached_value = cache.ratios.get(&row).copied();
-        write_formula_with_cached_result(ws, fmt, row, 6, RATIO_FORMULA, cached_value)?;
+        let formula = ratio_formula(row);
+        write_formula_with_cached_result(ws, fmt, row, 6, &formula, cached_value)?;
     }
     Ok(())
 }
@@ -471,11 +470,11 @@ fn vlookup_formula(index: usize) -> String {
     )
 }
 
-/// Generiert SUMPRODUCT-Formel: =SUMPRODUCT(ROUND(D27:D46,2))
-fn sumproduct_formula(col: u16, start_row: u32, end_row: u32) -> String {
+/// Generiert SUM-Formel: =SUM(D27:D46)
+fn sum_range_formula(col: u16, start_row: u32, end_row: u32) -> String {
     let col_letter = col_to_letter(col);
     format!(
-        "=SUMPRODUCT(ROUND({}{}:{}{},2))",
+        "=SUM({}{}:{}{})",
         col_letter,
         start_row + 1, // Excel ist 1-basiert
         col_letter,
@@ -712,9 +711,9 @@ mod tests {
     }
 
     #[test]
-    fn test_sumproduct_formula() {
-        let formula = sumproduct_formula(3, 27, 46); // D28:D47 (0-basiert: 27-46)
-        assert_eq!(formula, "=SUMPRODUCT(ROUND(D28:D47,2))");
+    fn test_sum_range_formula() {
+        let formula = sum_range_formula(3, 27, 46); // D28:D47 (0-basiert: 27-46)
+        assert_eq!(formula, "=SUM(D28:D47)");
     }
 
     #[test]

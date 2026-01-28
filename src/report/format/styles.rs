@@ -989,7 +989,7 @@ pub struct BodyStyles {
     // === Category Footer (grau fill, bold) ===
     /// B:C merged: Sum-Label via VLOOKUP (keine rechte border auf B, da merged)
     pub footer_bc: Format,
-    /// D-F: SUMPRODUCT Formeln
+    /// D-F: SUM Formeln
     pub footer_value: Format,
     /// G: Ratio-Formel
     pub footer_pct: Format,

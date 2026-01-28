@@ -605,7 +605,7 @@ impl<E> CellRegistry<E> {
     /// (z.B. in derselben Batch-Registrierung) hinzugefügt werden.
     ///
     /// **Verwende diese Methode für:**
-    /// - Body-Formeln (Ratio, SUMPRODUCT, SUM)
+    /// - Body-Formeln (Ratio, SUM)
     /// - Prebody-Formeln (VLOOKUP)
     /// - Footer-Formeln (Check, Diff)
     ///
@@ -769,15 +769,15 @@ impl<'a> EvalContext<'a> {
         }
     }
 
-    /// Berechnet SUMPRODUCT(ROUND(range, 2))
+    /// Berechnet SUM(range)
     ///
-    /// Summiert alle Werte im Bereich mit Rundung auf 2 Dezimalstellen.
-    pub fn sumproduct_round(&self, start: CellAddr, end: CellAddr) -> CellValue {
+    /// Summiert alle Werte im Bereich.
+    pub fn sum_range(&self, start: CellAddr, end: CellAddr) -> CellValue {
         let mut sum = 0.0;
         for row in start.row..=end.row {
             let addr = CellAddr::new(row, start.col);
             if let Some(n) = self.cell(addr).as_number() {
-                sum += (n * 100.0).round() / 100.0;
+                sum += n;
             }
         }
         CellValue::Number(sum)

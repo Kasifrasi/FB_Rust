@@ -25,7 +25,7 @@
 //! | 1.1   | [Input]        | [Input]  | [Input]  | [Input]  | Ratio | [Input]  | <- Position 1
 //! | 1.2   | [Input]        | [Input]  | [Input]  | [Input]  | Ratio | [Input]  | <- Position 2
 //! | ...   | ...            | ...      | ...      | ...      | ...   | ...      |
-//! |       | VLOOKUP Sum    | SUMPRODUCT| SUMPRODUCT| SUMPRODUCT| Ratio |        | <- Footer
+//! |       | VLOOKUP Sum    | SUM      | SUM      | SUM      | Ratio |        | <- Footer
 //! ```
 //! - Header-Zeile (Kategorie-Label, keine Eingabe)
 //! - N Positions-Zeilen (Eingabe)

@@ -47,8 +47,8 @@ pub enum FormulaType {
         numerator: CellAddress,
         denominator: CellAddress,
     },
-    /// SUMPRODUCT mit ROUND
-    SumProductRound {
+    /// SUM-Formel für Bereich
+    SumRange {
         range_start: CellAddress,
         range_end: CellAddress,
     },
@@ -135,25 +135,19 @@ fn division_error(
     }
 }
 
-/// Erstellt eine SUMPRODUCT ROUND Formel
-fn sum_product_round(
-    row: u32,
-    col: u16,
-    start_row: u32,
-    end_row: u32,
-    data_col: u16,
-) -> FormulaDefinition {
+/// Erstellt eine SUM-Formel für einen Bereich
+fn sum_range(row: u32, col: u16, start_row: u32, end_row: u32, data_col: u16) -> FormulaDefinition {
     let start = CellAddress::new(start_row, data_col);
     let end = CellAddress::new(end_row, data_col);
     FormulaDefinition {
         address: CellAddress::new(row, col),
         excel_formula: format!(
-            "=SUMPRODUCT(ROUND({}:{}, 2))",
+            "=SUM({}:{})",
             start.to_excel_notation(),
             end.to_excel_notation()
         ),
         dependencies: vec![], // Dynamische Abhängigkeiten
-        formula_type: FormulaType::SumProductRound {
+        formula_type: FormulaType::SumRange {
             range_start: start,
             range_end: end,
         },
@@ -258,10 +252,10 @@ pub fn evaluate_formula(
             numerator,
             denominator,
         } => evaluate_division(cache, numerator, denominator),
-        FormulaType::SumProductRound {
+        FormulaType::SumRange {
             range_start,
             range_end,
-        } => evaluate_sum_product(cache, range_start, range_end),
+        } => evaluate_sum_range(cache, range_start, range_end),
         FormulaType::RightPanelCalc {
             amount1_col,
             amount2_col,
@@ -376,8 +370,8 @@ fn evaluate_division(
     }
 }
 
-/// Evaluiert SUMPRODUCT mit ROUND
-fn evaluate_sum_product(
+/// Evaluiert SUM für einen Bereich
+fn evaluate_sum_range(
     cache: &FormulaCache,
     range_start: &CellAddress,
     range_end: &CellAddress,
@@ -388,7 +382,7 @@ fn evaluate_sum_product(
         let addr = CellAddress::new(row, range_start.col);
         if let Some(value) = cache.get(&addr) {
             if let Some(num) = value.as_number() {
-                sum += (num * 100.0).round() / 100.0;
+                sum += num;
             }
         }
     }
@@ -461,9 +455,9 @@ pub static HEADER_FORMULAS: Lazy<Vec<FormulaDefinition>> = Lazy::new(|| {
         division_error(18, 6, 18, 5, 18, 3), // G19: F19/D19
         // Summary Row (B20, D20-G20)
         text_lookup(19, 1, 21),              // B20: GESAMT
-        sum_product_round(19, 3, 14, 18, 3), // D20: SUM(D15:D19)
-        sum_product_round(19, 4, 14, 18, 4), // E20: SUM(E15:E19)
-        sum_product_round(19, 5, 14, 18, 5), // F20: SUM(F15:F19)
+        sum_range(19, 3, 14, 18, 3),         // D20: SUM(D15:D19)
+        sum_range(19, 4, 14, 18, 4),         // E20: SUM(E15:E19)
+        sum_range(19, 5, 14, 18, 5),         // F20: SUM(F15:F19)
         division_error(19, 6, 19, 5, 19, 3), // G20: F20/D20
     ]
 });

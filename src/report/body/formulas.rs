@@ -17,8 +17,8 @@
 //! - IFERROR(F/D, 0) für alle Footer-Zeilen
 //! - IFERROR(F/D, 0) für die Total-Zeile
 //!
-//! ### SUMPRODUCT-Formeln (Footer D, E, F)
-//! - SUMPRODUCT(ROUND(Dx:Dy, 2)) für jede Kategorie
+//! ### SUM-Formeln (Footer D, E, F)
+//! - SUM(Dx:Dy) für jede Kategorie
 //!
 //! ### SUM-Formeln (Total D, E, F)
 //! - SUM(D_footer1 + D_footer2 + ...) für jede Spalte
@@ -67,7 +67,7 @@ pub type DynRegistry = CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>;
 /// 1. API-Zellen für alle Positions-Felder
 /// 2. VLOOKUP-Formeln für Labels
 /// 3. Ratio-Formeln (G-Spalte)
-/// 4. SUMPRODUCT-Formeln (Footer)
+/// 4. SUM-Formeln (Footer)
 /// 5. SUM-Formeln (Total)
 pub fn register_body_formulas(
     registry: &mut DynRegistry,
@@ -82,10 +82,10 @@ pub fn register_body_formulas(
     // 3. Ratio-Formeln (G-Spalte) - NACH den API-Zellen!
     register_ratio_formulas(registry, layout)?;
 
-    // 4. SUMPRODUCT-Formeln (Footer) - NACH den API-Zellen!
-    register_sumproduct_formulas(registry, layout)?;
+    // 4. SUM-Formeln (Footer) - NACH den API-Zellen!
+    register_sum_formulas_footer(registry, layout)?;
 
-    // 5. SUM-Formeln (Total) - NACH den SUMPRODUCT-Formeln!
+    // 5. SUM-Formeln (Total) - NACH den Footer-SUM-Formeln!
     register_total_formulas(registry, layout)?;
 
     Ok(())
@@ -234,15 +234,16 @@ fn register_ratio_formulas(
 
 /// Registriert eine einzelne Ratio-Formel
 ///
-/// Formel: =IFERROR(INDEX($F$1:$F$1001,ROW())/INDEX($D$1:$D$1001,ROW()),0)
-/// Vereinfacht: =IFERROR(F{row}/D{row}, 0)
+/// Formel: =IFERROR(F{row}/D{row},0)
 fn register_ratio_formula(registry: &mut DynRegistry, row: u32) -> Result<(), RegistryError> {
     let addr = CellAddr::new(row, 6); // G-Spalte
     let d_addr = CellAddr::new(row, 3); // D-Spalte
     let f_addr = CellAddr::new(row, 5); // F-Spalte
 
-    // Excel-Formel mit INDEX für flexible Zeilen-Referenz
-    let excel: &'static str = "=IFERROR(INDEX($F$1:$F$1001,ROW())/INDEX($D$1:$D$1001,ROW()),0)";
+    // Excel-Formel mit direkter Zellreferenz (1-basiert für Excel)
+    let excel_row = row + 1;
+    let excel: &'static str =
+        Box::leak(format!("=IFERROR(F{}/D{},0)", excel_row, excel_row).into_boxed_str());
 
     let eval_fn: Box<dyn Fn(&EvalContext) -> CellValue> = Box::new(move |ctx: &EvalContext| {
         let d = ctx.cell(d_addr).as_number().unwrap_or(0.0);
@@ -265,11 +266,11 @@ fn register_ratio_formula(registry: &mut DynRegistry, row: u32) -> Result<(), Re
 }
 
 // ============================================================================
-// SUMPRODUCT-Formeln (Footer D, E, F)
+// SUM-Formeln (Footer D, E, F)
 // ============================================================================
 
-/// Registriert alle SUMPRODUCT-Formeln für Footer-Zeilen
-fn register_sumproduct_formulas(
+/// Registriert alle SUM-Formeln für Footer-Zeilen
+fn register_sum_formulas_footer(
     registry: &mut DynRegistry,
     layout: &BodyLayout,
 ) -> Result<(), RegistryError> {
@@ -282,7 +283,7 @@ fn register_sumproduct_formulas(
         {
             // D, E, F Spalten
             for col in [3u16, 4, 5] {
-                register_sumproduct_formula(
+                register_sum_formula_range(
                     registry,
                     CellAddr::new(*footer_row, col),
                     positions.start_row,
@@ -295,10 +296,10 @@ fn register_sumproduct_formulas(
     Ok(())
 }
 
-/// Registriert eine einzelne SUMPRODUCT-Formel
+/// Registriert eine einzelne SUM-Formel für einen Bereich
 ///
-/// Formel: =SUMPRODUCT(ROUND(Dx:Dy, 2))
-fn register_sumproduct_formula(
+/// Formel: =SUM(Dx:Dy)
+fn register_sum_formula_range(
     registry: &mut DynRegistry,
     addr: CellAddr,
     start_row: u32,
@@ -308,7 +309,7 @@ fn register_sumproduct_formula(
     let col_letter = col_to_letter(col);
     let excel = Box::leak(
         format!(
-            "=SUMPRODUCT(ROUND({}{}:{}{},2))",
+            "=SUM({}{}:{}{})",
             col_letter,
             start_row + 1, // Excel ist 1-basiert
             col_letter,
@@ -327,8 +328,7 @@ fn register_sumproduct_formula(
         for row in start_row..=end_row {
             let cell_addr = CellAddr::new(row, col);
             if let Some(n) = ctx.cell(cell_addr).as_number() {
-                // ROUND to 2 decimal places
-                sum += (n * 100.0).round() / 100.0;
+                sum += n;
             }
         }
         CellValue::Number(sum)
@@ -400,11 +400,11 @@ fn register_sum_formula(
     let formula = FormulaCell {
         excel,
         deps: FormulaDeps {
-            inputs: Inputs::none(), // Inputs sind Formeln (SUMPRODUCT) oder API-Zellen
+            inputs: Inputs::none(), // Inputs sind Formeln (SUM) oder API-Zellen
             statics: Statics::none(),
             sheets: Sheets::none(),
             // Die Dependencies sind die Footer/Header-Input Zellen
-            // Bei Footer: SUMPRODUCT-Formeln
+            // Bei Footer: SUM-Formeln
             // Bei Header-Input: API-Zellen
             formula_deps: FormulaCellDeps::none(), // Dynamisch, daher keine strikte Validierung
         },
