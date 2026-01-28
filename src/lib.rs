@@ -43,13 +43,18 @@ pub mod report;
 mod tests;
 
 // Public API re-exports
+pub use lang::{
+    build_sheet as build_language_sheet,
+    build_sheet_with_visibility as build_language_sheet_with_visibility,
+};
 pub use report::{
     api::{ApiKey, Category, Currency, DateError, Language, ReportDate, ReportValues},
     body::BodyConfig,
     format::{
-        FieldValidation, HiddenRanges, ReportOptions, ReportStyles, SheetProtection,
-        ValidationError, ValidationErrorStyle, ValidationRule, ValidationRuleType,
+        FieldValidation, HiddenRanges, ReportOptions, ReportStyles, RowGroup, RowGrouping,
+        SheetProtection, ValidationError, ValidationErrorStyle, ValidationRule, ValidationRuleType,
         ValidationTarget,
     },
+    workbook_protection::{WorkbookProtection, WorkbookProtectionError},
     writer::{apply_report_options, write_report_with_options},
 };

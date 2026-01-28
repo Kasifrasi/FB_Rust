@@ -682,6 +682,98 @@ impl std::fmt::Display for ValidationError {
 impl std::error::Error for ValidationError {}
 
 // ============================================================================
+// Row Grouping (Outlining)
+// ============================================================================
+
+/// Configuration for row grouping/outlining
+///
+/// Allows grouping rows together with expand/collapse functionality.
+/// Groups can be nested up to 7 levels deep.
+#[derive(Debug, Clone, Default)]
+pub struct RowGrouping {
+    /// List of row groups
+    groups: Vec<RowGroup>,
+    /// Show outline symbols above grouped rows (default: false = below)
+    pub symbols_above: bool,
+}
+
+/// A single row group definition
+#[derive(Debug, Clone)]
+pub struct RowGroup {
+    /// First row of the group (0-indexed)
+    pub start_row: u32,
+    /// Last row of the group (0-indexed, inclusive)
+    pub end_row: u32,
+    /// Whether the group is initially collapsed
+    pub collapsed: bool,
+}
+
+impl RowGroup {
+    /// Creates a new row group (expanded by default)
+    pub fn new(start_row: u32, end_row: u32) -> Self {
+        Self {
+            start_row,
+            end_row,
+            collapsed: false,
+        }
+    }
+
+    /// Creates a new collapsed row group
+    pub fn collapsed(start_row: u32, end_row: u32) -> Self {
+        Self {
+            start_row,
+            end_row,
+            collapsed: true,
+        }
+    }
+}
+
+impl RowGrouping {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Adds a row group (expanded by default)
+    pub fn add_group(mut self, start_row: u32, end_row: u32) -> Self {
+        self.groups.push(RowGroup::new(start_row, end_row));
+        self
+    }
+
+    /// Adds a collapsed row group
+    pub fn add_collapsed_group(mut self, start_row: u32, end_row: u32) -> Self {
+        self.groups.push(RowGroup::collapsed(start_row, end_row));
+        self
+    }
+
+    /// Adds a custom row group
+    pub fn add_custom_group(mut self, group: RowGroup) -> Self {
+        self.groups.push(group);
+        self
+    }
+
+    /// Sets whether outline symbols appear above grouped rows
+    pub fn with_symbols_above(mut self, above: bool) -> Self {
+        self.symbols_above = above;
+        self
+    }
+
+    /// Returns all row groups
+    pub fn groups(&self) -> &[RowGroup] {
+        &self.groups
+    }
+
+    /// Returns true if any groups are defined
+    pub fn has_groups(&self) -> bool {
+        !self.groups.is_empty()
+    }
+
+    /// Returns true if no groups are defined
+    pub fn is_empty(&self) -> bool {
+        self.groups.is_empty()
+    }
+}
+
+// ============================================================================
 // Hidden Ranges (Columns and Rows)
 // ============================================================================
 
@@ -816,6 +908,12 @@ pub struct ReportOptions {
     /// Hidden columns and rows
     pub hidden: HiddenRanges,
 
+    /// Row grouping/outlining
+    pub row_grouping: RowGrouping,
+
+    /// Hide the "Sprachversionen" sheet (default: false)
+    pub hide_language_sheet: bool,
+
     /// Language for error messages (uses LANG_CONFIG)
     pub language: Option<String>,
 }
@@ -878,6 +976,36 @@ impl ReportOptions {
     /// Gets the language, defaulting to "Deutsch"
     pub fn language(&self) -> &str {
         self.language.as_deref().unwrap_or("Deutsch")
+    }
+
+    /// Sets row grouping configuration
+    pub fn with_row_grouping(mut self, grouping: RowGrouping) -> Self {
+        self.row_grouping = grouping;
+        self
+    }
+
+    /// Convenience: Adds a row group (expanded)
+    pub fn add_row_group(mut self, start_row: u32, end_row: u32) -> Self {
+        self.row_grouping = self.row_grouping.add_group(start_row, end_row);
+        self
+    }
+
+    /// Convenience: Adds a collapsed row group
+    pub fn add_collapsed_row_group(mut self, start_row: u32, end_row: u32) -> Self {
+        self.row_grouping = self.row_grouping.add_collapsed_group(start_row, end_row);
+        self
+    }
+
+    /// Hides the "Sprachversionen" sheet
+    pub fn with_hidden_language_sheet(mut self) -> Self {
+        self.hide_language_sheet = true;
+        self
+    }
+
+    /// Sets whether to hide the "Sprachversionen" sheet
+    pub fn hide_language_sheet(mut self, hide: bool) -> Self {
+        self.hide_language_sheet = hide;
+        self
     }
 }
 
@@ -972,5 +1100,49 @@ mod tests {
         let rule = NumericRule::Between(0.0f64, 100.0);
         let xlsx_rule = rule.to_xlsx_rule();
         assert!(matches!(xlsx_rule, DataValidationRule::Between(0.0, 100.0)));
+    }
+
+    #[test]
+    fn test_row_grouping() {
+        let grouping = RowGrouping::new()
+            .add_group(10, 20)
+            .add_collapsed_group(25, 30)
+            .with_symbols_above(true);
+
+        assert_eq!(grouping.groups().len(), 2);
+        assert!(grouping.has_groups());
+        assert!(grouping.symbols_above);
+
+        let first = &grouping.groups()[0];
+        assert_eq!(first.start_row, 10);
+        assert_eq!(first.end_row, 20);
+        assert!(!first.collapsed);
+
+        let second = &grouping.groups()[1];
+        assert_eq!(second.start_row, 25);
+        assert_eq!(second.end_row, 30);
+        assert!(second.collapsed);
+    }
+
+    #[test]
+    fn test_report_options_row_grouping() {
+        let opts = ReportOptions::new()
+            .add_row_group(10, 20)
+            .add_collapsed_row_group(25, 30);
+
+        assert!(!opts.row_grouping.is_empty());
+        assert_eq!(opts.row_grouping.groups().len(), 2);
+    }
+
+    #[test]
+    fn test_report_options_hidden_language_sheet() {
+        let opts = ReportOptions::new().with_hidden_language_sheet();
+        assert!(opts.hide_language_sheet);
+
+        let opts2 = ReportOptions::new().hide_language_sheet(true);
+        assert!(opts2.hide_language_sheet);
+
+        let opts3 = ReportOptions::new().hide_language_sheet(false);
+        assert!(!opts3.hide_language_sheet);
     }
 }

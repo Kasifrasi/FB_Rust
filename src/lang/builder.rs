@@ -1,8 +1,24 @@
 use super::data::{CURRENCIES, TEXT_MATRIX};
 use rust_xlsxwriter::{Format, Workbook, XlsxError};
 
+/// Erstellt das Sprachversionen-Sheet (sichtbar)
 pub fn build_sheet(workbook: &mut Workbook) -> Result<(), XlsxError> {
+    build_sheet_with_visibility(workbook, false)
+}
+
+/// Erstellt das Sprachversionen-Sheet mit optionaler Ausblendung
+///
+/// # Arguments
+/// * `workbook` - Das Workbook
+/// * `hidden` - Wenn true, wird das Sheet ausgeblendet
+pub fn build_sheet_with_visibility(workbook: &mut Workbook, hidden: bool) -> Result<(), XlsxError> {
     let ws = workbook.add_worksheet().set_name("Sprachversionen")?;
+
+    // Sheet ausblenden wenn gewünscht
+    if hidden {
+        ws.set_hidden(true);
+    }
+
     let arial = Format::new().set_font_name("Arial").set_font_size(10.0);
 
     // Column A (0): Currencies

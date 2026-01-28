@@ -145,7 +145,10 @@ pub fn apply_report_options(
     // 1. Spalten und Zeilen verstecken
     apply_hidden_ranges(ws, &options.hidden)?;
 
-    // 2. Sheet Protection anwenden (wenn konfiguriert)
+    // 2. Row Grouping anwenden (wenn konfiguriert)
+    apply_row_grouping(ws, &options.row_grouping)?;
+
+    // 3. Sheet Protection anwenden (wenn konfiguriert)
     if let Some(ref protection) = options.protection {
         let prot_options = protection.to_protection_options();
 
@@ -155,7 +158,7 @@ pub fn apply_report_options(
         ws.protect_with_options(&prot_options);
     }
 
-    // 3. Validierungen anwenden (wenn konfiguriert)
+    // 4. Validierungen anwenden (wenn konfiguriert)
     // Note: Die eigentliche Anwendung erfordert Adress-Auflösung über BodyLayout
     // Dies wird in einer späteren Version implementiert
     if let Some(ref _validation) = options.validation {
@@ -182,6 +185,32 @@ fn apply_hidden_ranges(
     for range in hidden.row_ranges() {
         for row in range.start..=range.end {
             ws.set_row_hidden(row)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Wendet Row Grouping auf ein Worksheet an
+fn apply_row_grouping(
+    ws: &mut Worksheet,
+    grouping: &crate::report::format::RowGrouping,
+) -> Result<(), XlsxError> {
+    if grouping.is_empty() {
+        return Ok(());
+    }
+
+    // Outline-Symbole Position setzen
+    if grouping.symbols_above {
+        ws.group_symbols_above(true);
+    }
+
+    // Gruppen anwenden
+    for group in grouping.groups() {
+        if group.collapsed {
+            ws.group_rows_collapsed(group.start_row, group.end_row)?;
+        } else {
+            ws.group_rows(group.start_row, group.end_row)?;
         }
     }
 
