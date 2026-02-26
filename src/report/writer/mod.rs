@@ -10,4 +10,4 @@ mod main;
 pub mod sections;
 
 pub use layout::{setup_freeze_panes, setup_sheet, MergeRange};
-pub use main::{apply_report_options, write_report_with_options};
+pub use main::{apply_report_options, create_protected_report, write_report_with_options};

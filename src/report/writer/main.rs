@@ -2,7 +2,7 @@
 //!
 //! Die Haupt-API ist `write_report_with_options()`.
 
-use super::layout;
+use super::layout::{self, setup_sheet};
 use super::sections::{
     write_header_section, write_panel_section, write_prebody_section, write_table_section,
 };
@@ -19,8 +19,9 @@ use crate::report::format::{
     build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,
     FormatMatrix, ReportOptions, ReportStyles, SectionStyles,
 };
-use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
+use rust_xlsxwriter::{Format, Formula, Workbook, Worksheet, XlsxError};
 use std::collections::HashMap;
+use std::path::Path;
 
 /// Interne Funktion: Schreibt den Report mit Body-Bereich
 fn write_report_with_body(
@@ -167,6 +168,140 @@ pub fn apply_report_options(
     if let Some(ref _validation) = options.validation {
         // TODO: Validation targets zu Zelladressen auflösen und anwenden
         // Dies erfordert Zugriff auf BodyLayout für dynamische Adressen
+    }
+
+    Ok(())
+}
+
+// ============================================================================
+// High-Level API: create_protected_report
+// ============================================================================
+
+/// Extracts the language suffix from ReportValues for sheet naming
+fn extract_suffix_from_values(values: &ReportValues) -> String {
+    use crate::report::api::ApiKey;
+    let lang_value = values.get(ApiKey::Language);
+
+    if let Some(lang) = lang_value.as_text() {
+        if let Some(suffix) = crate::common::LANG_SUFFIXES.get(lang) {
+            return suffix.to_string();
+        }
+    }
+
+    String::new()
+}
+
+/// Creates a complete financial report with optional workbook protection
+///
+/// This high-level function orchestrates the entire report creation workflow:
+/// 1. Creates Workbook and adds language sheet (unless hidden)
+/// 2. Sets up worksheet with correct formatting
+/// 3. Writes report content via `write_report_with_options()`
+/// 4. Optionally applies workbook-level protection (structure lock)
+/// 5. Saves to specified output path
+///
+/// # Arguments
+/// * `output_path` - Path where the final Excel file will be saved
+/// * `styles` - Report styling configuration
+/// * `values` - Report data (all input cells)
+/// * `body_config` - Body layout configuration (categories, positions)
+/// * `options` - Report options (protection, validation, hidden ranges, etc.)
+///
+/// # Returns
+/// * `Ok(())` on success
+/// * `Err` if any step fails (workbook creation, writing, protection, saving)
+///
+/// # Example
+/// ```ignore
+/// use kmw_fb_rust::{
+///     create_protected_report, ReportStyles, ReportValues,
+///     BodyConfig, ReportOptions,
+/// };
+///
+/// let styles = ReportStyles::new();
+/// let mut values = ReportValues::new();
+/// values.set_language("deutsch");
+/// values.set_currency("EUR");
+///
+/// let body_config = BodyConfig::default();
+/// let options = ReportOptions::with_default_protection()
+///     .with_workbook_protection("secret123")
+///     .with_hidden_columns_qv();
+///
+/// create_protected_report(
+///     "output/report.xlsx",
+///     &styles,
+///     &values,
+///     &body_config,
+///     &options,
+/// )?;
+/// ```
+pub fn create_protected_report(
+    output_path: impl AsRef<Path>,
+    styles: &ReportStyles,
+    values: &ReportValues,
+    body_config: &BodyConfig,
+    options: &ReportOptions,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let output_path = output_path.as_ref();
+
+    // 1. Create workbook
+    let mut workbook = Workbook::new();
+
+    // 2. Add language sheet unless hidden
+    if !options.hide_language_sheet {
+        crate::lang::build_sheet(&mut workbook)?;
+    }
+
+    // 3. Create and setup worksheet
+    let ws = workbook.add_worksheet();
+
+    // Set worksheet name based on language
+    // LANG_CONFIG uses capitalized keys (e.g., "Deutsch"), but values might be lowercase (e.g., "deutsch")
+    if let Some(lang_text) = values.get(crate::report::api::ApiKey::Language).as_text() {
+        // Try exact match first
+        let config = crate::common::LANG_CONFIG
+            .get(lang_text)
+            // If not found, try to find by lang_val (case-insensitive)
+            .or_else(|| {
+                crate::common::LANG_CONFIG
+                    .values()
+                    .find(|c| c.lang_val.eq_ignore_ascii_case(lang_text))
+            });
+
+        if let Some(config) = config {
+            ws.set_name(config.fb_sheet)?;
+        }
+    }
+
+    setup_sheet(ws)?;
+
+    // 4. Extract suffix for sheet naming
+    let suffix = extract_suffix_from_values(values);
+
+    // 5. Write report content
+    write_report_with_options(ws, styles, &suffix, values, body_config, options)?;
+
+    // 6. Apply workbook protection if configured
+    if let Some(wb_prot) = &options.workbook_protection {
+        // Create temporary file
+        let temp_path = output_path.with_extension("tmp.xlsx");
+
+        // Save unprotected version to temp
+        workbook.save(&temp_path)?;
+
+        // Apply workbook protection
+        crate::workbook_protection::protect_workbook(
+            temp_path.to_str().ok_or("Invalid temp path")?,
+            output_path.to_str().ok_or("Invalid output path")?,
+            &wb_prot.password,
+        )?;
+
+        // Clean up temp file
+        std::fs::remove_file(temp_path)?;
+    } else {
+        // Save directly without protection
+        workbook.save(output_path)?;
     }
 
     Ok(())

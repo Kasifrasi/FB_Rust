@@ -10,7 +10,7 @@ mod styles;
 pub use protection::{
     FieldValidation, HiddenRange, HiddenRanges, NumericRule, ReportOptions, RowGroup, RowGrouping,
     SheetProtection, ValidationError, ValidationErrorStyle, ValidationRule, ValidationRuleType,
-    ValidationTarget,
+    ValidationTarget, WorkbookProtection,
 };
 pub use styles::{
     build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,

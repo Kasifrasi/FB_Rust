@@ -239,6 +239,47 @@ impl SheetProtection {
 }
 
 // ============================================================================
+// Workbook Protection
+// ============================================================================
+
+/// Workbook-level protection settings
+///
+/// Protects the workbook structure (prevents adding, deleting, moving, or renaming sheets).
+/// Uses SHA-512 based password hashing according to ECMA-376 standard.
+///
+/// # Example
+/// ```ignore
+/// use kmw_fb_rust::WorkbookProtection;
+///
+/// let protection = WorkbookProtection::new("secret123");
+/// ```
+#[derive(Debug, Clone)]
+pub struct WorkbookProtection {
+    /// Password for workbook protection
+    pub password: String,
+    /// Lock structure (prevent sheet add/delete/move/rename)
+    pub lock_structure: bool,
+}
+
+impl WorkbookProtection {
+    /// Creates new workbook protection with the given password
+    ///
+    /// By default, `lock_structure` is set to `true`.
+    pub fn new(password: impl Into<String>) -> Self {
+        Self {
+            password: password.into(),
+            lock_structure: true,
+        }
+    }
+
+    /// Sets whether to lock workbook structure
+    pub fn lock_structure(mut self, lock: bool) -> Self {
+        self.lock_structure = lock;
+        self
+    }
+}
+
+// ============================================================================
 // Validation Target
 // ============================================================================
 
@@ -902,6 +943,9 @@ pub struct ReportOptions {
     /// Sheet protection settings
     pub protection: Option<SheetProtection>,
 
+    /// Workbook protection settings (structure lock)
+    pub workbook_protection: Option<WorkbookProtection>,
+
     /// Field validations
     pub validation: Option<FieldValidation>,
 
@@ -934,6 +978,12 @@ impl ReportOptions {
     /// Sets custom protection
     pub fn with_protection(mut self, protection: SheetProtection) -> Self {
         self.protection = Some(protection);
+        self
+    }
+
+    /// Sets workbook protection (structure lock)
+    pub fn with_workbook_protection(mut self, password: impl Into<String>) -> Self {
+        self.workbook_protection = Some(WorkbookProtection::new(password));
         self
     }
 
@@ -1016,6 +1066,27 @@ impl ReportOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_workbook_protection_new() {
+        let prot = WorkbookProtection::new("test123");
+        assert_eq!(prot.password, "test123");
+        assert!(prot.lock_structure);
+    }
+
+    #[test]
+    fn test_workbook_protection_builder() {
+        let prot = WorkbookProtection::new("secret").lock_structure(false);
+        assert_eq!(prot.password, "secret");
+        assert!(!prot.lock_structure);
+    }
+
+    #[test]
+    fn test_report_options_with_workbook_protection() {
+        let opts = ReportOptions::new().with_workbook_protection("test123");
+        assert!(opts.workbook_protection.is_some());
+        assert_eq!(opts.workbook_protection.unwrap().password, "test123");
+    }
 
     #[test]
     fn test_sheet_protection_defaults() {

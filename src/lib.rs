@@ -54,7 +54,7 @@ pub use report::{
     format::{
         FieldValidation, HiddenRanges, ReportOptions, ReportStyles, RowGroup, RowGrouping,
         SheetProtection, ValidationError, ValidationErrorStyle, ValidationRule, ValidationRuleType,
-        ValidationTarget,
+        ValidationTarget, WorkbookProtection,
     },
-    writer::{apply_report_options, write_report_with_options},
+    writer::{apply_report_options, create_protected_report, write_report_with_options},
 };

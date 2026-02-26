@@ -1,4 +1,4 @@
-{ pkgs, lib, ... }:
+{ pkgs, ... }:
 {
   # Hier werden alle Module aus dem nix-Ordner geladen
   imports = [
