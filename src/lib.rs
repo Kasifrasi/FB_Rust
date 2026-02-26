@@ -39,6 +39,10 @@ pub mod common;
 pub mod lang;
 pub mod report;
 
+// Workbook Protection Module
+#[path = "Workbook-Protection/protect.rs"]
+pub mod workbook_protection;
+
 #[cfg(test)]
 mod tests;
 

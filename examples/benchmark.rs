@@ -65,7 +65,7 @@ fn generate_report(
     // Variable Werte basierend auf Index
     let mut values = ReportValues::new();
     values.set(ApiKey::Language, config.lang_val);
-    values.set(ApiKey::Currency, if index % 2 == 0 { "EUR" } else { "USD" });
+    values.set(ApiKey::Currency, if index.is_multiple_of(2) { "EUR" } else { "USD" });
     values.set(ApiKey::ProjectNumber, format!("PROJ-{:05}", index));
     values.set(
         ApiKey::ProjectTitle,
