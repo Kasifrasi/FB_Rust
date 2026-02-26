@@ -14,6 +14,9 @@ use super::registry::{
 use crate::lang::data::TEXT_MATRIX;
 use crate::report::api::{register_all_api_cells, CellValue};
 
+// Type alias for complex CellRegistry type
+type DynCellRegistry = CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>;
+
 // ============================================================================
 // Öffentliche VLOOKUP-Evaluierung
 // ============================================================================
@@ -65,8 +68,7 @@ pub fn lookup_text_string(language: Option<&str>, index: usize) -> Option<String
 // ============================================================================
 
 /// Erstellt eine vollständig konfigurierte Registry
-pub fn build_registry(
-) -> Result<CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>, RegistryError> {
+pub fn build_registry() -> Result<DynCellRegistry, RegistryError> {
     let mut registry = CellRegistry::new();
 
     // 1. API-Zellen registrieren (aus api.rs - EINZIGE QUELLE DER WAHRHEIT)
@@ -99,9 +101,7 @@ pub fn build_registry(
 // Section-Writer schreiben nur Layout (Merges, Blanks, Werte, Validierungen).
 // Formeln werden von write_cells_from_registry() mit FormatMatrix-Formaten geschrieben.
 
-fn register_formula_cells(
-    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
-) -> Result<(), RegistryError> {
+fn register_formula_cells(registry: &mut DynCellRegistry) -> Result<(), RegistryError> {
     // ========================================================================
     // Row 0: B1 (Titel), J1 (Ausfüllbare Felder Info)
     // ========================================================================
@@ -277,16 +277,14 @@ fn register_formula_cells(
 ///
 /// Pre-Body enthält die Spaltenüberschriften zwischen Einnahme-Tabelle und Body:
 /// - Row 22 (Excel 23): D23:D26=VLOOKUP(11), E23:E26=VLOOKUP(25), F23:F26=VLOOKUP(55),
-///                      G23:G26=VLOOKUP(56), H23:H26=VLOOKUP(15)
+///   G23:G26=VLOOKUP(56), H23:H26=VLOOKUP(15)
 /// - Row 23 (Excel 24): B24:C24=VLOOKUP(24) "Ausgaben"
 /// - Row 24 (Excel 25): B25:C25=VLOOKUP(10) "Währung"
 ///
 /// HINWEIS: Diese Funktion wird aktuell nicht verwendet, da die Prebody-Formeln
 /// von write_prebody_section() mit speziellen Formaten geschrieben werden.
 #[allow(dead_code)]
-fn register_prebody_formulas(
-    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
-) -> Result<(), RegistryError> {
+fn register_prebody_formulas(registry: &mut DynCellRegistry) -> Result<(), RegistryError> {
     // Row 22 (0-basiert): D-H Spaltenüberschriften (vertikal gemerged in Excel)
     // Die Formeln werden nur in der ersten Zeile des Merge-Bereichs registriert
     register_text_lookup(registry, CellAddr::new(22, 3), 11)?; // D23 - Index 11
@@ -310,7 +308,7 @@ fn register_prebody_formulas(
 
 /// Registriert eine TextLookup Formel: =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,index,FALSE))
 fn register_text_lookup(
-    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+    registry: &mut DynCellRegistry,
     addr: CellAddr,
     index: usize,
 ) -> Result<(), RegistryError> {
@@ -335,7 +333,7 @@ fn register_text_lookup(
 
 /// Registriert eine TextLookup Formel mit Default
 fn register_text_lookup_default(
-    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+    registry: &mut DynCellRegistry,
     addr: CellAddr,
     index: usize,
     default: &'static str,
@@ -361,7 +359,7 @@ fn register_text_lookup_default(
 
 /// Registriert eine Hyperlink Formel
 fn register_hyperlink_lookup(
-    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+    registry: &mut DynCellRegistry,
     addr: CellAddr,
     index: usize,
 ) -> Result<(), RegistryError> {
@@ -386,7 +384,7 @@ fn register_hyperlink_lookup(
 
 /// Registriert eine Currency-or-Lookup Formel: =IF(E3="",VLOOKUP(...),E3)
 fn register_currency_or_lookup(
-    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+    registry: &mut DynCellRegistry,
     addr: CellAddr,
     index: usize,
 ) -> Result<(), RegistryError> {
@@ -406,7 +404,7 @@ fn register_currency_or_lookup(
 /// Registriert eine IFERROR Division Formel: =IFERROR(numerator/denominator,0)
 /// Verwendet wenn numerator und denominator API-Zellen sind
 fn register_iferror_division(
-    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+    registry: &mut DynCellRegistry,
     addr: CellAddr,
     numerator: CellAddr,
     denominator: CellAddr,
@@ -441,7 +439,7 @@ fn register_iferror_division(
 
 /// Registriert eine IFERROR Division Formel wo numerator/denominator selbst Formeln sind
 fn register_iferror_division_formula_deps(
-    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+    registry: &mut DynCellRegistry,
     addr: CellAddr,
     numerator: CellAddr,
     denominator: CellAddr,
@@ -476,7 +474,7 @@ fn register_iferror_division_formula_deps(
 
 /// Registriert eine SUM-Formel für einen Bereich
 fn register_sum_range(
-    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+    registry: &mut DynCellRegistry,
     addr: CellAddr,
     range_start: CellAddr,
     range_end: CellAddr,
@@ -517,7 +515,7 @@ fn register_sum_range(
 
 /// Registriert eine Right Panel Calc Formel: =IF(M{row}="","",N{row}/M{row})
 fn register_right_panel_calc(
-    registry: &mut CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+    registry: &mut DynCellRegistry,
     addr: CellAddr,
     amount1_col: u16,
     amount2_col: u16,
@@ -638,8 +636,11 @@ fn col_to_letter(col: u16) -> String {
     result
 }
 
+// Type alias for the evaluator function
+type DynEvaluator = Box<dyn Fn(&EvalContext) -> CellValue>;
+
 /// Wraps a typed FormulaCell into a boxed dynamic version
-fn wrap_formula<E>(formula: FormulaCell<E>) -> FormulaCell<Box<dyn Fn(&EvalContext) -> CellValue>>
+fn wrap_formula<E>(formula: FormulaCell<E>) -> FormulaCell<DynEvaluator>
 where
     E: Fn(&EvalContext) -> CellValue + 'static,
 {

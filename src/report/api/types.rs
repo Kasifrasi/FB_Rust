@@ -5,6 +5,7 @@
 
 use crate::lang::data::{CURRENCIES, TEXT_MATRIX};
 use std::fmt;
+use std::str::FromStr;
 
 // ============================================================================
 // Language - Typsichere Sprachauswahl
@@ -22,9 +23,10 @@ use std::fmt;
 /// let lang = Language::Deutsch;
 /// assert_eq!(lang.as_str(), "deutsch");
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Language {
     /// Deutsch
+    #[default]
     Deutsch,
     /// English
     English,
@@ -59,21 +61,6 @@ impl Language {
         ]
     }
 
-    /// Versucht eine Sprache aus einem String zu parsen
-    ///
-    /// Case-insensitive Suche, akzeptiert auch Varianten wie "German" oder "Englisch"
-    pub fn from_str(s: &str) -> Option<Language> {
-        let lower = s.to_lowercase();
-        match lower.as_str() {
-            "deutsch" | "german" | "de" => Some(Language::Deutsch),
-            "english" | "englisch" | "en" => Some(Language::English),
-            "français" | "francais" | "french" | "fr" => Some(Language::Francais),
-            "español" | "espanol" | "spanish" | "es" => Some(Language::Espanol),
-            "português" | "portugues" | "portuguese" | "pt" => Some(Language::Portugues),
-            _ => None,
-        }
-    }
-
     /// Validiert, dass die Sprache in TEXT_MATRIX existiert
     pub fn validate(&self) -> bool {
         let lang_str = self.as_str();
@@ -89,9 +76,22 @@ impl fmt::Display for Language {
     }
 }
 
-impl Default for Language {
-    fn default() -> Self {
-        Language::Deutsch
+impl FromStr for Language {
+    type Err = String;
+
+    /// Parses a language string (case-insensitive)
+    ///
+    /// Accepts various formats like "German", "de", "Deutsch", etc.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let lower = s.to_lowercase();
+        match lower.as_str() {
+            "deutsch" | "german" | "de" => Ok(Language::Deutsch),
+            "english" | "englisch" | "en" => Ok(Language::English),
+            "français" | "francais" | "french" | "fr" => Ok(Language::Francais),
+            "español" | "espanol" | "spanish" | "es" => Ok(Language::Espanol),
+            "português" | "portugues" | "portuguese" | "pt" => Ok(Language::Portugues),
+            _ => Err(format!("Unknown language: {}", s)),
+        }
     }
 }
 
@@ -342,12 +342,12 @@ impl ReportDate {
     /// Erstellt ein neues validiertes Datum
     pub fn new(year: u16, month: u8, day: u8) -> Result<Self, DateError> {
         // Jahr-Validierung (sinnvoller Bereich für Finanzberichte)
-        if year < 1900 || year > 2100 {
+        if !(1900..=2100).contains(&year) {
             return Err(DateError::InvalidYear(year));
         }
 
         // Monat-Validierung
-        if month < 1 || month > 12 {
+        if !(1..=12).contains(&month) {
             return Err(DateError::InvalidMonth(month));
         }
 
@@ -442,7 +442,7 @@ impl ReportDate {
     }
 
     fn is_leap_year(year: u16) -> bool {
-        (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+        (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400)
     }
 
     /// Formatiert das Datum im deutschen Format (DD.MM.YYYY)
@@ -499,11 +499,11 @@ mod tests {
 
     #[test]
     fn test_language_from_str() {
-        assert_eq!(Language::from_str("deutsch"), Some(Language::Deutsch));
-        assert_eq!(Language::from_str("German"), Some(Language::Deutsch));
-        assert_eq!(Language::from_str("english"), Some(Language::English));
-        assert_eq!(Language::from_str("englisch"), Some(Language::English)); // Deutsche Schreibweise
-        assert_eq!(Language::from_str("invalid"), None);
+        assert_eq!(Language::from_str("deutsch"), Ok(Language::Deutsch));
+        assert_eq!(Language::from_str("German"), Ok(Language::Deutsch));
+        assert_eq!(Language::from_str("english"), Ok(Language::English));
+        assert_eq!(Language::from_str("englisch"), Ok(Language::English)); // Deutsche Schreibweise
+        assert!(Language::from_str("invalid").is_err());
     }
 
     #[test]

@@ -12,8 +12,9 @@ use std::collections::HashMap;
 // ============================================================================
 
 /// Mögliche Werte einer Zelle
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum CellValue {
+    #[default]
     Empty,
     Text(String),
     Number(f64),
@@ -38,12 +39,6 @@ impl CellValue {
             CellValue::Number(n) => Some(*n),
             _ => None,
         }
-    }
-}
-
-impl Default for CellValue {
-    fn default() -> Self {
-        CellValue::Empty
     }
 }
 
@@ -338,6 +333,7 @@ impl ReportValues {
     /// ```ignore
     /// values.set_position_row(1, 1, "Personalkosten", 5000.0, 2500.0, 2500.0, "");
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn set_position_row(
         &mut self,
         category: u8,
@@ -435,6 +431,7 @@ impl ReportValues {
     ///     "Projektleiter", 60000.0, 30000.0, 30000.0, ""
     /// );
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn set_cat_position_row(
         &mut self,
         category: Category,

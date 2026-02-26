@@ -332,6 +332,7 @@ fn write_header_input_category(
 }
 
 /// Schreibt eine Positions-Kategorie (1+ Positionen)
+#[allow(clippy::too_many_arguments)]
 fn write_positions_category(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,

@@ -13,7 +13,7 @@ fn test_parallel_protection_benchmark() -> anyhow::Result<()> {
     // 1. Eine existierende .xlsx Datei als Basis finden
     let base_file = fs::read_dir(output_dir)?
         .filter_map(|e| e.ok())
-        .find(|e| e.path().extension().map_or(false, |ext| ext == "xlsx"))
+        .find(|e| e.path().extension().is_some_and(|ext| ext == "xlsx"))
         .map(|e| e.path());
 
     let base_file = match base_file {

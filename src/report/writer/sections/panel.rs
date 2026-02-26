@@ -142,7 +142,7 @@ fn write_panel_row(
 
     // J: Index
     if let Some(format) = fmt.get(row, 9) {
-        ws.write_string_with_format(row, 9, &format!("{}. ", left_num), format)?;
+        ws.write_string_with_format(row, 9, format!("{}. ", left_num), format)?;
     }
 
     // K: Text (Formel mit ausgewertetem Ergebnis)
@@ -177,7 +177,7 @@ fn write_panel_row(
 
     // Q: Index
     if let Some(format) = fmt.get(row, 16) {
-        ws.write_string_with_format(row, 16, &format!("{}. ", right_num), format)?;
+        ws.write_string_with_format(row, 16, format!("{}. ", right_num), format)?;
     }
 
     // R: Text (Formel mit ausgewertetem Ergebnis)

@@ -65,7 +65,14 @@ fn generate_report(
     // Variable Werte basierend auf Index
     let mut values = ReportValues::new();
     values.set(ApiKey::Language, config.lang_val);
-    values.set(ApiKey::Currency, if index.is_multiple_of(2) { "EUR" } else { "USD" });
+    values.set(
+        ApiKey::Currency,
+        if index.is_multiple_of(2) {
+            "EUR"
+        } else {
+            "USD"
+        },
+    );
     values.set(ApiKey::ProjectNumber, format!("PROJ-{:05}", index));
     values.set(
         ApiKey::ProjectTitle,
@@ -173,7 +180,7 @@ fn benchmark_multi_threaded(
     let start = Instant::now();
     let output_dir = Arc::new(output_dir.to_path_buf());
 
-    let chunk_size = (count + num_threads - 1) / num_threads;
+    let chunk_size = count.div_ceil(num_threads);
     let mut handles = Vec::new();
 
     for thread_id in 0..num_threads {

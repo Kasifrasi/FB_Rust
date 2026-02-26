@@ -75,6 +75,7 @@ impl FooterLayout {
 ///
 /// # Returns
 /// Das berechnete Footer-Layout
+#[allow(clippy::too_many_arguments)]
 pub fn write_footer(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
@@ -366,6 +367,7 @@ fn write_formula_locked(
 }
 
 /// Schreibt eine VLOOKUP-Formel in einem gemergten Bereich mit gecachtem Text-Ergebnis (locked)
+#[allow(clippy::too_many_arguments)]
 fn write_merged_vlookup_formula(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,

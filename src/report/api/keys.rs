@@ -8,7 +8,7 @@
 //! Um eine neue API-Zelle hinzuzufügen:
 //! 1. Einzelzelle: `NewField => (row, col),` im `single` Block
 //! 2. Bereichszelle: `NewField => (start_row, col, count),` im `range` Block
-//! FERTIG! Alles andere wird automatisch generiert.
+//!    FERTIG! Alles andere wird automatisch generiert.
 //!
 //! ## Dynamische Positionen (Kostenkategorien)
 //!

@@ -12,6 +12,9 @@ use crate::report::body::{
     BodyResult,
 };
 use crate::report::core::{build_registry, CellAddr, CellKind, CellRegistry, EvalContext};
+
+// Type alias for complex CellRegistry type
+type DynCellRegistry = CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>;
 use crate::report::format::{
     build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,
     FormatMatrix, ReportOptions, ReportStyles, SectionStyles,
@@ -219,7 +222,7 @@ fn apply_row_grouping(
 
 /// Evaluates all cells and returns computed values.
 fn evaluate_all_cells(
-    registry: &CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+    registry: &DynCellRegistry,
     values: &ReportValues,
 ) -> HashMap<CellAddr, CellValue> {
     let mut computed: HashMap<CellAddr, CellValue> = HashMap::new();
@@ -262,7 +265,7 @@ fn get_api_value(values: &ReportValues, key: crate::report::api::ApiKey) -> Cell
 /// Schreibt alle Zellen aus der Registry (API-Werte und Formeln mit Cache)
 fn write_cells_from_registry(
     ws: &mut Worksheet,
-    registry: &CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>,
+    registry: &DynCellRegistry,
     computed: &HashMap<CellAddr, CellValue>,
     fmt: &FormatMatrix,
 ) -> Result<(), XlsxError> {
@@ -318,26 +321,26 @@ fn write_cell_value(
     match value {
         CellValue::Empty => {
             if let Some(f) = format {
-                ws.write_blank(addr.row, addr.col, &f)?;
+                ws.write_blank(addr.row, addr.col, f)?;
             }
         }
         CellValue::Text(s) => {
             if let Some(f) = format {
-                ws.write_string_with_format(addr.row, addr.col, s, &f)?;
+                ws.write_string_with_format(addr.row, addr.col, s, f)?;
             } else {
                 ws.write_string(addr.row, addr.col, s)?;
             }
         }
         CellValue::Number(n) => {
             if let Some(f) = format {
-                ws.write_number_with_format(addr.row, addr.col, *n, &f)?;
+                ws.write_number_with_format(addr.row, addr.col, *n, f)?;
             } else {
                 ws.write_number(addr.row, addr.col, *n)?;
             }
         }
         CellValue::Date(d) => {
             if let Some(f) = format {
-                ws.write_string_with_format(addr.row, addr.col, d, &f)?;
+                ws.write_string_with_format(addr.row, addr.col, d, f)?;
             } else {
                 ws.write_string(addr.row, addr.col, d)?;
             }
