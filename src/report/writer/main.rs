@@ -248,12 +248,7 @@ pub fn create_protected_report(
     // 1. Create workbook
     let mut workbook = Workbook::new();
 
-    // 2. Add language sheet unless hidden
-    if !options.hide_language_sheet {
-        crate::lang::build_sheet(&mut workbook)?;
-    }
-
-    // 3. Create and setup worksheet
+    // 2. Create main report worksheet FIRST (so it's the leftmost sheet)
     let ws = workbook.add_worksheet();
 
     // Set worksheet name based on language
@@ -276,11 +271,15 @@ pub fn create_protected_report(
 
     setup_sheet(ws)?;
 
-    // 4. Extract suffix for sheet naming
+    // 3. Extract suffix for sheet naming
     let suffix = extract_suffix_from_values(values);
 
-    // 5. Write report content
+    // 4. Write report content
     write_report_with_options(ws, styles, &suffix, values, body_config, options)?;
+
+    // 5. Add language sheet AFTER main report (rightmost position)
+    // Hidden by default if hide_language_sheet is true
+    crate::lang::build_sheet_with_visibility(&mut workbook, options.hide_language_sheet)?;
 
     // 6. Apply workbook protection if configured
     if let Some(wb_prot) = &options.workbook_protection {

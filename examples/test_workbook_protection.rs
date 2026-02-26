@@ -81,7 +81,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let body_config = BodyConfig::default();
         let options = ReportOptions::with_default_protection()
             .with_workbook_protection("test456")
-            .with_hidden_columns_qv();
+            .with_hidden_columns_qv()
+            .with_hidden_language_sheet();
 
         create_protected_report(
             "tests/output/test_full_protection.xlsx",
