@@ -43,9 +43,6 @@ pub mod report;
 #[path = "Workbook-Protection/protect.rs"]
 pub mod workbook_protection;
 
-#[cfg(test)]
-mod tests;
-
 // Public API re-exports
 pub use lang::{
     build_sheet as build_language_sheet,

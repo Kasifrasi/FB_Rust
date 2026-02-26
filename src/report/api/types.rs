@@ -197,19 +197,19 @@ impl Default for Currency {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Category {
     /// Kategorie 1: Personalkosten
-    Personal = 1,
+    Bauausgaben = 1,
     /// Kategorie 2: Sachkosten
-    Sachkosten = 2,
+    Investitionen = 2,
     /// Kategorie 3: Reisekosten
-    Reisekosten = 3,
+    Personalausgaben = 3,
     /// Kategorie 4: Investitionen
-    Investitionen = 4,
+    Projektaktivitaeten = 4,
     /// Kategorie 5: Sonstige Kosten
-    Sonstige = 5,
+    Projektverwaltung = 5,
     /// Kategorie 6: Projektverwaltung
-    Projektverwaltung = 6,
+    Evaluierung = 6,
     /// Kategorie 7: Evaluierung/Audit
-    Evaluierung = 7,
+    Audit = 7,
     /// Kategorie 8: Reserve
     Reserve = 8,
 }
@@ -225,13 +225,13 @@ impl Category {
     /// Gibt `None` zurück wenn der Index nicht 1-8 ist.
     pub fn from_index(idx: u8) -> Option<Self> {
         match idx {
-            1 => Some(Category::Personal),
-            2 => Some(Category::Sachkosten),
-            3 => Some(Category::Reisekosten),
-            4 => Some(Category::Investitionen),
-            5 => Some(Category::Sonstige),
-            6 => Some(Category::Projektverwaltung),
-            7 => Some(Category::Evaluierung),
+            1 => Some(Category::Bauausgaben),
+            2 => Some(Category::Investitionen),
+            3 => Some(Category::Personalausgaben),
+            4 => Some(Category::Projektaktivitaeten),
+            5 => Some(Category::Projektverwaltung),
+            6 => Some(Category::Evaluierung),
+            7 => Some(Category::Audit),
             8 => Some(Category::Reserve),
             _ => None,
         }
@@ -240,13 +240,13 @@ impl Category {
     /// Alle Kategorien
     pub fn all() -> &'static [Category] {
         &[
-            Category::Personal,
-            Category::Sachkosten,
-            Category::Reisekosten,
+            Category::Bauausgaben,
             Category::Investitionen,
-            Category::Sonstige,
+            Category::Personalausgaben,
+            Category::Projektaktivitaeten,
             Category::Projektverwaltung,
             Category::Evaluierung,
+            Category::Audit,
             Category::Reserve,
         ]
     }
@@ -254,13 +254,13 @@ impl Category {
     /// Deutscher Name der Kategorie
     pub fn name_de(&self) -> &'static str {
         match self {
-            Category::Personal => "Personalkosten",
-            Category::Sachkosten => "Sachkosten",
-            Category::Reisekosten => "Reisekosten",
-            Category::Investitionen => "Investitionen",
-            Category::Sonstige => "Sonstige Kosten",
-            Category::Projektverwaltung => "Projektverwaltung",
-            Category::Evaluierung => "Evaluierung/Audit",
+            Category::Bauausgaben => "Personalkosten",
+            Category::Investitionen => "Sachkosten",
+            Category::Personalausgaben => "Reisekosten",
+            Category::Projektaktivitaeten => "Investitionen",
+            Category::Projektverwaltung => "Sonstige Kosten",
+            Category::Evaluierung => "Projektverwaltung",
+            Category::Audit => "Evaluierung/Audit",
             Category::Reserve => "Reserve",
         }
     }
@@ -268,13 +268,13 @@ impl Category {
     /// Englischer Name der Kategorie
     pub fn name_en(&self) -> &'static str {
         match self {
-            Category::Personal => "Personnel Costs",
-            Category::Sachkosten => "Material Costs",
-            Category::Reisekosten => "Travel Costs",
-            Category::Investitionen => "Investments",
-            Category::Sonstige => "Other Costs",
-            Category::Projektverwaltung => "Project Administration",
-            Category::Evaluierung => "Evaluation/Audit",
+            Category::Bauausgaben => "Personnel Costs",
+            Category::Investitionen => "Material Costs",
+            Category::Personalausgaben => "Travel Costs",
+            Category::Projektaktivitaeten => "Investments",
+            Category::Projektverwaltung => "Other Costs",
+            Category::Evaluierung => "Project Administration",
+            Category::Audit => "Evaluation/Audit",
             Category::Reserve => "Reserve",
         }
     }
@@ -531,13 +531,13 @@ mod tests {
 
     #[test]
     fn test_category_index() {
-        assert_eq!(Category::Personal.index(), 1);
+        assert_eq!(Category::Bauausgaben.index(), 1);
         assert_eq!(Category::Reserve.index(), 8);
     }
 
     #[test]
     fn test_category_from_index() {
-        assert_eq!(Category::from_index(1), Some(Category::Personal));
+        assert_eq!(Category::from_index(1), Some(Category::Bauausgaben));
         assert_eq!(Category::from_index(8), Some(Category::Reserve));
         assert_eq!(Category::from_index(0), None);
         assert_eq!(Category::from_index(9), None);
