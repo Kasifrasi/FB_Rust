@@ -1234,6 +1234,38 @@ impl BodyStyles {
 }
 
 // ============================================================================
+// apply_formats!: Deklaratives Makro für Spalte→Format-Zuordnungen
+// ============================================================================
+
+/// Setzt eine feste Spalte→Format-Zuordnung für eine oder mehrere Zeilen.
+///
+/// # Varianten
+///
+/// - `row $row` — einzelne Zeile
+/// - `rows $range` — Zeilenbereich (for-Schleife)
+///
+/// # Beispiel
+///
+/// ```ignore
+/// apply_formats!(m, row header_row, {
+///     1 => &body.cat_header_b,
+///     2 => &body.cat_header_c,
+/// });
+/// apply_formats!(m, rows start..=end, {
+///     1 => &body.pos_b,
+///     2 => &body.pos_c,
+/// });
+/// ```
+macro_rules! apply_formats {
+    ($m:expr, row $row:expr, { $( $col:literal => $fmt:expr ),+ $(,)? }) => {
+        $( $m.set($row, $col, $fmt); )+
+    };
+    ($m:expr, rows $rows:expr, { $( $col:literal => $fmt:expr ),+ $(,)? }) => {
+        for _row in $rows { $( $m.set(_row, $col, $fmt); )+ }
+    };
+}
+
+// ============================================================================
 // extend_format_matrix_with_body: Fügt Body-Formate zur Matrix hinzu
 // ============================================================================
 
@@ -1251,22 +1283,22 @@ pub fn extend_format_matrix_with_body(
         match &cat.mode {
             // === Header-Eingabe-Modus (0 Positionen) ===
             CategoryMode::HeaderInput { row } => {
-                // Header-Input verwendet Position-Formate für D-H, aber bold B und C
-                m.set(*row, 1, &body.single_b); // B
-
-                // Kategorie 8 hat grauen Text
+                // B: fett, C: fett (Kategorie 8 grau)
+                m.set(*row, 1, &body.single_b);
                 if cat.meta.num == 8 {
                     let gray_text = body.single_c.clone().set_font_color(Color::RGB(0xBFBFBF));
                     m.set(*row, 2, &gray_text);
                 } else {
                     m.set(*row, 2, &body.single_c);
                 }
-
-                m.set(*row, 3, &body.pos_d); // D
-                m.set(*row, 4, &body.pos_ef); // E
-                m.set(*row, 5, &body.pos_ef); // F
-                m.set(*row, 6, &body.pos_g); // G
-                m.set(*row, 7, &body.pos_h); // H
+                // D–H: Eingabe-Formate (wie Positions-Zeile)
+                apply_formats!(m, row *row, {
+                    3 => &body.pos_d,
+                    4 => &body.pos_ef,
+                    5 => &body.pos_ef,
+                    6 => &body.pos_g,
+                    7 => &body.pos_h,
+                });
             }
 
             // === Positions-Modus (1+ Positionen) ===
@@ -1275,44 +1307,50 @@ pub fn extend_format_matrix_with_body(
                 positions,
                 footer_row,
             } => {
-                // Header-Zeile
-                m.set(*header_row, 1, &body.cat_header_b); // B
-                m.set(*header_row, 2, &body.cat_header_c); // C
-                m.set(*header_row, 3, &body.cat_header_value); // D
-                m.set(*header_row, 4, &body.cat_header_value); // E
-                m.set(*header_row, 5, &body.cat_header_value); // F
-                m.set(*header_row, 6, &body.cat_header_pct); // G
-                m.set(*header_row, 7, &body.cat_header_h); // H
+                // Header-Zeile: B–H
+                apply_formats!(m, row *header_row, {
+                    1 => &body.cat_header_b,
+                    2 => &body.cat_header_c,
+                    3 => &body.cat_header_value,
+                    4 => &body.cat_header_value,
+                    5 => &body.cat_header_value,
+                    6 => &body.cat_header_pct,
+                    7 => &body.cat_header_h,
+                });
 
-                // Positions-Zeilen
-                for row in positions.start_row..=positions.end_row {
-                    m.set(row, 1, &body.pos_b); // B
-                    m.set(row, 2, &body.pos_c); // C
-                    m.set(row, 3, &body.pos_d); // D
-                    m.set(row, 4, &body.pos_ef); // E
-                    m.set(row, 5, &body.pos_ef); // F
-                    m.set(row, 6, &body.pos_g); // G
-                    m.set(row, 7, &body.pos_h); // H
-                }
+                // Positions-Zeilen: B–H
+                apply_formats!(m, rows positions.start_row..=positions.end_row, {
+                    1 => &body.pos_b,
+                    2 => &body.pos_c,
+                    3 => &body.pos_d,
+                    4 => &body.pos_ef,
+                    5 => &body.pos_ef,
+                    6 => &body.pos_g,
+                    7 => &body.pos_h,
+                });
 
-                // Footer-Zeile (B:C wird gemerged im Writer, Format nur für B gesetzt)
-                m.set(*footer_row, 1, &body.footer_bc); // B:C merged
-                m.set(*footer_row, 3, &body.footer_value); // D
-                m.set(*footer_row, 4, &body.footer_value); // E
-                m.set(*footer_row, 5, &body.footer_value); // F
-                m.set(*footer_row, 6, &body.footer_pct); // G
-                m.set(*footer_row, 7, &body.footer_h); // H
+                // Footer-Zeile: B (B:C gemerged im Writer), D–H
+                apply_formats!(m, row *footer_row, {
+                    1 => &body.footer_bc,
+                    3 => &body.footer_value,
+                    4 => &body.footer_value,
+                    5 => &body.footer_value,
+                    6 => &body.footer_pct,
+                    7 => &body.footer_h,
+                });
             }
         }
     }
 
-    // === Total-Zeile (B:C wird gemerged im Writer) ===
-    m.set(layout.total_row, 1, &body.total_bc); // B:C merged
-    m.set(layout.total_row, 3, &body.total_value); // D
-    m.set(layout.total_row, 4, &body.total_value); // E
-    m.set(layout.total_row, 5, &body.total_value); // F
-    m.set(layout.total_row, 6, &body.total_pct); // G
-    m.set(layout.total_row, 7, &body.total_h); // H
+    // === Total-Zeile: B (B:C gemerged im Writer), D–H ===
+    apply_formats!(m, row layout.total_row, {
+        1 => &body.total_bc,
+        3 => &body.total_value,
+        4 => &body.total_value,
+        5 => &body.total_value,
+        6 => &body.total_pct,
+        7 => &body.total_h,
+    });
 }
 
 // ============================================================================
@@ -1334,73 +1372,162 @@ pub fn extend_format_matrix_with_footer(
 ) {
     let s = start_row;
 
-    // Zeile 0: B, C, D blanks mit top borders, E merged mit Formel
-    m.set(s, 1, &sec.ft_b_top_left);
-    m.set(s, 2, &sec.ft_c_top);
-    m.set(s, 3, &sec.ft_d_top_right);
-    m.set(s, 4, &sec.ft_e_merged_top); // E(s):E(s+1) merged
+    // Zeile 0: B–E (top borders, E beginnt merge mit Zeile 1)
+    apply_formats!(m, row s, {
+        1 => &sec.ft_b_top_left,
+        2 => &sec.ft_c_top,
+        3 => &sec.ft_d_top_right,
+        4 => &sec.ft_e_merged_top,
+    });
 
-    // Zeile 1: B:D merged mit Formel, E in merge von oben
-    m.set(s + 1, 1, &sec.ft_bcd_merged); // B:D(s+1) merged
+    // Zeile 1: B:D merged (E liegt im merge von oben)
+    m.set(s + 1, 1, &sec.ft_bcd_merged);
 
-    // Zeile 2: B, C, D blanks, E Formel
-    m.set(s + 2, 1, &sec.ft_b_left);
-    m.set(s + 2, 2, &_styles.center_center);
-    m.set(s + 2, 3, &sec.ft_d_right);
-    m.set(s + 2, 4, &sec.ft_e_center);
+    // Zeile 2: B–E
+    apply_formats!(m, row s + 2, {
+        1 => &sec.ft_b_left,
+        2 => &_styles.center_center,
+        3 => &sec.ft_d_right,
+        4 => &sec.ft_e_center,
+    });
 
-    // Zeile 3: Blanks
-    m.set(s + 3, 1, &sec.ft_b_left);
-    m.set(s + 3, 2, &_styles.left_center);
-    m.set(s + 3, 3, &sec.ft_d_right);
-    m.set(s + 3, 4, &sec.ft_e_right);
+    // Zeile 3: B–E (Blanks)
+    apply_formats!(m, row s + 3, {
+        1 => &sec.ft_b_left,
+        2 => &_styles.left_center,
+        3 => &sec.ft_d_right,
+        4 => &sec.ft_e_right,
+    });
 
-    // Zeile 4: Saldo-Box (B: Formel, C: Blank, D: Formel Check, E: Formel Differenz)
-    m.set(s + 4, 1, &sec.ft_b_label_box);
-    m.set(s + 4, 2, &sec.ft_c_box);
-    m.set(s + 4, 3, &sec.ft_d_box);
-    m.set(s + 4, 4, &sec.ft_e_number_box);
+    // Zeile 4: Saldo-Box (B: Formel, C: Blank, D: Check, E: Differenz)
+    apply_formats!(m, row s + 4, {
+        1 => &sec.ft_b_label_box,
+        2 => &sec.ft_c_box,
+        3 => &sec.ft_d_box,
+        4 => &sec.ft_e_number_box,
+    });
 
-    // Zeile 5: Blanks
-    m.set(s + 5, 1, &sec.ft_b_left);
-    m.set(s + 5, 2, &_styles.left_center);
-    m.set(s + 5, 3, &_styles.left_center);
-    m.set(s + 5, 4, &sec.ft_e_right);
+    // Zeile 5: B–E (Blanks)
+    apply_formats!(m, row s + 5, {
+        1 => &sec.ft_b_left,
+        2 => &_styles.left_center,
+        3 => &_styles.left_center,
+        4 => &sec.ft_e_right,
+    });
 
-    // Zeile 6: Saldenabstimmung (B: Formel, C,D: Blank, E: Formel OK)
-    m.set(s + 6, 1, &sec.ft_b_left);
-    m.set(s + 6, 2, &_styles.left_center);
-    m.set(s + 6, 3, &_styles.left_center);
-    m.set(s + 6, 4, &sec.ft_e_gray_box);
+    // Zeile 6: Saldenabstimmung (B: Formel, C,D: Blank, E: OK-Formel)
+    apply_formats!(m, row s + 6, {
+        1 => &sec.ft_b_left,
+        2 => &_styles.left_center,
+        3 => &_styles.left_center,
+        4 => &sec.ft_e_gray_box,
+    });
 
-    // Zeilen 7-8: Bank, Kasse (B: Formel Label, C,D: Blank, E: Input)
-    for row in s + 7..=s + 8 {
-        m.set(row, 1, &sec.ft_b_input_label_top);
-        m.set(row, 2, &sec.ft_c_input_top);
-        m.set(row, 3, &sec.ft_d_input_top_right);
-        m.set(row, 4, &sec.ft_e_input_top);
-    }
+    // Zeilen 7–8: Bank, Kasse (B: Label, C,D: Blank, E: Input)
+    apply_formats!(m, rows s + 7..=s + 8, {
+        1 => &sec.ft_b_input_label_top,
+        2 => &sec.ft_c_input_top,
+        3 => &sec.ft_d_input_top_right,
+        4 => &sec.ft_e_input_top,
+    });
 
-    // Zeile 9: Sonstiges (B: Formel Label, C,D: Blank, E: Input mit bottom border)
-    m.set(s + 9, 1, &sec.ft_b_input_label_bottom);
-    m.set(s + 9, 2, &sec.ft_c_input_bottom);
-    m.set(s + 9, 3, &sec.ft_d_input_bottom_right);
-    m.set(s + 9, 4, &sec.ft_e_input_bottom);
+    // Zeile 9: Sonstiges (B: Label, C,D: Blank, E: Input mit bottom border)
+    apply_formats!(m, row s + 9, {
+        1 => &sec.ft_b_input_label_bottom,
+        2 => &sec.ft_c_input_bottom,
+        3 => &sec.ft_d_input_bottom_right,
+        4 => &sec.ft_e_input_bottom,
+    });
 
-    // Zeile 13: Bestätigung 1 (B: Formel)
+    // Zeilen 13–14: Bestätigungstexte (B: Formel)
     m.set(s + 13, 1, &_styles.left_center);
-
-    // Zeile 14: Bestätigung 2 (B: Formel)
     m.set(s + 14, 1, &_styles.left_center);
 
-    // Zeile 19: Unterschriften (B, D: Formeln, C, E-G: Blanks mit top border)
-    m.set(s + 19, 1, &sec.ft_signature);
-    m.set(s + 19, 2, &sec.ft_signature_top);
-    m.set(s + 19, 3, &sec.ft_signature);
-    for col in 4..=6 {
-        m.set(s + 19, col, &sec.ft_signature_top);
-    }
+    // Zeile 19: Unterschriften (B, D: Formeln; C, E–G: Blanks mit top border)
+    apply_formats!(m, row s + 19, {
+        1 => &sec.ft_signature,
+        2 => &sec.ft_signature_top,
+        3 => &sec.ft_signature,
+        4 => &sec.ft_signature_top,
+        5 => &sec.ft_signature_top,
+        6 => &sec.ft_signature_top,
+    });
 
     // Zeile 20: Funktion (D: Formel)
     m.set(s + 20, 3, &_styles.left_center);
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod format_tests {
+    use super::*;
+    use crate::report::body::{BodyConfig, BodyLayout, CategoryMode};
+
+    /// Prüft, dass extend_format_matrix_with_body() für alle erwarteten
+    /// Zeilen/Spalten-Kombinationen Formate setzt.
+    ///
+    /// Dieser Test muss vor UND nach dem apply_formats!-Refactoring grün sein.
+    #[test]
+    fn test_body_format_matrix_coverage() {
+        let styles = ReportStyles::new();
+        // Kat 1: 2 Positionen → Header + 2 Pos-Zeilen + Footer
+        // Kat 2: 0 Positionen → Header-Eingabe (eine Zeile)
+        let config = BodyConfig::new()
+            .with_positions(1, 2)
+            .with_positions(2, 0);
+        let layout = BodyLayout::compute(&config);
+        let sec = SectionStyles::new(&styles);
+        let mut fmt = build_format_matrix(&styles, &sec);
+        extend_format_matrix_with_body(&mut fmt, &styles, &layout);
+
+        // --- Kategorie 1: WithPositions ---
+        let cat1 = &layout.categories[0];
+        if let CategoryMode::WithPositions { header_row, positions, footer_row } = &cat1.mode {
+            // Header-Zeile: B–H alle gesetzt
+            for col in [1u16, 2, 3, 4, 5, 6, 7] {
+                assert!(fmt.get(*header_row, col).is_some(),
+                    "cat1 header row={header_row}, col={col} fehlt");
+            }
+            // Positions-Zeilen: B–H alle gesetzt
+            for row in positions.start_row..=positions.end_row {
+                for col in [1u16, 2, 3, 4, 5, 6, 7] {
+                    assert!(fmt.get(row, col).is_some(),
+                        "cat1 pos row={row}, col={col} fehlt");
+                }
+            }
+            // Footer-Zeile: B, D–H gesetzt (kein C: B:C wird gemerged)
+            for col in [1u16, 3, 4, 5, 6, 7] {
+                assert!(fmt.get(*footer_row, col).is_some(),
+                    "cat1 footer row={footer_row}, col={col} fehlt");
+            }
+            // Spalte C in Footer-Zeile: explizit NICHT gesetzt
+            assert!(fmt.get(*footer_row, 2).is_none(),
+                "cat1 footer col=2 sollte nicht gesetzt sein (B:C merged)");
+        } else {
+            panic!("cat1 ist nicht WithPositions");
+        }
+
+        // --- Kategorie 2: HeaderInput ---
+        let cat2 = &layout.categories[1];
+        if let CategoryMode::HeaderInput { row } = &cat2.mode {
+            // B–H alle gesetzt
+            for col in [1u16, 2, 3, 4, 5, 6, 7] {
+                assert!(fmt.get(*row, col).is_some(),
+                    "cat2 header-input row={row}, col={col} fehlt");
+            }
+        } else {
+            panic!("cat2 ist nicht HeaderInput");
+        }
+
+        // --- Total-Zeile: B, D–H gesetzt (kein C: B:C wird gemerged) ---
+        for col in [1u16, 3, 4, 5, 6, 7] {
+            assert!(fmt.get(layout.total_row, col).is_some(),
+                "total row={}, col={col} fehlt", layout.total_row);
+        }
+        assert!(fmt.get(layout.total_row, 2).is_none(),
+            "total col=2 sollte nicht gesetzt sein (B:C merged)");
+    }
 }
