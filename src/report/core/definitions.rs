@@ -80,6 +80,9 @@ pub fn build_registry() -> Result<DynCellRegistry, RegistryError> {
     // 3. Formel-Zellen registrieren (IN ABHÄNGIGKEITSREIHENFOLGE!)
     register_formula_cells(&mut registry)?;
 
+    // 4. Pre-Body Formel-Zellen registrieren (Zeilen 22-25)
+    register_prebody_formulas(&mut registry)?;
+
     Ok(registry)
 }
 
@@ -257,14 +260,20 @@ fn register_formula_cells(registry: &mut DynCellRegistry) -> Result<(), Registry
     )?;
 
     // ========================================================================
-    // Right Panel: O14-O31, V14-V31 (Berechnete Wechselkurs-Spalten)
+    // Right Panel Body: K14-K31, O14-O31, R14-R31, V14-V31 (Rows 13-30)
     // ========================================================================
 
     for i in 0..18u8 {
         let row = 13 + i as u32;
 
+        // K-Spalte (Col 10): =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,23,FALSE))
+        register_text_lookup(registry, CellAddr::new(row, 10), 23)?;
+
         // O-Spalte (Col 14): =IF(M{row}="","",N{row}/M{row})
         register_right_panel_calc(registry, CellAddr::new(row, 14), 12, 13)?;
+
+        // R-Spalte (Col 17): =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,23,FALSE))
+        register_text_lookup(registry, CellAddr::new(row, 17), 23)?;
 
         // V-Spalte (Col 21): =IF(T{row}="","",U{row}/T{row})
         register_right_panel_calc(registry, CellAddr::new(row, 21), 19, 20)?;
@@ -281,9 +290,9 @@ fn register_formula_cells(registry: &mut DynCellRegistry) -> Result<(), Registry
 /// - Row 23 (Excel 24): B24:C24=VLOOKUP(24) "Ausgaben"
 /// - Row 24 (Excel 25): B25:C25=VLOOKUP(10) "Währung"
 ///
-/// HINWEIS: Diese Funktion wird aktuell nicht verwendet, da die Prebody-Formeln
-/// von write_prebody_section() mit speziellen Formaten geschrieben werden.
-#[allow(dead_code)]
+/// Registriert die Pre-Body VLOOKUP-Formeln in der Registry.
+/// Merges werden von `write_prebody_section()` erstellt; Formeln werden
+/// von `write_cells_from_registry()` in die Top-Left-Zelle geschrieben.
 fn register_prebody_formulas(registry: &mut DynCellRegistry) -> Result<(), RegistryError> {
     // Row 22 (0-basiert): D-H Spaltenüberschriften (vertikal gemerged in Excel)
     // Die Formeln werden nur in der ersten Zeile des Merge-Bereichs registriert

@@ -52,8 +52,8 @@ fn write_report_with_body(
     // 5. Statische Sections schreiben (Layout, Merges, Blanks)
     write_header_section(ws, &fmt, suffix, values.language())?;
     write_table_section(ws, &fmt)?;
-    write_panel_section(ws, &fmt, values)?;
-    write_prebody_section(ws, &fmt, values.language())?;
+    write_panel_section(ws, &fmt)?;
+    write_prebody_section(ws, &fmt)?;
 
     // 6. Statische Zellen aus Registry schreiben
     write_cells_from_registry(ws, &registry, &computed, &fmt)?;
