@@ -40,7 +40,7 @@ pub mod lang;
 pub mod report;
 
 // Workbook Protection Module
-#[path = "Workbook-Protection/protect.rs"]
+#[path = "workbook_protection/workbook_protect.rs"]
 pub mod workbook_protection;
 
 // Public API re-exports
