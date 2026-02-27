@@ -9,8 +9,8 @@
 //! Die generierten Dateien werden in einem temporären Verzeichnis erstellt
 //! und nach dem Benchmark gelöscht.
 
-use kmw_fb_rust::lang::{LANG_CONFIG, LANG_SUFFIXES};
 use kmw_fb_rust::lang::build_sheet as build_sprachversionen;
+use kmw_fb_rust::lang::{LANG_CONFIG, LANG_SUFFIXES};
 use kmw_fb_rust::report::writer::setup_sheet;
 use kmw_fb_rust::report::ApiKey;
 use kmw_fb_rust::{
@@ -32,18 +32,23 @@ const LANGUAGES: [&str; 5] = [
     "Portugiesisch",
 ];
 
+/// Anzahl tatsächlich genutzter Spalten (A-V = 0-21)
+const USED_COLUMNS: u16 = 22;
+
 /// Generiert einen einzelnen Finanzbericht mit variablen Parametern
-fn generate_report(
+///
+/// `styles` wird von außen übergeben (einmal erstellt, wiederverwendet).
+/// Gibt den Excel-Buffer zurück statt direkt auf Disk zu schreiben.
+fn generate_report_to_buffer(
     index: usize,
-    output_dir: &Path,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    styles: &ReportStyles,
+) -> Result<(String, Vec<u8>), Box<dyn std::error::Error + Send + Sync>> {
     // Sprache basierend auf Index rotieren
     let lang_key = LANGUAGES[index % LANGUAGES.len()];
     let config = LANG_CONFIG.get(lang_key).unwrap();
     let suffix = LANG_SUFFIXES.get(lang_key).unwrap();
 
     let mut workbook = Workbook::new();
-    let styles = ReportStyles::new();
 
     // Sprachversionen-Sheet
     build_sprachversionen(&mut workbook)?;
@@ -52,11 +57,12 @@ fn generate_report(
     let ws = workbook.add_worksheet();
     ws.set_name(config.fb_sheet)?;
 
+    // Nur genutzte Spalten formatieren (A-V statt 1000)
     let unlocked = Format::new()
         .set_font_name("Arial")
         .set_font_size(10.0)
         .set_unlocked();
-    for col in 0..1000u16 {
+    for col in 0..USED_COLUMNS {
         ws.set_column_format(col, &unlocked).ok();
     }
 
@@ -149,22 +155,26 @@ fn generate_report(
 
     // Report schreiben mit Optionen (Protection + versteckte Spalten)
     let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
-    write_report_with_options(ws, &styles, suffix, &values, &body_config, &options)?;
+    write_report_with_options(ws, styles, suffix, &values, &body_config, &options)?;
 
-    // Speichern
-    let filename = output_dir.join(format!("report_{:05}.xlsx", index));
-    workbook.save(&filename)?;
+    // In-Memory Buffer statt direkt auf Disk
+    let filename = format!("report_{:05}.xlsx", index);
+    let buffer = workbook.save_to_buffer()?;
 
-    Ok(())
+    Ok((filename, buffer))
 }
 
 /// Benchmark single-threaded
 fn benchmark_single_threaded(count: usize, output_dir: &Path) -> std::time::Duration {
+    let styles = ReportStyles::new();
     let start = Instant::now();
 
     for i in 0..count {
-        if let Err(e) = generate_report(i, output_dir) {
-            eprintln!("Error generating report {}: {}", i, e);
+        match generate_report_to_buffer(i, &styles) {
+            Ok((filename, buffer)) => {
+                fs::write(output_dir.join(filename), buffer).ok();
+            }
+            Err(e) => eprintln!("Error generating report {}: {}", i, e),
         }
     }
 
@@ -177,6 +187,7 @@ fn benchmark_multi_threaded(
     output_dir: &Path,
     num_threads: usize,
 ) -> std::time::Duration {
+    let styles = Arc::new(ReportStyles::new());
     let start = Instant::now();
     let output_dir = Arc::new(output_dir.to_path_buf());
 
@@ -184,14 +195,18 @@ fn benchmark_multi_threaded(
     let mut handles = Vec::new();
 
     for thread_id in 0..num_threads {
+        let styles = Arc::clone(&styles);
         let output_dir = Arc::clone(&output_dir);
         let start_idx = thread_id * chunk_size;
         let end_idx = std::cmp::min(start_idx + chunk_size, count);
 
         let handle = thread::spawn(move || {
             for i in start_idx..end_idx {
-                if let Err(e) = generate_report(i, &output_dir) {
-                    eprintln!("Error generating report {}: {}", i, e);
+                match generate_report_to_buffer(i, &styles) {
+                    Ok((filename, buffer)) => {
+                        fs::write(output_dir.join(filename), buffer).ok();
+                    }
+                    Err(e) => eprintln!("Error generating report {}: {}", i, e),
                 }
             }
         });
