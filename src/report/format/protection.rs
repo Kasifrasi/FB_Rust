@@ -26,7 +26,7 @@
 //!     );
 //! ```
 
-use crate::common::LANG_CONFIG;
+use crate::lang::LANG_CONFIG;
 use crate::report::api::{ApiKey, FooterField, PositionField};
 use rust_xlsxwriter::{
     DataValidation, DataValidationErrorStyle, DataValidationRule, Formula, IntoDataValidationValue,
@@ -108,26 +108,25 @@ impl SheetProtection {
         Self::default()
     }
 
-    /// Creates protection from common.rs defaults
+    /// Creates protection with KMW default settings
     pub fn from_defaults() -> Self {
-        use crate::common::PROTECTION_DEFAULTS;
         Self {
             password: None,
             select_locked_cells: true,
             select_unlocked_cells: true,
-            format_cells: PROTECTION_DEFAULTS.allow_formatting_cells,
-            format_columns: PROTECTION_DEFAULTS.allow_formatting_columns,
-            format_rows: PROTECTION_DEFAULTS.allow_formatting_rows,
-            insert_columns: PROTECTION_DEFAULTS.allow_inserting_columns,
-            insert_rows: PROTECTION_DEFAULTS.allow_inserting_rows,
-            insert_hyperlinks: PROTECTION_DEFAULTS.allow_inserting_hyperlinks,
-            delete_columns: PROTECTION_DEFAULTS.allow_deleting_columns,
-            delete_rows: PROTECTION_DEFAULTS.allow_deleting_rows,
-            sort: PROTECTION_DEFAULTS.allow_sorting,
-            autofilter: PROTECTION_DEFAULTS.allow_filtering,
-            pivot_tables: PROTECTION_DEFAULTS.allow_using_pivot_tables,
-            edit_objects: PROTECTION_DEFAULTS.allow_drawing_objects,
-            edit_scenarios: PROTECTION_DEFAULTS.allow_scenarios,
+            format_cells: true,
+            format_columns: true,
+            format_rows: true,
+            insert_columns: false,
+            insert_rows: false,
+            insert_hyperlinks: true,
+            delete_columns: false,
+            delete_rows: false,
+            sort: true,
+            autofilter: true,
+            pivot_tables: true,
+            edit_objects: false,
+            edit_scenarios: true,
         }
     }
 
@@ -967,7 +966,7 @@ impl ReportOptions {
         Self::default()
     }
 
-    /// Creates options with default protection (from common.rs)
+    /// Creates options with default protection
     pub fn with_default_protection() -> Self {
         Self {
             protection: Some(SheetProtection::from_defaults()),
@@ -1112,7 +1111,7 @@ mod tests {
     #[test]
     fn test_sheet_protection_from_defaults() {
         let prot = SheetProtection::from_defaults();
-        // Check that it uses PROTECTION_DEFAULTS from common.rs
+        // Check that it uses KMW default settings
         assert!(prot.format_cells); // allow_formatting_cells = true in defaults
         assert!(prot.sort); // allow_sorting = true
         assert!(!prot.insert_columns); // allow_inserting_columns = false

@@ -35,7 +35,6 @@
 //! workbook.save("report.xlsx")?;
 //! ```
 
-pub mod common;
 pub mod lang;
 pub mod report;
 

@@ -176,7 +176,7 @@ fn extract_suffix_from_values(values: &ReportValues) -> String {
     let lang_value = values.get(ApiKey::Language);
 
     if let Some(lang) = lang_value.as_text() {
-        if let Some(suffix) = crate::common::LANG_SUFFIXES.get(lang) {
+        if let Some(suffix) = crate::lang::LANG_SUFFIXES.get(lang) {
             return suffix.to_string();
         }
     }
@@ -248,11 +248,11 @@ pub fn create_protected_report(
     // LANG_CONFIG uses capitalized keys (e.g., "Deutsch"), but values might be lowercase (e.g., "deutsch")
     if let Some(lang_text) = values.get(crate::report::api::ApiKey::Language).as_text() {
         // Try exact match first
-        let config = crate::common::LANG_CONFIG
+        let config = crate::lang::LANG_CONFIG
             .get(lang_text)
             // If not found, try to find by lang_val (case-insensitive)
             .or_else(|| {
-                crate::common::LANG_CONFIG
+                crate::lang::LANG_CONFIG
                     .values()
                     .find(|c| c.lang_val.eq_ignore_ascii_case(lang_text))
             });

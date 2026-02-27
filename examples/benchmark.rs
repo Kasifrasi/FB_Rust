@@ -9,7 +9,7 @@
 //! Die generierten Dateien werden in einem temporären Verzeichnis erstellt
 //! und nach dem Benchmark gelöscht.
 
-use kmw_fb_rust::common::{LANG_CONFIG, LANG_SUFFIXES};
+use kmw_fb_rust::lang::{LANG_CONFIG, LANG_SUFFIXES};
 use kmw_fb_rust::lang::build_sheet as build_sprachversionen;
 use kmw_fb_rust::report::writer::setup_sheet;
 use kmw_fb_rust::report::ApiKey;
