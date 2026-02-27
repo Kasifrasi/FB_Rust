@@ -9,6 +9,7 @@
 //! Dieser Section-Writer schreibt nur Layout (Merges, Blanks, Body-Werte).
 
 use super::super::layout::MergeRange;
+use super::utils::write_blank;
 use crate::report::format::FormatMatrix;
 use rust_xlsxwriter::{Worksheet, XlsxError};
 
@@ -115,10 +116,8 @@ fn write_blanks(
     fmt: &FormatMatrix,
     blanks: &[(u32, u16)],
 ) -> Result<(), XlsxError> {
-    for (row, col) in blanks {
-        if let Some(format) = fmt.get(*row, *col) {
-            ws.write_blank(*row, *col, format)?;
-        }
+    for &(row, col) in blanks {
+        write_blank(ws, fmt, row, col)?;
     }
     Ok(())
 }

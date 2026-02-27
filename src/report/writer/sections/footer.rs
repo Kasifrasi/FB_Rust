@@ -19,8 +19,8 @@
 //! - Zeile 19: B: "Ort, Datum...", D: "Unterschrift..."
 //! - Zeile 20: D: "Funktion..."
 
+use super::utils::{write_blank, write_formula_locked, write_merged_vlookup_formula, write_vlookup_formula};
 use crate::report::body::FooterLayout;
-use crate::report::core::lookup_text_string;
 use crate::report::format::FormatMatrix;
 use rust_xlsxwriter::{Formula, Worksheet, XlsxError};
 
@@ -272,96 +272,6 @@ pub fn write_footer_values(
     Ok(())
 }
 
-// ============================================================================
-// Helper-Funktionen
-// ============================================================================
-
-/// Schreibt einen Blank mit Format aus FormatMatrix
-fn write_blank(
-    ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    row: u32,
-    col: u16,
-) -> Result<(), XlsxError> {
-    if let Some(format) = fmt.get(row, col) {
-        ws.write_blank(row, col, format)?;
-    }
-    Ok(())
-}
-
-/// Schreibt eine VLOOKUP-Formel mit gecachtem Text-Ergebnis (locked)
-fn write_vlookup_formula(
-    ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    row: u32,
-    col: u16,
-    index: usize,
-    language: Option<&str>,
-) -> Result<(), XlsxError> {
-    let formula_str = format!(
-        r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))"#,
-        index
-    );
-
-    let formula = if let Some(text) = lookup_text_string(language, index) {
-        Formula::new(&formula_str).set_result(text)
-    } else {
-        Formula::new(&formula_str)
-    };
-
-    if let Some(format) = fmt.get_locked(row, col) {
-        ws.write_formula_with_format(row, col, formula, &format)?;
-    } else {
-        ws.write_formula(row, col, formula)?;
-    }
-    Ok(())
-}
-
-/// Schreibt eine Formel mit locked Format aus FormatMatrix
-fn write_formula_locked(
-    ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    row: u32,
-    col: u16,
-    formula: Formula,
-) -> Result<(), XlsxError> {
-    if let Some(format) = fmt.get_locked(row, col) {
-        ws.write_formula_with_format(row, col, formula, &format)?;
-    } else {
-        ws.write_formula(row, col, formula)?;
-    }
-    Ok(())
-}
-
-/// Schreibt eine VLOOKUP-Formel in einem gemergten Bereich mit gecachtem Text-Ergebnis (locked)
-#[allow(clippy::too_many_arguments)]
-fn write_merged_vlookup_formula(
-    ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    row_start: u32,
-    col_start: u16,
-    row_end: u32,
-    col_end: u16,
-    index: usize,
-    language: Option<&str>,
-) -> Result<(), XlsxError> {
-    let formula_str = format!(
-        r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))"#,
-        index
-    );
-
-    let formula = if let Some(text) = lookup_text_string(language, index) {
-        Formula::new(&formula_str).set_result(text)
-    } else {
-        Formula::new(&formula_str)
-    };
-
-    if let Some(format) = fmt.get_locked(row_start, col_start) {
-        ws.merge_range(row_start, col_start, row_end, col_end, "", &format)?;
-        ws.write_formula_with_format(row_start, col_start, formula, &format)?;
-    }
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {

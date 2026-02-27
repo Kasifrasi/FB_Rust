@@ -14,6 +14,7 @@ mod header;
 mod panel;
 mod prebody;
 mod table;
+mod utils;
 
 pub use body::{write_body_structure_with_values, BodyResult};
 pub use crate::report::body::FooterLayout;

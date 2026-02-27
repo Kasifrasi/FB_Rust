@@ -1530,22 +1530,20 @@ pub fn extend_format_matrix_with_footer(
 /// Muss nach `build_format_matrix` aufgerufen werden, vor `write_prebody_section`.
 pub fn extend_format_matrix_with_prebody(m: &mut FormatMatrix, sec: &SectionStyles) {
     // Row 22 (Excel 23): Spaltenüberschriften (D–H: vertikale Merge-Heads) + Blanks B/C
-    m.set(22, 1, &sec.pb_lbl_b);    // B23: blank
-    m.set(22, 2, &sec.pb_lbl_c);    // C23: blank
-    m.set(22, 3, &sec.pb_val);      // D23: merge-head D23:D26
-    m.set(22, 4, &sec.pb_val_bold); // E23: merge-head E23:E26 (Ausgaben, bold)
-    m.set(22, 5, &sec.pb_val);      // F23: merge-head F23:F26
-    m.set(22, 6, &sec.pb_val);      // G23: merge-head G23:G26
-    m.set(22, 7, &sec.pb_right);    // H23: merge-head H23:H26 (medium-right)
+    apply_formats!(m, row 22, {
+        1 => &sec.pb_lbl_b,    // B23: blank
+        2 => &sec.pb_lbl_c,    // C23: blank
+        3 => &sec.pb_val,      // D23: merge-head D23:D26
+        4 => &sec.pb_val_bold, // E23: merge-head E23:E26 (Ausgaben, bold)
+        5 => &sec.pb_val,      // F23: merge-head F23:F26
+        6 => &sec.pb_val,      // G23: merge-head G23:G26
+        7 => &sec.pb_right,    // H23: merge-head H23:H26 (medium-right)
+    });
 
-    // Row 23 (Excel 24): B24:C24 merged (Ausgaben-Zeile, bold)
-    m.set(23, 1, &sec.pb_mid_bold);
-
-    // Row 24 (Excel 25): B25:C25 merged (Währungszeile)
-    m.set(24, 1, &sec.pb_mid);
-
-    // Row 25 (Excel 26): B26:C26 merged blank (thin bottom)
-    m.set(25, 1, &sec.pb_bot);
+    // Rows 23–25 (Excel 24–26): B:C merged Zeilen
+    apply_formats!(m, row 23, { 1 => &sec.pb_mid_bold }); // B24:C24 (Ausgaben, bold)
+    apply_formats!(m, row 24, { 1 => &sec.pb_mid });       // B25:C25 (Währungszeile)
+    apply_formats!(m, row 25, { 1 => &sec.pb_bot });       // B26:C26 (thin bottom)
 }
 
 // ============================================================================

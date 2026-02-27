@@ -26,12 +26,12 @@ pub use core::{
     RegistryError, SheetRef, Sheets, StaticVal, Statics, HEADER_FORMULAS,
 };
 pub use format::{
-    build_format_matrix, extend_format_matrix_with_body, BodyStyles, FieldValidation, FormatMatrix,
-    HiddenRange, HiddenRanges, NumericRule, ReportOptions, ReportStyles, SectionStyles,
-    SheetProtection, ValidationError, ValidationErrorStyle, ValidationRule, ValidationRuleType,
-    ValidationTarget,
+    build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,
+    extend_format_matrix_with_prebody, BodyStyles, FieldValidation, FormatMatrix, HiddenRange,
+    HiddenRanges, NumericRule, ReportOptions, ReportStyles, SectionStyles, SheetProtection,
+    ValidationError, ValidationErrorStyle, ValidationRule, ValidationRuleType, ValidationTarget,
 };
 pub use writer::{
-    apply_report_options, setup_freeze_panes, setup_sheet, write_report_with_options, BodyResult,
-    MergeRange,
+    apply_report_options, create_protected_report, setup_freeze_panes, setup_sheet,
+    write_report_with_options, BodyResult, MergeRange,
 };

@@ -22,8 +22,9 @@
 
 use std::collections::HashMap;
 
-use crate::report::body::{BodyLayout, CategoryLayout, CategoryMode, PositionRange, TOTAL_LABEL_INDEX};
+use super::utils::write_blank;
 use crate::report::api::{ApiKey, CellValue, PositionField, ReportValues};
+use crate::report::body::{BodyLayout, CategoryLayout, CategoryMode, PositionRange, TOTAL_LABEL_INDEX};
 use crate::report::core::lookup_text_string;
 use crate::report::format::FormatMatrix;
 use rust_xlsxwriter::{Format, Formula, Worksheet, XlsxError};
@@ -309,7 +310,7 @@ fn write_header_input_category(
     } else {
         // Fallback: Blanks für D, E, F, H
         for col in [3, 4, 5, 7] {
-            write_blank_with_format(ws, fmt, row, col)?;
+            write_blank(ws, fmt, row, col)?;
         }
     }
 
@@ -340,7 +341,7 @@ fn write_positions_category(
 
     // D-H: Blanks (Header hat keine Eingaben)
     for col in 3..=7 {
-        write_blank_with_format(ws, fmt, header_row, col)?;
+        write_blank(ws, fmt, header_row, col)?;
     }
 
     // === Positions-Zeilen ===
@@ -359,7 +360,7 @@ fn write_positions_category(
             // Fallback: Blanks
             for col in [2, 3, 4, 5, 7] {
                 // C, D, E, F, H (nicht G)
-                write_blank_with_format(ws, fmt, row, col)?;
+                write_blank(ws, fmt, row, col)?;
             }
         }
     }
@@ -387,7 +388,7 @@ fn write_positions_category(
 
     // G: Ratio (wird später geschrieben)
     // H: Blank
-    write_blank_with_format(ws, fmt, footer_row, 7)?;
+    write_blank(ws, fmt, footer_row, 7)?;
 
     Ok(())
 }
@@ -418,7 +419,7 @@ fn write_total_row(
 
     // G: Ratio (wird später geschrieben)
     // H: Blank
-    write_blank_with_format(ws, fmt, row, 7)?;
+    write_blank(ws, fmt, row, 7)?;
 
     Ok(())
 }
@@ -555,18 +556,6 @@ fn write_formula_with_cached_text(
     Ok(())
 }
 
-/// Schreibt Blank mit Format
-fn write_blank_with_format(
-    ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    row: u32,
-    col: u16,
-) -> Result<(), XlsxError> {
-    if let Some(format) = fmt.get(row, col) {
-        ws.write_blank(row, col, format)?;
-    }
-    Ok(())
-}
 
 /// Schreibt API-Werte für Header-Eingabe (position=0)
 /// Felder: D, E, F, H (nicht C - ist VLOOKUP Label, nicht G - ist Ratio)

@@ -2,7 +2,6 @@
 name = "kmw-fb-rust"
 version = "0.1.0"
 edition = "2021"
-authors = ["Kasifrasi <dev@kasifrasi.example>"]
 description = "Rust rewrite of the KMW Finanzbericht exporter using rust_xlsxwriter"
 license = "GPL-3.0-or-later"
 

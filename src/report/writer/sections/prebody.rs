@@ -12,9 +12,9 @@
 //! Die Funktion `write_prebody_section` schreibt nur noch das Layout (Merges, Blanks),
 //! während die Formeln von `write_cells_from_registry` geschrieben werden.
 
-use crate::report::core::lookup_text_string;
+use super::utils::{write_blank, write_merged_vlookup_formula};
 use crate::report::format::FormatMatrix;
-use rust_xlsxwriter::{Formula, Worksheet, XlsxError};
+use rust_xlsxwriter::{Worksheet, XlsxError};
 
 /// Schreibt die Pre-Body Section (Zeilen 20-25)
 ///
@@ -46,56 +46,20 @@ fn write_footer_table(
     language: Option<&str>,
 ) -> Result<(), XlsxError> {
     // === Row 22 (Excel 23): Spaltenüberschriften mit vertikalen Merges ===
-
-    // D23:D26 merged - VLOOKUP(11)
-    if let Some(format) = fmt.get_locked(22, 3) {
-        ws.merge_range(22, 3, 25, 3, "", &format)?;
-        ws.write_formula_with_format(22, 3, make_vlookup_formula(11, language), &format)?;
-    }
-
-    // E23:E26 merged - VLOOKUP(25) "Ausgaben" (bold)
-    if let Some(format) = fmt.get_locked(22, 4) {
-        ws.merge_range(22, 4, 25, 4, "", &format)?;
-        ws.write_formula_with_format(22, 4, make_vlookup_formula(25, language), &format)?;
-    }
-
-    // F23:F26 merged - VLOOKUP(55)
-    if let Some(format) = fmt.get_locked(22, 5) {
-        ws.merge_range(22, 5, 25, 5, "", &format)?;
-        ws.write_formula_with_format(22, 5, make_vlookup_formula(55, language), &format)?;
-    }
-
-    // G23:G26 merged - VLOOKUP(56)
-    if let Some(format) = fmt.get_locked(22, 6) {
-        ws.merge_range(22, 6, 25, 6, "", &format)?;
-        ws.write_formula_with_format(22, 6, make_vlookup_formula(56, language), &format)?;
-    }
-
-    // H23:H26 merged - VLOOKUP(15)
-    if let Some(format) = fmt.get_locked(22, 7) {
-        ws.merge_range(22, 7, 25, 7, "", &format)?;
-        ws.write_formula_with_format(22, 7, make_vlookup_formula(15, language), &format)?;
+    // Columns D-H (3-7) — jede Spalte geht von Zeile 22 bis Zeile 25
+    for (col, idx) in [(3u16, 11usize), (4, 25), (5, 55), (6, 56), (7, 15)] {
+        write_merged_vlookup_formula(ws, fmt, 22, col, 25, col, idx, language)?;
     }
 
     // B23, C23 - Blanks
-    if let Some(format) = fmt.get(22, 1) {
-        ws.write_blank(22, 1, format)?;
-    }
-    if let Some(format) = fmt.get(22, 2) {
-        ws.write_blank(22, 2, format)?;
-    }
+    write_blank(ws, fmt, 22, 1)?;
+    write_blank(ws, fmt, 22, 2)?;
 
     // === Row 23 (Excel 24): B24:C24 merged - VLOOKUP(24) ===
-    if let Some(format) = fmt.get_locked(23, 1) {
-        ws.merge_range(23, 1, 23, 2, "", &format)?;
-        ws.write_formula_with_format(23, 1, make_vlookup_formula(24, language), &format)?;
-    }
+    write_merged_vlookup_formula(ws, fmt, 23, 1, 23, 2, 24, language)?;
 
     // === Row 24 (Excel 25): B25:C25 merged - VLOOKUP(10) (Währung) ===
-    if let Some(format) = fmt.get_locked(24, 1) {
-        ws.merge_range(24, 1, 24, 2, "", &format)?;
-        ws.write_formula_with_format(24, 1, make_vlookup_formula(10, language), &format)?;
-    }
+    write_merged_vlookup_formula(ws, fmt, 24, 1, 24, 2, 10, language)?;
 
     // === Row 25 (Excel 26): B26:C26 merged blank (thin bottom border) ===
     if let Some(format) = fmt.get(25, 1) {
@@ -103,18 +67,4 @@ fn write_footer_table(
     }
 
     Ok(())
-}
-
-/// Erstellt eine VLOOKUP-Formel mit gecachtem Text-Ergebnis
-fn make_vlookup_formula(index: usize, language: Option<&str>) -> Formula {
-    let formula_str = format!(
-        r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))"#,
-        index
-    );
-
-    if let Some(text) = lookup_text_string(language, index) {
-        Formula::new(&formula_str).set_result(text)
-    } else {
-        Formula::new(&formula_str)
-    }
 }
