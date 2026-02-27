@@ -3,12 +3,11 @@
 //! Dieses Modul enthält:
 //! - `main`: Haupt-Schreibfunktionen (write_report_with_options)
 //! - `layout`: Sheet-Setup (Spaltenbreiten, Freeze Panes)
-//! - `sections`: Statische Report-Sections
+//! - `structure`: Report-Struktur (Merges, Blanks, Strings, Validierungen)
 
 mod layout;
 mod main;
-pub mod sections;
+mod structure;
 
 pub use layout::{setup_freeze_panes, setup_sheet, MergeRange};
-pub use main::{apply_report_options, create_protected_report, write_report_with_options};
-pub use sections::BodyResult;
+pub use main::{apply_report_options, create_protected_report, write_report_with_options, BodyResult};

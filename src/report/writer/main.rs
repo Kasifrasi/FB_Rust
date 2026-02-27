@@ -3,10 +3,7 @@
 //! Die Haupt-API ist `write_report_with_options()`.
 
 use super::layout::{self, setup_sheet};
-use super::sections::{
-    write_body_structure, write_footer_structure, write_header_section, write_panel_section,
-    write_prebody_section, write_table_section, BodyResult,
-};
+use super::structure::write_structure;
 use crate::report::api::{CellValue, ReportValues};
 use crate::report::body::{
     register_body_formulas, register_footer_formulas, BodyConfig, BodyLayout, FooterLayout,
@@ -22,6 +19,21 @@ use crate::report::format::{
 use rust_xlsxwriter::{Format, Formula, Workbook, Worksheet, XlsxError};
 use std::collections::HashMap;
 use std::path::Path;
+
+/// Ergebnis der Body-Generierung
+#[derive(Debug, Clone)]
+pub struct BodyResult {
+    /// Das berechnete Layout
+    pub layout: BodyLayout,
+    /// Letzte beschriebene Zeile
+    pub last_row: u32,
+    /// Zeile der Gesamt-Summe
+    pub total_row: u32,
+    /// E-Spalte Total (für Footer Check-Formel)
+    pub e_total: Option<f64>,
+    /// F-Spalte Total (für Footer Check-Formel)
+    pub f_total: Option<f64>,
+}
 
 /// Interne Funktion: Schreibt den Report mit Body-Bereich
 fn write_report_with_body(
@@ -59,13 +71,9 @@ fn write_report_with_body(
     extend_format_matrix_with_footer(&mut fmt, styles, &sec, footer_layout.start_row);
     extend_format_matrix_with_prebody(&mut fmt, &sec);
 
-    // 6. Alle Sections schreiben (nur Struktur: Merges, Blanks, statische Strings)
-    write_header_section(ws, &fmt, suffix, values.language())?;
-    write_table_section(ws, &fmt)?;
-    write_panel_section(ws, &fmt)?;
-    write_prebody_section(ws, &fmt)?;
-    write_body_structure(ws, &fmt, &body_layout)?;
-    write_footer_structure(ws, &fmt, &footer_layout)?;
+    // 6. Komplette Struktur schreiben (Merges, Blanks, statische Strings)
+    let lang = values.language().unwrap_or("");
+    write_structure(ws, &fmt, &body_layout, &footer_layout, suffix, lang)?;
 
     // 7. ALLE Zellen aus Registry schreiben (Formeln + API-Werte)
     write_cells_from_registry(ws, &registry, &computed, &fmt)?;
