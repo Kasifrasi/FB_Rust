@@ -14,35 +14,38 @@ use std::collections::HashMap;
 // ============================================================================
 
 /// Zentrale Matrix für alle Zellformate
-/// Default-Format ist unlocked (Arial 10), nur Formel-Zellen werden locked
+/// Default-Format ist unlocked (Arial 10), nur Formel-Zellen werden locked.
+/// Locked-Varianten werden beim Einfügen vorab gecacht um Clones im Hot Path zu vermeiden.
 pub struct FormatMatrix {
     formats: HashMap<(u32, u16), Format>,
+    locked_formats: HashMap<(u32, u16), Format>,
 }
 
 impl FormatMatrix {
     pub fn new() -> Self {
         Self {
             formats: HashMap::new(),
+            locked_formats: HashMap::new(),
         }
     }
 
-    /// Setzt das Format für eine Zelle (automatisch unlocked)
+    /// Setzt das Format für eine Zelle (automatisch unlocked + locked gecacht)
     pub fn set(&mut self, row: u32, col: u16, format: &Format) {
-        // Alle Zellen sind standardmäßig unlocked - nur Formeln werden locked
-        self.formats
-            .insert((row, col), format.clone().set_unlocked());
+        let key = (row, col);
+        let unlocked = format.clone().set_unlocked();
+        let locked = unlocked.clone().set_locked();
+        self.formats.insert(key, unlocked);
+        self.locked_formats.insert(key, locked);
     }
 
-    /// Holt das Format für eine Zelle (Standard - unlocked durch Default-Format)
+    /// Holt das Format für eine Zelle (unlocked)
     pub fn get(&self, row: u32, col: u16) -> Option<&Format> {
         self.formats.get(&(row, col))
     }
 
     /// Holt das Format für eine Zelle mit locked flag (für Formeln)
-    pub fn get_locked(&self, row: u32, col: u16) -> Option<Format> {
-        self.formats
-            .get(&(row, col))
-            .map(|f| f.clone().set_locked())
+    pub fn get_locked(&self, row: u32, col: u16) -> Option<&Format> {
+        self.locked_formats.get(&(row, col))
     }
 }
 

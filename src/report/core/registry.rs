@@ -558,11 +558,13 @@ impl<E> CellRegistry<E> {
         while let Some(addr) = queue.pop() {
             result.push(addr);
 
-            for neighbor in graph.get(&addr).unwrap_or(&vec![]).clone() {
-                let deg = in_degree.get_mut(&neighbor).unwrap();
-                *deg -= 1;
-                if *deg == 0 {
-                    queue.push(neighbor);
+            if let Some(neighbors) = graph.get(&addr) {
+                for &neighbor in neighbors {
+                    let deg = in_degree.get_mut(&neighbor).unwrap();
+                    *deg -= 1;
+                    if *deg == 0 {
+                        queue.push(neighbor);
+                    }
                 }
             }
         }

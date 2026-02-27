@@ -415,7 +415,7 @@ fn write_cells_from_registry(
 
             // Mit Format schreiben (locked)
             if let Some(format) = fmt.get_locked(addr.row, addr.col) {
-                ws.write_formula_with_format(addr.row, addr.col, formula, &format)?;
+                ws.write_formula_with_format(addr.row, addr.col, formula, format)?;
             } else {
                 let locked = Format::new().set_locked();
                 ws.write_formula_with_format(addr.row, addr.col, formula, &locked)?;

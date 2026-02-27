@@ -227,7 +227,7 @@ fn write_prebody(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError
     // D-H (Spalten 3-7): Vertikale Merges Zeile 22-25 (locked)
     for col in 3u16..=7u16 {
         if let Some(format) = fmt.get_locked(22, col) {
-            ws.merge_range(22, col, 25, col, "", &format)?;
+            ws.merge_range(22, col, 25, col, "", format)?;
         }
     }
 
@@ -238,7 +238,7 @@ fn write_prebody(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError
     // B:C Merges rows 23-24 (locked, Formeln via Registry)
     for row in 23..=24 {
         if let Some(format) = fmt.get_locked(row, 1) {
-            ws.merge_range(row, 1, row, 2, "", &format)?;
+            ws.merge_range(row, 1, row, 2, "", format)?;
         }
     }
 
@@ -265,7 +265,7 @@ fn write_body(
 
     // Gesamt-Zeile: B:C Merge (locked) + H Blank
     if let Some(format) = fmt.get_locked(layout.total_row, 1) {
-        ws.merge_range(layout.total_row, 1, layout.total_row, 2, "", &format)?;
+        ws.merge_range(layout.total_row, 1, layout.total_row, 2, "", format)?;
     }
     write_blank(ws, fmt, layout.total_row, 7)?;
 
@@ -300,7 +300,7 @@ fn write_category(
 
             // Footer: B:C Merge (locked) + H Blank
             if let Some(format) = fmt.get_locked(*footer_row, 1) {
-                ws.merge_range(*footer_row, 1, *footer_row, 2, "", &format)?;
+                ws.merge_range(*footer_row, 1, *footer_row, 2, "", format)?;
             }
             write_blank(ws, fmt, *footer_row, 7)?;
         }
@@ -324,12 +324,12 @@ fn write_footer(
         write_blank(ws, fmt, s, col)?;
     }
     if let Some(format) = fmt.get_locked(s, 4) {
-        ws.merge_range(s, 4, s + 1, 4, "", &format)?;
+        ws.merge_range(s, 4, s + 1, 4, "", format)?;
     }
 
     // Zeile 1: B:D Merge (locked)
     if let Some(format) = fmt.get_locked(s + 1, 1) {
-        ws.merge_range(s + 1, 1, s + 1, 3, "", &format)?;
+        ws.merge_range(s + 1, 1, s + 1, 3, "", format)?;
     }
 
     // Zeile 2: Blanks B-D
