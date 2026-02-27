@@ -44,10 +44,11 @@ fn write_report_with_body(
     // 3. Alle statischen Zellen evaluieren
     let computed = evaluate_all_cells(&registry, values);
 
-    // 4. FormatMatrix erstellen (statisch + body)
+    // 4. FormatMatrix vollständig aufbauen (statisch + body + footer)
     let sec = SectionStyles::new(styles);
     let mut fmt = build_format_matrix(styles, &sec);
     extend_format_matrix_with_body(&mut fmt, styles, &body_layout);
+    extend_format_matrix_with_footer(&mut fmt, styles, &sec, body_layout.total_row + 3);
 
     // 5. Statische Sections schreiben (Layout, Merges, Blanks)
     write_header_section(ws, &fmt, suffix, values.language())?;
@@ -59,12 +60,9 @@ fn write_report_with_body(
     write_cells_from_registry(ws, &registry, &computed, &fmt)?;
 
     // 7. Dynamischen Body schreiben (mit API-Werten)
-    let body_result = write_body_structure_with_values(ws, &fmt, body_config, Some(values))?;
+    let body_result = write_body_structure_with_values(ws, &fmt, &body_layout, Some(values))?;
 
-    // 8. Footer-Formate zur FormatMatrix hinzufügen
-    extend_format_matrix_with_footer(&mut fmt, styles, &sec, body_result.layout.total_row + 3);
-
-    // 9. Footer schreiben (3 Zeilen nach Total)
+    // 8. Footer schreiben (3 Zeilen nach Total)
     // income_row = 19 (0-indexed, Zeile 20 in Excel)
     let income_row = 19u32;
 
@@ -91,7 +89,7 @@ fn write_report_with_body(
         values.footer_sonstiges(),
     )?;
 
-    // 10. Footer-Werte schreiben (Bank, Kasse, Sonstiges)
+    // 9. Footer-Werte schreiben (Bank, Kasse, Sonstiges)
     write_footer_values(
         ws,
         &footer_layout,
@@ -101,7 +99,7 @@ fn write_report_with_body(
         values.footer_sonstiges(),
     )?;
 
-    // 11. Freeze Pane
+    // 10. Freeze Pane
     layout::setup_freeze_panes(ws, 9)?;
 
     Ok(body_result)

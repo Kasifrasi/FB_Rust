@@ -22,7 +22,6 @@
 
 use std::collections::HashMap;
 
-use super::config::BodyConfig;
 use super::layout::{BodyLayout, CategoryLayout, CategoryMode, PositionRange, TOTAL_LABEL_INDEX};
 use crate::report::api::{ApiKey, CellValue, PositionField, ReportValues};
 use crate::report::core::lookup_text_string;
@@ -209,48 +208,34 @@ fn calculate_ratio(f: f64, d: f64) -> f64 {
     }
 }
 
-/// Schreibt die komplette Body-Struktur (ohne API-Werte, nur Blanks)
-///
-/// Für API-Werte verwende `write_body_structure_with_values()`.
-pub fn write_body_structure(
-    ws: &mut Worksheet,
-    fmt: &FormatMatrix,
-    config: &BodyConfig,
-) -> Result<BodyResult, XlsxError> {
-    write_body_structure_with_values(ws, fmt, config, None)
-}
-
 /// Schreibt die komplette Body-Struktur MIT API-Werten
 ///
 /// # Arguments
 /// * `ws` - Worksheet
 /// * `fmt` - FormatMatrix
-/// * `config` - BodyConfig
+/// * `layout` - Vorberechnetes BodyLayout
 /// * `values` - Optional: ReportValues für API-Werte
 pub fn write_body_structure_with_values(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
-    config: &BodyConfig,
+    layout: &BodyLayout,
     values: Option<&ReportValues>,
 ) -> Result<BodyResult, XlsxError> {
-    // 1. Layout berechnen
-    let layout = BodyLayout::compute(config);
-
-    // 2. Formeln evaluieren (wenn Werte vorhanden)
+    // 1. Formeln evaluieren (wenn Werte vorhanden)
     let cache = values
-        .map(|v| evaluate_body_formulas(&layout, v))
+        .map(|v| evaluate_body_formulas(layout, v))
         .unwrap_or_default();
 
-    // 3. Kategorien schreiben
+    // 2. Kategorien schreiben
     for cat in &layout.categories {
-        write_category(ws, fmt, cat, &layout, values, &cache)?;
+        write_category(ws, fmt, cat, layout, values, &cache)?;
     }
 
-    // 4. Gesamt-Zeile schreiben
-    write_total_row(ws, fmt, &layout, &cache)?;
+    // 3. Gesamt-Zeile schreiben
+    write_total_row(ws, fmt, layout, &cache)?;
 
-    // 5. Ratio-Formeln anwenden (mit gecachten Ergebnissen)
-    write_ratio_formulas(ws, fmt, &layout, &cache)?;
+    // 4. Ratio-Formeln anwenden (mit gecachten Ergebnissen)
+    write_ratio_formulas(ws, fmt, layout, &cache)?;
 
     // E-Total und F-Total aus Cache holen (col 4 = E, col 5 = F)
     let e_total = cache.totals.get(&4).copied();

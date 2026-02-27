@@ -16,19 +16,19 @@ use crate::report::format::FormatMatrix;
 use rust_xlsxwriter::{DataValidation, Worksheet, XlsxError};
 
 /// Merge-Bereiche für Header Section
-pub const MERGES: &[(MergeRange, u32, u16)] = &[
-    (MergeRange::new(0, 1, 0, 2), 0, 1),  // B1:C1
-    (MergeRange::new(1, 1, 1, 2), 1, 1),  // B2:C2
-    (MergeRange::new(1, 9, 2, 14), 1, 9), // J2:O3
-    (MergeRange::new(2, 1, 2, 2), 2, 1),  // B3:C3
-    (MergeRange::new(3, 9, 3, 14), 3, 9), // J4:O4
-    (MergeRange::new(4, 1, 4, 2), 4, 1),  // B5:C5
-    (MergeRange::new(5, 1, 6, 2), 5, 1),  // B6:C7
-    (MergeRange::new(5, 3, 6, 7), 5, 3),  // D6:H7
-    (MergeRange::new(7, 1, 7, 2), 7, 1),  // B8:C8
-    (MergeRange::new(7, 6, 7, 7), 7, 6),  // G8:H8
-    (MergeRange::new(8, 1, 8, 2), 8, 1),  // B9:C9
-    (MergeRange::new(8, 6, 8, 7), 8, 6),  // G9:H9
+pub const MERGES: &[MergeRange] = &[
+    MergeRange::new(0, 1, 0, 2),  // B1:C1
+    MergeRange::new(1, 1, 1, 2),  // B2:C2
+    MergeRange::new(1, 9, 2, 14), // J2:O3
+    MergeRange::new(2, 1, 2, 2),  // B3:C3
+    MergeRange::new(3, 9, 3, 14), // J4:O4
+    MergeRange::new(4, 1, 4, 2),  // B5:C5
+    MergeRange::new(5, 1, 6, 2),  // B6:C7
+    MergeRange::new(5, 3, 6, 7),  // D6:H7
+    MergeRange::new(7, 1, 7, 2),  // B8:C8
+    MergeRange::new(7, 6, 7, 7),  // G8:H8
+    MergeRange::new(8, 1, 8, 2),  // B9:C9
+    MergeRange::new(8, 6, 8, 7),  // G9:H9
 ];
 
 /// Blank-Zellen für Header Section
@@ -77,8 +77,8 @@ pub fn write_header_section(
 }
 
 fn write_merges(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> {
-    for (range, fmt_row, fmt_col) in MERGES {
-        if let Some(format) = fmt.get(*fmt_row, *fmt_col) {
+    for range in MERGES {
+        if let Some(format) = fmt.get(range.first_row, range.first_col) {
             ws.merge_range(
                 range.first_row,
                 range.first_col,

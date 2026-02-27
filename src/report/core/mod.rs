@@ -7,13 +7,11 @@
 //! - `formulas`: Formel-Evaluierung und Caching
 //! - `dynamic`: Dynamische Sections (für Body)
 
-mod cells;
 mod definitions;
 mod dynamic;
 mod formulas;
 mod registry;
 
-pub use cells::CellAddress;
 pub use definitions::{build_registry, lookup_text, lookup_text_string};
 pub use dynamic::{DynamicRegistry, DynamicSectionDef};
 pub use formulas::{

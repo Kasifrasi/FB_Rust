@@ -6,7 +6,7 @@
 //! - Die Excel-Formel (für die Datei)
 //! - Die Rust-Evaluierungsfunktion (für Berechnungen)
 
-use super::cells::CellAddress;
+use super::registry::CellAddr;
 use crate::lang::data::TEXT_MATRIX;
 use crate::report::api::{CellValue, ReportValues};
 use once_cell::sync::Lazy;
@@ -20,11 +20,11 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct FormulaDefinition {
     /// Zelladresse wo die Formel steht
-    pub address: CellAddress,
+    pub address: CellAddr,
     /// Excel-Formel als String
     pub excel_formula: String,
     /// Abhängigkeiten: Welche Zellen werden für die Berechnung benötigt
-    pub dependencies: Vec<CellAddress>,
+    pub dependencies: Vec<CellAddr>,
     /// Formel-Typ für die Auswertung
     pub formula_type: FormulaType,
 }
@@ -41,16 +41,16 @@ pub enum FormulaType {
     /// Währung aus E3 oder VLOOKUP wenn leer
     CurrencyOrLookup { index: usize },
     /// Einfache Zellreferenz (kopiert Wert)
-    CellReference { source: CellAddress },
+    CellReference { source: CellAddr },
     /// IFERROR Division
     DivisionWithError {
-        numerator: CellAddress,
-        denominator: CellAddress,
+        numerator: CellAddr,
+        denominator: CellAddr,
     },
     /// SUM-Formel für Bereich
     SumRange {
-        range_start: CellAddress,
-        range_end: CellAddress,
+        range_start: CellAddr,
+        range_end: CellAddr,
     },
     /// Komplexe Formel (manuell implementiert)
     Custom,
@@ -63,14 +63,14 @@ pub enum FormulaType {
 // ============================================================================
 
 /// E2 Adresse (Sprachauswahl)
-const E2: CellAddress = CellAddress::new(1, 4);
+const E2: CellAddr = CellAddr::new(1, 4);
 /// E3 Adresse (Währung)
-const E3: CellAddress = CellAddress::new(2, 4);
+const E3: CellAddr = CellAddr::new(2, 4);
 
 /// Erstellt eine TextLookup Formel
 fn text_lookup(row: u32, col: u16, index: usize) -> FormulaDefinition {
     FormulaDefinition {
-        address: CellAddress::new(row, col),
+        address: CellAddr::new(row, col),
         excel_formula: format!(
             r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))"#,
             index
@@ -83,7 +83,7 @@ fn text_lookup(row: u32, col: u16, index: usize) -> FormulaDefinition {
 /// Erstellt eine TextLookup Formel mit Default
 fn text_lookup_default(row: u32, col: u16, index: usize, default: &str) -> FormulaDefinition {
     FormulaDefinition {
-        address: CellAddress::new(row, col),
+        address: CellAddr::new(row, col),
         excel_formula: format!(
             r#"=IF($E$2="","{}",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))"#,
             default, index
@@ -99,7 +99,7 @@ fn text_lookup_default(row: u32, col: u16, index: usize, default: &str) -> Formu
 /// Erstellt eine Hyperlink-Lookup Formel
 fn hyperlink_lookup(row: u32, col: u16, index: usize) -> FormulaDefinition {
     FormulaDefinition {
-        address: CellAddress::new(row, col),
+        address: CellAddr::new(row, col),
         excel_formula: format!(
             r#"=HYPERLINK(VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))"#,
             index
@@ -118,14 +118,14 @@ fn division_error(
     den_row: u32,
     den_col: u16,
 ) -> FormulaDefinition {
-    let num_addr = CellAddress::new(num_row, num_col);
-    let den_addr = CellAddress::new(den_row, den_col);
+    let num_addr = CellAddr::new(num_row, num_col);
+    let den_addr = CellAddr::new(den_row, den_col);
     FormulaDefinition {
-        address: CellAddress::new(row, col),
+        address: CellAddr::new(row, col),
         excel_formula: format!(
             "=IFERROR({}/{},0)",
-            num_addr.to_excel_notation(),
-            den_addr.to_excel_notation()
+            num_addr.to_excel(),
+            den_addr.to_excel()
         ),
         dependencies: vec![num_addr, den_addr],
         formula_type: FormulaType::DivisionWithError {
@@ -137,14 +137,14 @@ fn division_error(
 
 /// Erstellt eine SUM-Formel für einen Bereich
 fn sum_range(row: u32, col: u16, start_row: u32, end_row: u32, data_col: u16) -> FormulaDefinition {
-    let start = CellAddress::new(start_row, data_col);
-    let end = CellAddress::new(end_row, data_col);
+    let start = CellAddr::new(start_row, data_col);
+    let end = CellAddr::new(end_row, data_col);
     FormulaDefinition {
-        address: CellAddress::new(row, col),
+        address: CellAddr::new(row, col),
         excel_formula: format!(
             "=SUM({}:{})",
-            start.to_excel_notation(),
-            end.to_excel_notation()
+            start.to_excel(),
+            end.to_excel()
         ),
         dependencies: vec![], // Dynamische Abhängigkeiten
         formula_type: FormulaType::SumRange {
@@ -157,7 +157,7 @@ fn sum_range(row: u32, col: u16, start_row: u32, end_row: u32, data_col: u16) ->
 /// Erstellt Right Panel Header Formel für L13, S13: =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,22,FALSE))
 fn rp_header_date_lookup(row: u32, col: u16) -> FormulaDefinition {
     FormulaDefinition {
-        address: CellAddress::new(row, col),
+        address: CellAddr::new(row, col),
         excel_formula: r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,22,FALSE))"#
             .to_string(),
         dependencies: vec![E2],
@@ -168,7 +168,7 @@ fn rp_header_date_lookup(row: u32, col: u16) -> FormulaDefinition {
 /// Erstellt Right Panel Header Formel für M13, T13: =VLOOKUP($E$2,Sprachversionen!$B:$BN,63,FALSE) (Index für Euro)
 fn rp_header_euro_lookup(row: u32, col: u16) -> FormulaDefinition {
     FormulaDefinition {
-        address: CellAddress::new(row, col),
+        address: CellAddr::new(row, col),
         excel_formula: r#"=VLOOKUP($E$2,Sprachversionen!$B:$BN,63,FALSE)"#.to_string(),
         dependencies: vec![E2],
         formula_type: FormulaType::TextLookup { index: 63 },
@@ -178,7 +178,7 @@ fn rp_header_euro_lookup(row: u32, col: u16) -> FormulaDefinition {
 /// Erstellt Right Panel Header Formel für N13, U13: =IF(E3="",VLOOKUP($E$2,Sprachversionen!$B:$BN,28,FALSE),E3)
 fn rp_header_currency_or_lookup(row: u32, col: u16) -> FormulaDefinition {
     FormulaDefinition {
-        address: CellAddress::new(row, col),
+        address: CellAddr::new(row, col),
         excel_formula: r#"=IF(E3="",VLOOKUP($E$2,Sprachversionen!$B:$BN,28,FALSE),E3)"#.to_string(),
         dependencies: vec![E2, E3],
         formula_type: FormulaType::CurrencyOrLookup { index: 28 },
@@ -188,7 +188,7 @@ fn rp_header_currency_or_lookup(row: u32, col: u16) -> FormulaDefinition {
 /// Erstellt Right Panel Header Formel für O13, V13: =VLOOKUP($E$2,Sprachversionen!$B:$BN,58,FALSE)
 fn rp_header_exchange_rate_lookup(row: u32, col: u16) -> FormulaDefinition {
     FormulaDefinition {
-        address: CellAddress::new(row, col),
+        address: CellAddr::new(row, col),
         excel_formula: r#"=VLOOKUP($E$2,Sprachversionen!$B:$BN,58,FALSE)"#.to_string(),
         dependencies: vec![E2],
         formula_type: FormulaType::TextLookup { index: 58 },
@@ -202,7 +202,7 @@ fn rp_header_exchange_rate_lookup(row: u32, col: u16) -> FormulaDefinition {
 /// Cache für berechnete Formelwerte
 #[derive(Debug, Default)]
 pub struct FormulaCache {
-    cache: HashMap<CellAddress, CellValue>,
+    cache: HashMap<CellAddr, CellValue>,
 }
 
 impl FormulaCache {
@@ -210,11 +210,11 @@ impl FormulaCache {
         Self::default()
     }
 
-    pub fn get(&self, address: &CellAddress) -> Option<&CellValue> {
+    pub fn get(&self, address: &CellAddr) -> Option<&CellValue> {
         self.cache.get(address)
     }
 
-    pub fn set(&mut self, address: CellAddress, value: CellValue) {
+    pub fn set(&mut self, address: CellAddr, value: CellValue) {
         self.cache.insert(address, value);
     }
 
@@ -261,8 +261,8 @@ pub fn evaluate_formula(
             amount2_col,
         } => {
             let row = formula.address.row;
-            let amount1_addr = CellAddress::new(row, *amount1_col);
-            let amount2_addr = CellAddress::new(row, *amount2_col);
+            let amount1_addr = CellAddr::new(row, *amount1_col);
+            let amount2_addr = CellAddr::new(row, *amount2_col);
             evaluate_division(cache, &amount2_addr, &amount1_addr)
         }
         FormulaType::Custom => CellValue::Empty,
@@ -350,8 +350,8 @@ fn evaluate_currency_or_lookup(values: &ReportValues, index: usize) -> CellValue
 /// Evaluiert Division mit IFERROR: =IFERROR(A/B, 0)
 fn evaluate_division(
     cache: &FormulaCache,
-    numerator: &CellAddress,
-    denominator: &CellAddress,
+    numerator: &CellAddr,
+    denominator: &CellAddr,
 ) -> CellValue {
     let num = cache
         .get(numerator)
@@ -373,13 +373,13 @@ fn evaluate_division(
 /// Evaluiert SUM für einen Bereich
 fn evaluate_sum_range(
     cache: &FormulaCache,
-    range_start: &CellAddress,
-    range_end: &CellAddress,
+    range_start: &CellAddr,
+    range_end: &CellAddr,
 ) -> CellValue {
     let mut sum = 0.0;
 
     for row in range_start.row..=range_end.row {
-        let addr = CellAddress::new(row, range_start.col);
+        let addr = CellAddr::new(row, range_start.col);
         if let Some(value) = cache.get(&addr) {
             if let Some(num) = value.as_number() {
                 sum += num;
@@ -476,14 +476,14 @@ pub fn generate_right_panel_formulas() -> Vec<FormulaDefinition> {
 
         // O (Col 14): Calc Formel
         formulas.push(FormulaDefinition {
-            address: CellAddress::new(row, 14),
+            address: CellAddr::new(row, 14),
             excel_formula: format!(
                 "=IF(M{}=\"\",\"\",N{}/M{})",
                 excel_row, excel_row, excel_row
             ),
             dependencies: vec![
-                CellAddress::new(row, 12), // M
-                CellAddress::new(row, 13), // N
+                CellAddr::new(row, 12), // M
+                CellAddr::new(row, 13), // N
             ],
             formula_type: FormulaType::RightPanelCalc {
                 amount1_col: 12,
@@ -496,14 +496,14 @@ pub fn generate_right_panel_formulas() -> Vec<FormulaDefinition> {
 
         // V (Col 21): Calc Formel
         formulas.push(FormulaDefinition {
-            address: CellAddress::new(row, 21),
+            address: CellAddr::new(row, 21),
             excel_formula: format!(
                 "=IF(T{}=\"\",\"\",U{}/T{})",
                 excel_row, excel_row, excel_row
             ),
             dependencies: vec![
-                CellAddress::new(row, 19), // T
-                CellAddress::new(row, 20), // U
+                CellAddr::new(row, 19), // T
+                CellAddr::new(row, 20), // U
             ],
             formula_type: FormulaType::RightPanelCalc {
                 amount1_col: 19,

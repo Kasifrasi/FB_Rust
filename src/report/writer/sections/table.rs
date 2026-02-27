@@ -13,26 +13,26 @@ use crate::report::format::FormatMatrix;
 use rust_xlsxwriter::{Worksheet, XlsxError};
 
 /// Merge-Bereiche für Table Header
-pub const HEADER_MERGES: &[(MergeRange, u32, u16)] = &[
-    (MergeRange::new(10, 1, 10, 2), 10, 1), // B11:C11
-    (MergeRange::new(10, 3, 13, 3), 10, 3), // D11:D14
-    (MergeRange::new(10, 4, 13, 4), 10, 4), // E11:E14
-    (MergeRange::new(10, 5, 13, 5), 10, 5), // F11:F14
-    (MergeRange::new(10, 6, 13, 6), 10, 6), // G11:G14
-    (MergeRange::new(10, 7, 13, 7), 10, 7), // H11:H14
-    (MergeRange::new(11, 1, 11, 2), 11, 1), // B12:C12
-    (MergeRange::new(12, 1, 12, 2), 12, 1), // B13:C13
-    (MergeRange::new(13, 1, 13, 2), 13, 1), // B14:C14
+pub const HEADER_MERGES: &[MergeRange] = &[
+    MergeRange::new(10, 1, 10, 2), // B11:C11
+    MergeRange::new(10, 3, 13, 3), // D11:D14
+    MergeRange::new(10, 4, 13, 4), // E11:E14
+    MergeRange::new(10, 5, 13, 5), // F11:F14
+    MergeRange::new(10, 6, 13, 6), // G11:G14
+    MergeRange::new(10, 7, 13, 7), // H11:H14
+    MergeRange::new(11, 1, 11, 2), // B12:C12
+    MergeRange::new(12, 1, 12, 2), // B13:C13
+    MergeRange::new(13, 1, 13, 2), // B14:C14
 ];
 
 /// Merge-Bereiche für Table Body
-pub const BODY_MERGES: &[(MergeRange, u32, u16)] = &[
-    (MergeRange::new(14, 1, 14, 2), 14, 1), // B15:C15
-    (MergeRange::new(15, 1, 15, 2), 15, 1), // B16:C16
-    (MergeRange::new(16, 1, 16, 2), 16, 1), // B17:C17
-    (MergeRange::new(17, 1, 17, 2), 17, 1), // B18:C18
-    (MergeRange::new(18, 1, 18, 2), 18, 1), // B19:C19
-    (MergeRange::new(19, 1, 19, 2), 19, 1), // B20:C20
+pub const BODY_MERGES: &[MergeRange] = &[
+    MergeRange::new(14, 1, 14, 2), // B15:C15
+    MergeRange::new(15, 1, 15, 2), // B16:C16
+    MergeRange::new(16, 1, 16, 2), // B17:C17
+    MergeRange::new(17, 1, 17, 2), // B18:C18
+    MergeRange::new(18, 1, 18, 2), // B19:C19
+    MergeRange::new(19, 1, 19, 2), // B20:C20
 ];
 
 /// Blank-Zellen für Table Header
@@ -93,10 +93,10 @@ pub fn write_table_section(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(),
 fn write_merges(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
-    merges: &[(MergeRange, u32, u16)],
+    merges: &[MergeRange],
 ) -> Result<(), XlsxError> {
-    for (range, fmt_row, fmt_col) in merges {
-        if let Some(format) = fmt.get(*fmt_row, *fmt_col) {
+    for range in merges {
+        if let Some(format) = fmt.get(range.first_row, range.first_col) {
             ws.merge_range(
                 range.first_row,
                 range.first_col,

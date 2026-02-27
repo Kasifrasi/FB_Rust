@@ -20,4 +20,4 @@ pub use config::BodyConfig;
 pub use footer::{write_footer, write_footer_values, FooterLayout};
 pub use formulas::{register_body_formulas, register_footer_formulas, DynRegistry};
 pub use layout::{BodyLayout, CategoryLayout, CategoryMode, PositionRange};
-pub use writer::{write_body_structure, write_body_structure_with_values, BodyResult};
+pub use writer::{write_body_structure_with_values, BodyResult};
