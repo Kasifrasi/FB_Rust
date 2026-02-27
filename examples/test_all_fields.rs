@@ -38,8 +38,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Zeile 1: KMW-Zuschuss
     values.set(ApiKey::ApprovedBudget(0), 80000.0);
-    values.set(ApiKey::IncomeReportPeriod(0), 40000.0);
-    values.set(ApiKey::IncomeTotal(0), 40000.0);
+    values.set(ApiKey::IncomeReportPeriod(0), 50000.0);
+    values.set(ApiKey::IncomeTotal(0), 50000.0);
     values.set(ApiKey::IncomeReason(0), "1. Rate erhalten");
 
     // Zeile 2: Eigenmittel

@@ -254,10 +254,12 @@ fn register_ratio_formula(registry: &mut DynRegistry, row: u32) -> Result<(), Re
     let formula = FormulaCell {
         excel,
         deps: FormulaDeps {
-            inputs: Inputs::many(vec![d_addr, f_addr]),
+            inputs: Inputs::none(),
             statics: Statics::none(),
             sheets: Sheets::none(),
-            formula_deps: FormulaCellDeps::none(),
+            // D und F können API-Zellen (Positions-Zeilen) oder SUM-Formeln
+            // (Footer/Total-Zeilen) sein. Topo-sort ignoriert nicht-Formel-Deps.
+            formula_deps: FormulaCellDeps::many(vec![d_addr, f_addr]),
         },
         eval: eval_fn,
     };
@@ -389,24 +391,27 @@ fn register_sum_formula(
         .collect();
     let excel = Box::leak(format!("=SUM({})", refs.join("+")).into_boxed_str());
 
-    // Sammle Input-Adressen (die Footer/Header-Input Zeilen)
-    let inputs: Vec<CellAddr> = sum_rows.iter().map(|r| CellAddr::new(*r, col)).collect();
+    // Sammle Adressen (Footer-SUM-Formeln + Header-Input API-Zellen)
+    let dep_addrs: Vec<CellAddr> = sum_rows.iter().map(|r| CellAddr::new(*r, col)).collect();
+    let eval_addrs = dep_addrs.clone();
 
     let eval_fn: Box<dyn Fn(&EvalContext) -> CellValue> = Box::new(move |ctx: &EvalContext| {
-        let sum: f64 = inputs.iter().filter_map(|a| ctx.cell(*a).as_number()).sum();
+        let sum: f64 = eval_addrs
+            .iter()
+            .filter_map(|a| ctx.cell(*a).as_number())
+            .sum();
         CellValue::Number(sum)
     });
 
     let formula = FormulaCell {
         excel,
         deps: FormulaDeps {
-            inputs: Inputs::none(), // Inputs sind Formeln (SUM) oder API-Zellen
+            inputs: Inputs::none(),
             statics: Statics::none(),
             sheets: Sheets::none(),
-            // Die Dependencies sind die Footer/Header-Input Zellen
-            // Bei Footer: SUM-Formeln
-            // Bei Header-Input: API-Zellen
-            formula_deps: FormulaCellDeps::none(), // Dynamisch, daher keine strikte Validierung
+            // Footer-SUM-Formeln werden als formula_deps erkannt,
+            // Header-Input API-Zellen werden vom topo-sort ignoriert (korrekt).
+            formula_deps: FormulaCellDeps::many(dep_addrs),
         },
         eval: eval_fn,
     };
@@ -592,10 +597,11 @@ fn register_check_formula(
     let formula = FormulaCell {
         excel,
         deps: FormulaDeps {
-            inputs: Inputs::many(vec![f_income_addr, f_total_addr]),
+            inputs: Inputs::none(),
             statics: Statics::none(),
             sheets: Sheets::none(),
-            formula_deps: FormulaCellDeps::many(vec![e_saldo_addr]), // Abhängig von E_saldo Formel
+            // Abhängig von E_saldo (Diff-Formel), F_income und F_total (SUM-Formeln)
+            formula_deps: FormulaCellDeps::many(vec![e_saldo_addr, f_income_addr, f_total_addr]),
         },
         eval: eval_fn,
     };
