@@ -43,7 +43,7 @@
 //! - E(s+4): Differenz = E_income - E_total
 //! - E(s+6): OK-Check - IF(E_saldo=SUM(inputs),"OK","")
 
-use super::footer::FooterLayout;
+use super::layout::FooterLayout;
 use super::layout::{BodyLayout, CategoryMode, TOTAL_LABEL_INDEX};
 use crate::report::api::{ApiKey, CellValue, FooterField, PositionField};
 use crate::report::core::{

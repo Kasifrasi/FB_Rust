@@ -22,7 +22,7 @@
 
 use std::collections::HashMap;
 
-use super::layout::{BodyLayout, CategoryLayout, CategoryMode, PositionRange, TOTAL_LABEL_INDEX};
+use crate::report::body::{BodyLayout, CategoryLayout, CategoryMode, PositionRange, TOTAL_LABEL_INDEX};
 use crate::report::api::{ApiKey, CellValue, PositionField, ReportValues};
 use crate::report::core::lookup_text_string;
 use crate::report::format::FormatMatrix;

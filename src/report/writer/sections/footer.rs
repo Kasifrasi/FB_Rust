@@ -19,43 +19,10 @@
 //! - Zeile 19: B: "Ort, Datum...", D: "Unterschrift..."
 //! - Zeile 20: D: "Funktion..."
 
-use rust_xlsxwriter::{Formula, Worksheet, XlsxError};
-
+use crate::report::body::FooterLayout;
 use crate::report::core::lookup_text_string;
 use crate::report::format::FormatMatrix;
-
-/// Footer-Layout mit berechneten Zeilenpositionen
-#[derive(Debug, Clone)]
-pub struct FooterLayout {
-    /// Startzeile des Footers (0-indexed)
-    pub start_row: u32,
-    /// Zeile für Saldo-Formel (E-Spalte)
-    pub saldo_row: u32,
-    /// Zeilen für Bank/Kasse/Sonstiges Input (E-Spalte)
-    pub input_rows: [u32; 3],
-    /// Letzte Zeile des Footers
-    pub end_row: u32,
-}
-
-impl FooterLayout {
-    /// Berechnet das Footer-Layout basierend auf der Total-Zeile des Body
-    ///
-    /// Der Footer beginnt 3 Zeilen nach dem Total.
-    pub fn compute(total_row: u32) -> Self {
-        let start_row = total_row + 3; // 3 Zeilen Abstand
-
-        Self {
-            start_row,
-            saldo_row: start_row + 4, // Zeile 4: Saldo-Differenz
-            input_rows: [
-                start_row + 7, // Zeile 7: Bank
-                start_row + 8, // Zeile 8: Kasse
-                start_row + 9, // Zeile 9: Sonstiges
-            ],
-            end_row: start_row + 20, // 21 Zeilen (0-20)
-        }
-    }
-}
+use rust_xlsxwriter::{Formula, Worksheet, XlsxError};
 
 /// Schreibt den Report-Footer
 ///

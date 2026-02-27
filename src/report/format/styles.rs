@@ -427,6 +427,16 @@ pub struct SectionStyles {
     pub ft_e_input_bottom: Format,       // E: input format with all borders
     pub ft_signature: Format,            // Signature: bold with top thin
     pub ft_signature_top: Format,        // Signature row: normal with top thin
+
+    // Pre-Body Section (Rows 22-25)
+    pub pb_lbl_b: Format,    // B23: blank — medium-left+top, no right border
+    pub pb_lbl_c: Format,    // C23: blank — medium-top, thin-right
+    pub pb_val: Format,      // D23, F23, G23: merge head — center+wrap, medium-top, thin-left/right
+    pub pb_val_bold: Format, // E23: wie pb_val + bold
+    pub pb_right: Format,    // H23: wie pb_val + medium-right
+    pub pb_mid: Format,      // B25: B:C merge — center+wrap, medium-left, thin-right
+    pub pb_mid_bold: Format, // B24: wie pb_mid + bold
+    pub pb_bot: Format,      // B26: B:C merge (blank) — medium-left+bottom, thin-right
 }
 
 impl SectionStyles {
@@ -689,6 +699,56 @@ impl SectionStyles {
 
         let ft_signature_top = s.left_center.clone().set_border_top(s.border_thin);
 
+        // Pre-Body Section (Rows 22-25)
+        let pb_val = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Center)
+            .set_align(FormatAlign::VerticalCenter)
+            .set_text_wrap()
+            .set_border_top(s.border_medium)
+            .set_border_left(s.border_thin)
+            .set_border_right(s.border_thin);
+
+        let pb_val_bold = pb_val.clone().set_bold();
+
+        let pb_right = pb_val.clone().set_border_right(s.border_medium);
+
+        let pb_lbl_b = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Center)
+            .set_align(FormatAlign::VerticalCenter)
+            .set_text_wrap()
+            .set_border_left(s.border_medium)
+            .set_border_top(s.border_medium);
+
+        let pb_lbl_c = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Center)
+            .set_align(FormatAlign::VerticalCenter)
+            .set_text_wrap()
+            .set_border_top(s.border_medium)
+            .set_border_right(s.border_thin);
+
+        let pb_mid = s
+            .base
+            .clone()
+            .set_align(FormatAlign::Center)
+            .set_align(FormatAlign::VerticalCenter)
+            .set_border_left(s.border_medium)
+            .set_border_right(s.border_thin);
+
+        let pb_mid_bold = pb_mid.clone().set_bold();
+
+        let pb_bot = s
+            .base
+            .clone()
+            .set_border_left(s.border_medium)
+            .set_border_bottom(s.border_thin)
+            .set_border_right(s.border_thin);
+
         Self {
             fmt_top_med,
             fmt_top_right_med,
@@ -749,6 +809,14 @@ impl SectionStyles {
             ft_e_input_bottom,
             ft_signature,
             ft_signature_top,
+            pb_lbl_b,
+            pb_lbl_c,
+            pb_val,
+            pb_val_bold,
+            pb_right,
+            pb_mid,
+            pb_mid_bold,
+            pb_bot,
         }
     }
 }
@@ -1455,6 +1523,29 @@ pub fn extend_format_matrix_with_footer(
 
     // Zeile 20: Funktion (D: Formel)
     m.set(s + 20, 3, &_styles.left_center);
+}
+
+/// Ergänzt die FormatMatrix um Formate für die Pre-Body Section (Rows 22–25)
+///
+/// Muss nach `build_format_matrix` aufgerufen werden, vor `write_prebody_section`.
+pub fn extend_format_matrix_with_prebody(m: &mut FormatMatrix, sec: &SectionStyles) {
+    // Row 22 (Excel 23): Spaltenüberschriften (D–H: vertikale Merge-Heads) + Blanks B/C
+    m.set(22, 1, &sec.pb_lbl_b);    // B23: blank
+    m.set(22, 2, &sec.pb_lbl_c);    // C23: blank
+    m.set(22, 3, &sec.pb_val);      // D23: merge-head D23:D26
+    m.set(22, 4, &sec.pb_val_bold); // E23: merge-head E23:E26 (Ausgaben, bold)
+    m.set(22, 5, &sec.pb_val);      // F23: merge-head F23:F26
+    m.set(22, 6, &sec.pb_val);      // G23: merge-head G23:G26
+    m.set(22, 7, &sec.pb_right);    // H23: merge-head H23:H26 (medium-right)
+
+    // Row 23 (Excel 24): B24:C24 merged (Ausgaben-Zeile, bold)
+    m.set(23, 1, &sec.pb_mid_bold);
+
+    // Row 24 (Excel 25): B25:C25 merged (Währungszeile)
+    m.set(24, 1, &sec.pb_mid);
+
+    // Row 25 (Excel 26): B26:C26 merged blank (thin bottom)
+    m.set(25, 1, &sec.pb_bot);
 }
 
 // ============================================================================

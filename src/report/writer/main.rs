@@ -4,20 +4,18 @@
 
 use super::layout::{self, setup_sheet};
 use super::sections::{
-    write_header_section, write_panel_section, write_prebody_section, write_table_section,
+    write_body_structure_with_values, write_footer, write_footer_values, write_header_section,
+    write_panel_section, write_prebody_section, write_table_section, BodyResult,
 };
 use crate::report::api::{CellValue, ReportValues};
-use crate::report::body::{
-    write_body_structure_with_values, write_footer, write_footer_values, BodyConfig, BodyLayout,
-    BodyResult,
-};
+use crate::report::body::{BodyConfig, BodyLayout};
 use crate::report::core::{build_registry, CellAddr, CellKind, CellRegistry, EvalContext};
 
 // Type alias for complex CellRegistry type
 type DynCellRegistry = CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>;
 use crate::report::format::{
     build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,
-    FormatMatrix, ReportOptions, ReportStyles, SectionStyles,
+    extend_format_matrix_with_prebody, FormatMatrix, ReportOptions, ReportStyles, SectionStyles,
 };
 use rust_xlsxwriter::{Format, Formula, Workbook, Worksheet, XlsxError};
 use std::collections::HashMap;
@@ -49,12 +47,13 @@ fn write_report_with_body(
     let mut fmt = build_format_matrix(styles, &sec);
     extend_format_matrix_with_body(&mut fmt, styles, &body_layout);
     extend_format_matrix_with_footer(&mut fmt, styles, &sec, body_layout.total_row + 3);
+    extend_format_matrix_with_prebody(&mut fmt, &sec);
 
     // 5. Statische Sections schreiben (Layout, Merges, Blanks)
     write_header_section(ws, &fmt, suffix, values.language())?;
     write_table_section(ws, &fmt)?;
     write_panel_section(ws, &fmt, values)?;
-    write_prebody_section(ws, styles, values.language())?;
+    write_prebody_section(ws, &fmt, values.language())?;
 
     // 6. Statische Zellen aus Registry schreiben
     write_cells_from_registry(ws, &registry, &computed, &fmt)?;

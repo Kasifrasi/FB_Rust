@@ -19,7 +19,7 @@ pub use api::{
     register_all_api_cells, ApiKey, Category, CellValue, Currency, DateError, FooterField,
     Language, PositionField, ReportDate, ReportValues,
 };
-pub use body::{BodyConfig, BodyLayout, BodyResult, CategoryMode};
+pub use body::{BodyConfig, BodyLayout, CategoryMode};
 pub use core::{
     build_registry, CellAddr, CellEvaluator, CellKind, CellRegistry, EvalContext, FormulaCache,
     FormulaCell, FormulaCellDeps, FormulaDefinition, FormulaDeps, FormulaType, Inputs,
@@ -32,5 +32,6 @@ pub use format::{
     ValidationTarget,
 };
 pub use writer::{
-    apply_report_options, setup_freeze_panes, setup_sheet, write_report_with_options, MergeRange,
+    apply_report_options, setup_freeze_panes, setup_sheet, write_report_with_options, BodyResult,
+    MergeRange,
 };
