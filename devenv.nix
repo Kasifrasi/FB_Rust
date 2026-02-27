@@ -8,7 +8,7 @@
   ];
 
   # Projekt-Tools im Root
-  packages = [ pkgs.xdg-utils pkgs.flatpak pkgs.flatpak-builder ];
+  packages = [ pkgs.xdg-utils pkgs.flatpak pkgs.flatpak-builder pkgs.cargo-expand ];
 
   # Einfacher Start-Check
   enterShell = ''

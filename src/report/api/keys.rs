@@ -55,7 +55,7 @@ pub enum PositionField {
 }
 
 impl PositionField {
-    /// Gibt die Spalten-Nummer zurück (0-basiert)
+    /// Gibt die Spaltennummer zurück (0-basiert)
     pub const fn col(&self) -> u16 {
         match self {
             Self::Description => 2,  // C
@@ -66,7 +66,7 @@ impl PositionField {
         }
     }
 
-    /// Gibt alle PositionFields zurück
+    /// Gibt alle 5 PositionFields als Array zurück
     pub const fn all() -> [PositionField; 5] {
         [
             Self::Description,
@@ -77,9 +77,9 @@ impl PositionField {
         ]
     }
 
-    /// Gibt alle PositionFields zurück die bei Header-Eingabe (position=0) verfügbar sind
+    /// Gibt alle PositionFields zurück, die bei Header-Eingabe (position=0) verfügbar sind
     ///
-    /// Bei Header-Eingabe ist Description nicht verfügbar (C ist VLOOKUP-Label).
+    /// Bei Header-Eingabe ist `Description` nicht verfügbar (C ist das VLOOKUP-Label).
     pub const fn header_input_fields() -> [PositionField; 4] {
         [
             Self::Approved,
@@ -89,7 +89,7 @@ impl PositionField {
         ]
     }
 
-    /// Prüft ob dieses Feld bei Header-Eingabe (position=0) verfügbar ist
+    /// Prüft, ob dieses Feld bei Header-Eingabe (position=0) verfügbar ist
     pub const fn available_at_header_input(&self) -> bool {
         !matches!(self, Self::Description)
     }
@@ -184,14 +184,14 @@ macro_rules! define_api_cells {
                 }
             }
 
-            /// Prüft ob dieser Key dynamisch ist (Adresse zur Laufzeit)
+            /// Prüft, ob dieser Key eine zur Laufzeit berechnete Adresse hat
             pub const fn is_dynamic(&self) -> bool {
                 matches!(self, Self::Position { .. } | Self::Footer(_))
             }
 
-            /// Gibt alle statischen API-Keys zurück (für Iteration)
+            /// Gibt alle statischen API-Keys als Iterator zurück
             ///
-            /// Position-Keys sind nicht enthalten, da diese dynamisch sind.
+            /// `Position`- und `Footer`-Keys sind nicht enthalten, da diese dynamisch sind.
             pub fn all_static_keys() -> impl Iterator<Item = ApiKey> {
                 let singles = [
                     $( Self::$single_name, )*
@@ -311,12 +311,12 @@ pub enum FooterField {
 }
 
 impl FooterField {
-    /// Gibt alle FooterFields zurück
+    /// Gibt alle 3 FooterFields als Array zurück
     pub const fn all() -> [FooterField; 3] {
         [Self::Bank, Self::Kasse, Self::Sonstiges]
     }
 
-    /// Gibt den Index im input_rows Array zurück
+    /// Gibt den 0-basierten Index im `input_rows`-Array des FooterLayouts zurück
     pub const fn index(&self) -> usize {
         match self {
             Self::Bank => 0,
@@ -325,7 +325,7 @@ impl FooterField {
         }
     }
 
-    /// Spalte (immer E = 4)
+    /// Gibt die Spaltennummer zurück (immer Spalte E = Index 4)
     pub const fn col(&self) -> u16 {
         4 // E-Spalte
     }
