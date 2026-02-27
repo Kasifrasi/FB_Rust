@@ -7,6 +7,9 @@
 //! - `prebody`: Prebody-Bereich (Zeilen 22-26)
 //! - `body`: Dynamischer Body-Bereich (Kostenkategorien)
 //! - `footer`: Footer-Bereich nach dem Body
+//!
+//! Alle Section-Writer schreiben nur Struktur (Merges, Blanks, statische Strings).
+//! Formeln und API-Werte werden einheitlich von `write_cells_from_registry()` geschrieben.
 
 mod body;
 mod footer;
@@ -16,9 +19,8 @@ mod prebody;
 mod table;
 mod utils;
 
-pub use body::{write_body_structure_with_values, BodyResult};
-pub use crate::report::body::FooterLayout;
-pub use footer::{write_footer, write_footer_values};
+pub use body::{write_body_structure, BodyResult};
+pub use footer::write_footer_structure;
 pub use header::write_header_section;
 pub use panel::write_panel_section;
 pub use prebody::write_prebody_section;

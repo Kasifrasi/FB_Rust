@@ -1,97 +1,69 @@
-//! Report Footer Sektion
+//! Report Footer Sektion - Nur Struktur
 //!
-//! Der Footer kommt nach dem dynamischen Body-Bereich mit 3 Zeilen Abstand.
-//! Basiert auf Template Zeilen 164-184.
+//! Schreibt nur statische Strukturelemente (Merges, Blanks).
+//! Alle Formeln (VLOOKUP-Labels, Check/Diff/OK) und API-Werte (Bank, Kasse, Sonstiges)
+//! werden von `write_cells_from_registry()` geschrieben.
 //!
-//! Struktur (21 Zeilen):
-//! - Zeile 0: E: "Saldo für den Berichtszeitraum"
-//! - Zeile 1: B: "ABSCHLUSS"
-//! - Zeile 2: E: Währungs-Referenz (=B13)
-//! - Zeile 3: Leer
-//! - Zeile 4: B: "Saldo...", D: Check ✓, E: Differenz-Formel
-//! - Zeile 5: Leer
-//! - Zeile 6: B: "Saldenabstimmung:", E: OK-Check
-//! - Zeile 7-9: B: "Bank/Kasse/Sonstiges", E: INPUT (API)
-//! - Zeile 10-12: Leer
-//! - Zeile 13: B: Bestätigung 1
-//! - Zeile 14: B: Bestätigung 2
-//! - Zeile 15-18: Leer
-//! - Zeile 19: B: "Ort, Datum...", D: "Unterschrift..."
-//! - Zeile 20: D: "Funktion..."
+//! Struktur (21 Zeilen ab start_row):
+//! - Zeile 0: Blanks B-D, E:E+1 Merge
+//! - Zeile 1: B:D Merge
+//! - Zeile 2: Blanks B-D
+//! - Zeile 3: Blanks B-E
+//! - Zeile 4: Blank C
+//! - Zeile 5: Blanks B-E
+//! - Zeile 6: Blanks C-D
+//! - Zeile 7-8: Blanks C-E
+//! - Zeile 9: Blanks C-E
+//! - Zeile 19: Blank C, Blanks E-G
+//! - Zeile 13,14,19,20: Labels via Registry
 
-use super::utils::{write_blank, write_formula_locked, write_merged_vlookup_formula, write_vlookup_formula};
+use super::utils::write_blank;
 use crate::report::body::FooterLayout;
 use crate::report::format::FormatMatrix;
-use rust_xlsxwriter::{Formula, Worksheet, XlsxError};
+use rust_xlsxwriter::{Worksheet, XlsxError};
 
-/// Schreibt den Report-Footer
+/// Schreibt die Footer-Struktur (nur Merges und Blanks)
 ///
-/// # Arguments
-/// * `ws` - Das Worksheet
-/// * `fmt` - FormatMatrix
-/// * `total_row` - Die Total-Zeile des Body (0-indexed)
-/// * `income_row` - Die Einnahmen-Zeile (Zeile 20, 0-indexed = 19)
-/// * `language` - Die Sprache für VLOOKUP-Evaluierung (z.B. Some("deutsch"))
-/// * `e_income` - E-Spalte Einnahmen (für Check-Formel)
-/// * `e_total` - E-Spalte Total (für Check-Formel)
-/// * `f_income` - F-Spalte Einnahmen (für Check-Formel)
-/// * `f_total` - F-Spalte Total (für Check-Formel)
-/// * `bank` - Bank-Wert (für OK-Formel)
-/// * `kasse` - Kasse-Wert (für OK-Formel)
-/// * `sonstiges` - Sonstiges-Wert (für OK-Formel)
-///
-/// # Returns
-/// Das berechnete Footer-Layout
-#[allow(clippy::too_many_arguments)]
-pub fn write_footer(
+/// Alle Formeln und API-Werte werden von `write_cells_from_registry()` geschrieben.
+pub fn write_footer_structure(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
-    total_row: u32,
-    income_row: u32,
-    language: Option<&str>,
-    e_income: Option<f64>,
-    e_total: Option<f64>,
-    f_income: Option<f64>,
-    f_total: Option<f64>,
-    bank: Option<f64>,
-    kasse: Option<f64>,
-    sonstiges: Option<f64>,
-) -> Result<FooterLayout, XlsxError> {
-    let layout = FooterLayout::compute(total_row);
+    layout: &FooterLayout,
+) -> Result<(), XlsxError> {
     let s = layout.start_row;
 
     // =========================================================================
-    // ZEILE 0 (s): "Kontrolle" / "Saldo für den Berichtszeitraum"
+    // ZEILE 0 (s): Blanks + E:E+1 Merge
     // =========================================================================
 
     write_blank(ws, fmt, s, 1)?;
     write_blank(ws, fmt, s, 2)?;
     write_blank(ws, fmt, s, 3)?;
 
-    // E(s):E(s+1) merged mit VLOOKUP 44 ("Saldo für den Berichtszeitraum")
-    write_merged_vlookup_formula(ws, fmt, s, 4, s + 1, 4, 44, language)?;
+    // E(s):E(s+1) merged (VLOOKUP 44 wird von Registry geschrieben)
+    if let Some(format) = fmt.get_locked(s, 4) {
+        ws.merge_range(s, 4, s + 1, 4, "", &format)?;
+    }
 
     // =========================================================================
-    // ZEILE 1 (s+1): "ABSCHLUSS"
+    // ZEILE 1 (s+1): B:D Merge
     // =========================================================================
 
-    // B:D(s+1) merged mit VLOOKUP 43 ("ABSCHLUSS")
-    write_merged_vlookup_formula(ws, fmt, s + 1, 1, s + 1, 3, 43, language)?;
-    // E ist bereits in merge von oben
+    // B:D(s+1) merged (VLOOKUP 43 wird von Registry geschrieben)
+    if let Some(format) = fmt.get_locked(s + 1, 1) {
+        ws.merge_range(s + 1, 1, s + 1, 3, "", &format)?;
+    }
 
     // =========================================================================
-    // ZEILE 2 (s+2): Währungs-Referenz
+    // ZEILE 2 (s+2): Blanks
     // =========================================================================
 
     write_blank(ws, fmt, s + 2, 1)?;
     write_blank(ws, fmt, s + 2, 2)?;
     write_blank(ws, fmt, s + 2, 3)?;
 
-    // E: VLOOKUP(10) (Währung)
-    write_vlookup_formula(ws, fmt, s + 2, 4, 10, language)?;
-
     // =========================================================================
-    // ZEILE 3 (s+3): Leer
+    // ZEILE 3 (s+3): Blanks
     // =========================================================================
 
     write_blank(ws, fmt, s + 3, 1)?;
@@ -100,48 +72,17 @@ pub fn write_footer(
     write_blank(ws, fmt, s + 3, 4)?;
 
     // =========================================================================
-    // ZEILE 4 (s+4): Saldo-Differenz
+    // ZEILE 4 (s+4): Blank C
     // =========================================================================
 
-    // B: VLOOKUP 45 ("Saldo...")
-    write_vlookup_formula(ws, fmt, s + 4, 1, 45, language)?;
-
+    // B: VLOOKUP 45 via Registry
     // C: blank
     write_blank(ws, fmt, s + 4, 2)?;
-
-    // D: Check-Formel ✓
-    let check_formula_str = format!(
-        "=IF(ROUND(E{},2)=(ROUND(F{}-F{},2)),\"✓\",\"\")",
-        s + 4 + 1,      // E saldo (1-indexed)
-        income_row + 1, // F20 (1-indexed)
-        total_row + 1   // F total (1-indexed)
-    );
-    let check_formula = match (e_income, e_total, f_income, f_total) {
-        (Some(e_inc), Some(e_tot), Some(f_inc), Some(f_tot)) => {
-            let e_diff = (e_inc - e_tot) * 100.0;
-            let f_diff = (f_inc - f_tot) * 100.0;
-            if e_diff.round() == f_diff.round() {
-                Formula::new(&check_formula_str).set_result("✓")
-            } else {
-                Formula::new(&check_formula_str)
-            }
-        }
-        _ => Formula::new(&check_formula_str),
-    };
-    write_formula_locked(ws, fmt, s + 4, 3, check_formula)?;
-
-    // E: Differenz-Formel (E_income - E_total)
-    let diff_formula_str = format!("=E{}-E{}", income_row + 1, total_row + 1);
-    let diff_formula = match (e_income, e_total) {
-        (Some(e_inc), Some(e_tot)) => {
-            Formula::new(&diff_formula_str).set_result((e_inc - e_tot).to_string())
-        }
-        _ => Formula::new(&diff_formula_str),
-    };
-    write_formula_locked(ws, fmt, s + 4, 4, diff_formula)?;
+    // D: Check-Formel via Registry
+    // E: Diff-Formel via Registry
 
     // =========================================================================
-    // ZEILE 5 (s+5): Leer
+    // ZEILE 5 (s+5): Blanks
     // =========================================================================
 
     write_blank(ws, fmt, s + 5, 1)?;
@@ -150,128 +91,51 @@ pub fn write_footer(
     write_blank(ws, fmt, s + 5, 4)?;
 
     // =========================================================================
-    // ZEILE 6 (s+6): Saldenabstimmung
+    // ZEILE 6 (s+6): Blanks C, D
     // =========================================================================
 
-    // B: VLOOKUP 46 ("Saldenabstimmung:")
-    write_vlookup_formula(ws, fmt, s + 6, 1, 46, language)?;
-
-    // C, D: blank
+    // B: VLOOKUP 46 via Registry
     write_blank(ws, fmt, s + 6, 2)?;
     write_blank(ws, fmt, s + 6, 3)?;
-
-    // E: OK-Check
-    let ok_formula_str = format!(
-        "=IF(E{}=SUM(E{}:E{}),\"OK\",\"\")",
-        s + 4 + 1, // saldo row (1-indexed)
-        s + 7 + 1, // bank row (1-indexed)
-        s + 9 + 1  // sonstiges row (1-indexed)
-    );
-    let ok_formula = match (e_income, e_total, bank, kasse, sonstiges) {
-        (Some(e_inc), Some(e_tot), Some(b), Some(k), Some(so)) => {
-            let e_saldo = e_inc - e_tot;
-            let sum_inputs = b + k + so;
-            if (e_saldo * 100.0).round() == (sum_inputs * 100.0).round() {
-                Formula::new(&ok_formula_str).set_result("OK")
-            } else {
-                Formula::new(&ok_formula_str)
-            }
-        }
-        _ => Formula::new(&ok_formula_str),
-    };
-    write_formula_locked(ws, fmt, s + 6, 4, ok_formula)?;
+    // E: OK-Check via Registry
 
     // =========================================================================
-    // ZEILEN 7-8 (s+7 bis s+8): Bank, Kasse
+    // ZEILEN 7-8 (s+7, s+8): Bank, Kasse — Blanks C, D, E(input)
     // =========================================================================
 
-    let vlookup_indices = [47, 48]; // Bank, Kasse
-    for (i, vlookup_idx) in vlookup_indices.iter().enumerate() {
-        let row = s + 7 + i as u32;
-
-        write_vlookup_formula(ws, fmt, row, 1, *vlookup_idx, language)?;
+    for i in 7..=8 {
+        let row = s + i;
+        // B: VLOOKUP via Registry
         write_blank(ws, fmt, row, 2)?;
         write_blank(ws, fmt, row, 3)?;
-        write_blank(ws, fmt, row, 4)?;
+        // E: API-Wert via Registry (Bank/Kasse)
     }
 
     // =========================================================================
-    // ZEILE 9 (s+9): Sonstiges - letzte Zeile mit bottom border
+    // ZEILE 9 (s+9): Sonstiges — Blanks C, D, E(input)
     // =========================================================================
 
-    write_vlookup_formula(ws, fmt, s + 9, 1, 49, language)?;
+    // B: VLOOKUP 49 via Registry
     write_blank(ws, fmt, s + 9, 2)?;
     write_blank(ws, fmt, s + 9, 3)?;
-    write_blank(ws, fmt, s + 9, 4)?;
+    // E: API-Wert via Registry (Sonstiges)
 
     // =========================================================================
-    // ZEILE 13 (s+13): Bestätigung 1
+    // ZEILE 19 (s+19): Unterschriften — Blank C, Blanks E-G
     // =========================================================================
 
-    write_vlookup_formula(ws, fmt, s + 13, 1, 50, language)?;
-
-    // =========================================================================
-    // ZEILE 14 (s+14): Bestätigung 2
-    // =========================================================================
-
-    write_vlookup_formula(ws, fmt, s + 14, 1, 54, language)?;
-
-    // =========================================================================
-    // ZEILE 19 (s+19): Unterschriften
-    // =========================================================================
-
-    write_vlookup_formula(ws, fmt, s + 19, 1, 51, language)?;
+    // B: VLOOKUP 51 via Registry
     write_blank(ws, fmt, s + 19, 2)?;
-    write_vlookup_formula(ws, fmt, s + 19, 3, 52, language)?;
+    // D: VLOOKUP 52 via Registry
 
     for col in 4..=6 {
         write_blank(ws, fmt, s + 19, col)?;
     }
 
-    // =========================================================================
-    // ZEILE 20 (s+20): Funktion
-    // =========================================================================
-
-    write_vlookup_formula(ws, fmt, s + 20, 3, 53, language)?;
-
-    Ok(layout)
-}
-
-/// Schreibt die Footer Input-Werte (Bank, Kasse, Sonstiges)
-pub fn write_footer_values(
-    ws: &mut Worksheet,
-    layout: &FooterLayout,
-    fmt: &FormatMatrix,
-    bank: Option<f64>,
-    kasse: Option<f64>,
-    sonstiges: Option<f64>,
-) -> Result<(), XlsxError> {
-    let s = layout.start_row;
-
-    // Bank (E, Zeile 7)
-    if let Some(value) = bank {
-        if let Some(format) = fmt.get(s + 7, 4) {
-            ws.write_number_with_format(s + 7, 4, value, format)?;
-        }
-    }
-
-    // Kasse (E, Zeile 8)
-    if let Some(value) = kasse {
-        if let Some(format) = fmt.get(s + 8, 4) {
-            ws.write_number_with_format(s + 8, 4, value, format)?;
-        }
-    }
-
-    // Sonstiges (E, Zeile 9)
-    if let Some(value) = sonstiges {
-        if let Some(format) = fmt.get(s + 9, 4) {
-            ws.write_number_with_format(s + 9, 4, value, format)?;
-        }
-    }
+    // ZEILE 20 (s+20): D VLOOKUP 53 via Registry — keine Blanks nötig
 
     Ok(())
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -279,14 +143,13 @@ mod tests {
 
     #[test]
     fn test_footer_layout_compute() {
-        // Total in Zeile 100 (0-indexed)
         let layout = FooterLayout::compute(100);
 
-        assert_eq!(layout.start_row, 103); // 100 + 3
-        assert_eq!(layout.saldo_row, 107); // 103 + 4
-        assert_eq!(layout.input_rows[0], 110); // Bank: 103 + 7
-        assert_eq!(layout.input_rows[1], 111); // Kasse: 103 + 8
-        assert_eq!(layout.input_rows[2], 112); // Sonstiges: 103 + 9
-        assert_eq!(layout.end_row, 123); // 103 + 20
+        assert_eq!(layout.start_row, 103);
+        assert_eq!(layout.saldo_row, 107);
+        assert_eq!(layout.input_rows[0], 110);
+        assert_eq!(layout.input_rows[1], 111);
+        assert_eq!(layout.input_rows[2], 112);
+        assert_eq!(layout.end_row, 123);
     }
 }

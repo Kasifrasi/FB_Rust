@@ -4,11 +4,13 @@
 
 use super::layout::{self, setup_sheet};
 use super::sections::{
-    write_body_structure_with_values, write_footer, write_footer_values, write_header_section,
-    write_panel_section, write_prebody_section, write_table_section, BodyResult,
+    write_body_structure, write_footer_structure, write_header_section, write_panel_section,
+    write_prebody_section, write_table_section, BodyResult,
 };
 use crate::report::api::{CellValue, ReportValues};
-use crate::report::body::{BodyConfig, BodyLayout};
+use crate::report::body::{
+    register_body_formulas, register_footer_formulas, BodyConfig, BodyLayout, FooterLayout,
+};
 use crate::report::core::{build_registry, CellAddr, CellKind, CellRegistry, EvalContext};
 
 // Type alias for complex CellRegistry type
@@ -32,76 +34,62 @@ fn write_report_with_body(
     // Standardwert für Formel-Ergebnisse auf "" setzen (statt 0)
     ws.set_formula_result_default("");
 
-    // 1. Registry erstellen (für statischen Bereich)
-    let registry = build_registry()
+    // 1. Registry erstellen (statische Zellen)
+    let mut registry = build_registry()
         .map_err(|e| XlsxError::ParameterError(format!("Registry error: {}", e)))?;
 
-    // 2. Body-Layout berechnen
+    // 2. Layouts berechnen
     let body_layout = BodyLayout::compute(body_config);
+    let footer_layout = FooterLayout::compute(body_layout.total_row);
+    let income_row = 19u32;
 
-    // 3. Alle statischen Zellen evaluieren
-    let computed = evaluate_all_cells(&registry, values);
+    // 3. Dynamische Registrierung (Body + Footer Formeln + API-Zellen)
+    register_body_formulas(&mut registry, &body_layout)
+        .map_err(|e| XlsxError::ParameterError(format!("Body registry error: {}", e)))?;
+    register_footer_formulas(&mut registry, &footer_layout, income_row)
+        .map_err(|e| XlsxError::ParameterError(format!("Footer registry error: {}", e)))?;
 
-    // 4. FormatMatrix vollständig aufbauen (statisch + body + footer)
+    // 4. Alle Zellen evaluieren (statisch + dynamisch, topologisch sortiert)
+    let computed = evaluate_all_cells(&registry, values)?;
+
+    // 5. FormatMatrix vollständig aufbauen (statisch + body + footer)
     let sec = SectionStyles::new(styles);
     let mut fmt = build_format_matrix(styles, &sec);
     extend_format_matrix_with_body(&mut fmt, styles, &body_layout);
-    extend_format_matrix_with_footer(&mut fmt, styles, &sec, body_layout.total_row + 3);
+    extend_format_matrix_with_footer(&mut fmt, styles, &sec, footer_layout.start_row);
     extend_format_matrix_with_prebody(&mut fmt, &sec);
 
-    // 5. Statische Sections schreiben (Layout, Merges, Blanks)
+    // 6. Alle Sections schreiben (nur Struktur: Merges, Blanks, statische Strings)
     write_header_section(ws, &fmt, suffix, values.language())?;
     write_table_section(ws, &fmt)?;
     write_panel_section(ws, &fmt)?;
     write_prebody_section(ws, &fmt)?;
+    write_body_structure(ws, &fmt, &body_layout)?;
+    write_footer_structure(ws, &fmt, &footer_layout)?;
 
-    // 6. Statische Zellen aus Registry schreiben
+    // 7. ALLE Zellen aus Registry schreiben (Formeln + API-Werte)
     write_cells_from_registry(ws, &registry, &computed, &fmt)?;
 
-    // 7. Dynamischen Body schreiben (mit API-Werten)
-    let body_result = write_body_structure_with_values(ws, &fmt, &body_layout, Some(values))?;
-
-    // 8. Footer schreiben (3 Zeilen nach Total)
-    // income_row = 19 (0-indexed, Zeile 20 in Excel)
-    let income_row = 19u32;
-
-    // E20 und F20 (Einnahmen-Summe) aus computed holen für Check-Formel Evaluierung
-    let e_income = computed
-        .get(&CellAddr::new(19, 4))
-        .and_then(|v| v.as_number());
-    let f_income = computed
-        .get(&CellAddr::new(19, 5))
-        .and_then(|v| v.as_number());
-
-    let footer_layout = write_footer(
-        ws,
-        &fmt,
-        body_result.layout.total_row,
-        income_row,
-        values.language(),
-        e_income,
-        body_result.e_total,
-        f_income,
-        body_result.f_total,
-        values.footer_bank(),
-        values.footer_kasse(),
-        values.footer_sonstiges(),
-    )?;
-
-    // 9. Footer-Werte schreiben (Bank, Kasse, Sonstiges)
-    write_footer_values(
-        ws,
-        &footer_layout,
-        &fmt,
-        values.footer_bank(),
-        values.footer_kasse(),
-        values.footer_sonstiges(),
-    )?;
-
-    // 10. Freeze Pane
+    // 8. Freeze Pane
     layout::setup_freeze_panes(ws, 9)?;
 
-    Ok(body_result)
+    // BodyResult aus computed
+    let last_row = body_layout.last_row;
+    let total_row = body_layout.total_row;
+    let e_total = computed
+        .get(&CellAddr::new(total_row, 4))
+        .and_then(|v| v.as_number());
+    let f_total = computed
+        .get(&CellAddr::new(total_row, 5))
+        .and_then(|v| v.as_number());
+
+    Ok(BodyResult {
+        layout: body_layout,
+        last_row,
+        total_row,
+        e_total,
+        f_total,
+    })
 }
 
 /// Schreibt den kompletten Finanzbericht MIT dynamischem Body-Bereich UND Optionen
@@ -352,10 +340,13 @@ fn apply_row_grouping(
 }
 
 /// Evaluates all cells and returns computed values.
+///
+/// Verwendet topologische Sortierung (Kahn's Algorithmus) um sicherzustellen,
+/// dass Formel-Dependencies vor ihren Abhängigen evaluiert werden.
 fn evaluate_all_cells(
     registry: &DynCellRegistry,
     values: &ReportValues,
-) -> HashMap<CellAddr, CellValue> {
+) -> Result<HashMap<CellAddr, CellValue>, XlsxError> {
     let mut computed: HashMap<CellAddr, CellValue> = HashMap::new();
 
     // 1. API-Werte eintragen
@@ -367,12 +358,11 @@ fn evaluate_all_cells(
     }
 
     // 2. Formeln evaluieren (in topologischer Reihenfolge)
-    // Da wir keine Zyklen haben, können wir einfach alle Formeln durchgehen
-    // Die Registry stellt sicher, dass Dependencies bereits berechnet sind
-    let mut formula_addrs: Vec<CellAddr> = registry.formula_cells().iter().copied().collect();
-    formula_addrs.sort(); // Sortiere nach Adresse für konsistente Reihenfolge
+    let eval_order = registry
+        .get_eval_order()
+        .map_err(|e| XlsxError::ParameterError(format!("Eval order error: {}", e)))?;
 
-    for addr in formula_addrs {
+    for addr in eval_order {
         if let Some(CellKind::Formula(f)) = registry.get(addr) {
             let ctx = EvalContext {
                 computed: &computed,
@@ -383,7 +373,7 @@ fn evaluate_all_cells(
         }
     }
 
-    computed
+    Ok(computed)
 }
 
 /// Holt API-Wert aus ReportValues
@@ -400,12 +390,10 @@ fn write_cells_from_registry(
     computed: &HashMap<CellAddr, CellValue>,
     fmt: &FormatMatrix,
 ) -> Result<(), XlsxError> {
-    // 1. API-Zellen schreiben (mit ihren berechneten Werten)
+    // 1. API-Zellen schreiben (mit ihren berechneten Werten, auch leere als Blanks)
     for addr in registry.api_cells() {
         if let Some(value) = computed.get(addr) {
-            if !value.is_empty() {
-                write_cell_value(ws, *addr, value, fmt)?;
-            }
+            write_cell_value(ws, *addr, value, fmt)?;
         }
     }
 
