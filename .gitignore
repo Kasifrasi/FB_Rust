@@ -11,6 +11,11 @@ Cargo.lock
 *.swo
 *~
 .DS_Store
+.direnv/
+.devenv/
+.claude/
+.venv
+
 
 # OS
 .DS_Store
