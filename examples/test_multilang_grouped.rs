@@ -2,8 +2,8 @@
 //!
 //! Erstellt Reports in allen 5 Sprachen mit:
 //! - Bauausgaben: 20 Positionen (letzte 15 gruppiert)
-//! - Einmalige Ausgaben: 20 Positionen (letzte 15 gruppiert)
-//! - Personalkosten: 30 Positionen (letzte 18 gruppiert)
+//! - Investitionen: 20 Positionen (letzte 15 gruppiert)
+//! - Personalausgaben: 30 Positionen (letzte 18 gruppiert)
 //! - Projektaktivitäten: 30 Positionen (letzte 18 gruppiert)
 //! - Projektverwaltung: 20 Positionen (letzte 15 gruppiert)
 //! - Evaluierung: 0 Positionen (nur Header)

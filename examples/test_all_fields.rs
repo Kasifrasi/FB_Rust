@@ -116,26 +116,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Kostenpositionen — E = F überall
         // =====================================================================
         positions: vec![
-            // Kategorie 1: Personalkosten (5 Positionen) — Summe D=48000, E=F=24000
+            // Kategorie 1: Bauausgaben (5 Positionen) — Summe D=48000, E=F=24000
             PositionEntry { category: 1, position: 1, description: Some("Projektleitung".to_string()), approved: Some(18000.0), income_report: Some(9000.0), income_total: Some(9000.0), remark: Some("6 Monate".to_string()) },
             PositionEntry { category: 1, position: 2, description: Some("Buchhaltung".to_string()), approved: Some(12000.0), income_report: Some(6000.0), income_total: Some(6000.0), remark: Some("Teilzeit".to_string()) },
             PositionEntry { category: 1, position: 3, description: Some("Lokale Fachkräfte".to_string()), approved: Some(8000.0), income_report: Some(4000.0), income_total: Some(4000.0), remark: Some("2 Mitarbeiter".to_string()) },
             PositionEntry { category: 1, position: 4, description: Some("Sozialabgaben".to_string()), approved: Some(6000.0), income_report: Some(3000.0), income_total: Some(3000.0), remark: Some("AG-Anteile".to_string()) },
             PositionEntry { category: 1, position: 5, description: Some("Honorare Trainer".to_string()), approved: Some(4000.0), income_report: Some(2000.0), income_total: Some(2000.0), remark: Some("3 Workshops".to_string()) },
-            // Kategorie 2: Reisekosten (3 Positionen) — Summe D=9500, E=F=4750
+            // Kategorie 2: Investitionen (3 Positionen) — Summe D=9500, E=F=4750
             PositionEntry { category: 2, position: 1, description: Some("Flüge International".to_string()), approved: Some(5000.0), income_report: Some(2500.0), income_total: Some(2500.0), remark: Some("2 Dienstreisen".to_string()) },
             PositionEntry { category: 2, position: 2, description: Some("Unterkunft/Verpflegung".to_string()), approved: Some(3000.0), income_report: Some(1500.0), income_total: Some(1500.0), remark: Some("Tagessätze".to_string()) },
             PositionEntry { category: 2, position: 3, description: Some("Lokale Transporte".to_string()), approved: Some(1500.0), income_report: Some(750.0), income_total: Some(750.0), remark: Some("Projektfahrten".to_string()) },
-            // Kategorie 3: Sachkosten (4 Positionen) — Summe D=11800, E=F=5900
+            // Kategorie 3: Personalausgaben (4 Positionen) — Summe D=11800, E=F=5900
             PositionEntry { category: 3, position: 1, description: Some("Büromaterial".to_string()), approved: Some(2000.0), income_report: Some(1000.0), income_total: Some(1000.0), remark: Some("Verbrauchsmaterial".to_string()) },
             PositionEntry { category: 3, position: 2, description: Some("Lehrmaterialien".to_string()), approved: Some(5000.0), income_report: Some(2500.0), income_total: Some(2500.0), remark: Some("Schulbücher + Hefte".to_string()) },
             PositionEntry { category: 3, position: 3, description: Some("Miete Schulungsraum".to_string()), approved: Some(3600.0), income_report: Some(1800.0), income_total: Some(1800.0), remark: Some("6 Monate".to_string()) },
             PositionEntry { category: 3, position: 4, description: Some("Kommunikation".to_string()), approved: Some(1200.0), income_report: Some(600.0), income_total: Some(600.0), remark: Some("Internet + Telefon".to_string()) },
-            // Kategorie 4: Investitionen (3 Positionen) — Summe D=10500, E=F=10500
+            // Kategorie 4: Projektaktivitäten (3 Positionen) — Summe D=10500, E=F=10500
             PositionEntry { category: 4, position: 1, description: Some("Laptops".to_string()), approved: Some(6000.0), income_report: Some(6000.0), income_total: Some(6000.0), remark: Some("4 Stück angeschafft".to_string()) },
             PositionEntry { category: 4, position: 2, description: Some("Beamer".to_string()), approved: Some(1500.0), income_report: Some(1500.0), income_total: Some(1500.0), remark: Some("1 Stück".to_string()) },
             PositionEntry { category: 4, position: 3, description: Some("Mobiliar".to_string()), approved: Some(3000.0), income_report: Some(3000.0), income_total: Some(3000.0), remark: Some("Tische + Stühle".to_string()) },
-            // Kategorie 5: Fortbildung (2 Positionen) — Summe D=6000, E=F=3000
+            // Kategorie 5: Projektverwaltung (2 Positionen) — Summe D=6000, E=F=3000
             PositionEntry { category: 5, position: 1, description: Some("Lehrerfortbildung".to_string()), approved: Some(4000.0), income_report: Some(2000.0), income_total: Some(2000.0), remark: Some("2 Seminare".to_string()) },
             PositionEntry { category: 5, position: 2, description: Some("Supervision".to_string()), approved: Some(2000.0), income_report: Some(1000.0), income_total: Some(1000.0), remark: Some("Quartalstreffen".to_string()) },
             // Kategorien 6-8: Header-Eingabe (position = 0)

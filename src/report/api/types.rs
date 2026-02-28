@@ -201,19 +201,19 @@ impl Default for Currency {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Category {
-    /// Kategorie 1: Personalkosten
+    /// Kategorie 1: Bauausgaben
     Bauausgaben = 1,
-    /// Kategorie 2: Sachkosten
+    /// Kategorie 2: Investitionen
     Investitionen = 2,
-    /// Kategorie 3: Reisekosten
+    /// Kategorie 3: Personalausgaben
     Personalausgaben = 3,
-    /// Kategorie 4: Investitionen
+    /// Kategorie 4: Projektaktivitäten
     Projektaktivitaeten = 4,
-    /// Kategorie 5: Sonstige Kosten
+    /// Kategorie 5: Projektverwaltung
     Projektverwaltung = 5,
-    /// Kategorie 6: Projektverwaltung
+    /// Kategorie 6: Evaluierung
     Evaluierung = 6,
-    /// Kategorie 7: Evaluierung/Audit
+    /// Kategorie 7: Audit
     Audit = 7,
     /// Kategorie 8: Reserve
     Reserve = 8,
