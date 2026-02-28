@@ -1,10 +1,11 @@
-//! Formel-Definitionen und Auswertung für den Finanzbericht
+//! Formel-Typen, Auswertung und Cache für den Finanzbericht
 //!
-//! Jede Formel deklariert:
-//! - Ihre Zelladresse
-//! - Die Abhängigkeiten (welche Zellen sie benötigt)
-//! - Die Excel-Formel (für die Datei)
-//! - Die Rust-Evaluierungsfunktion (für Berechnungen)
+//! Enthält:
+//! - [`FormulaDefinition`]: Zelladresse + Excel-Formel + Rust-Evaluator + Abhängigkeiten
+//! - [`FormulaType`]: Enum aller Formelarten (TextLookup, Division, SumRange, …)
+//! - [`FormulaCache`]: Cache für berechnete Formelwerte
+//! - [`HEADER_FORMULAS`]: Statische Liste der Header-Formeln (Zeilen 0–30)
+//! - `evaluate_formula()`: Ausführung einer [`FormulaDefinition`] mit gegebenem Kontext
 
 use super::registry::CellAddr;
 use crate::lang::data::TEXT_MATRIX;

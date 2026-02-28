@@ -3,9 +3,9 @@
 //! ## Module Structure
 //!
 //! - `api`: Public API types (ApiKey, Language, Currency, ReportValues, etc.)
-//! - `core`: Internal logic (Registry, Formulas, Cells)
+//! - `core`: Formula engine (CellRegistry, CellAddr, topological evaluation)
 //! - `format`: Styles and protection (ReportStyles, FormatMatrix, SheetProtection)
-//! - `writer`: Excel writer (write_report_with_options, layout, sections)
+//! - `writer`: Excel writer (write_report_with_options, create_protected_report)
 //! - `body`: Dynamic cost position sections
 
 pub mod api;

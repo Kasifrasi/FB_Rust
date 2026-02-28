@@ -23,11 +23,9 @@ cargo run --example benchmark --release
 
 ```rust
 use kmw_fb_rust::{
-    write_report_with_body, ApiKey, BodyConfig, ReportValues, ReportStyles
+    create_protected_report, BodyConfig, ReportOptions, ReportStyles, ReportValues,
 };
 
-let mut workbook = rust_xlsxwriter::Workbook::new();
-let ws = workbook.add_worksheet();
 let styles = ReportStyles::new();
 
 let mut values = ReportValues::new()
@@ -44,28 +42,28 @@ let body_config = BodyConfig::new()
     .with_positions(7, 0)
     .with_positions(8, 0);
 
-write_report_with_body(ws, &styles, "_de", &values, &body_config)?;
-workbook.save("report.xlsx")?;
+let options = ReportOptions::default();
+
+create_protected_report("report.xlsx", &styles, &values, &body_config, &options)?;
 ```
 
 ## Project Structure
 
 ```
 src/
-├── lib.rs              Entry point
-├── common.rs           Shared utilities
-├── lang/               Language support
+├── lib.rs                  Public re-exports and crate documentation
+├── lang/                   Language data (TEXT_MATRIX, CURRENCIES) and sheet builder
 ├── report/
-│   ├── api.rs          Public API (ApiKey, ReportValues)
-│   ├── registry.rs     Formula management
-│   ├── writer.rs       Main write functions
-│   ├── body/           Dynamic position sections
-│   └── sections/       Static sections
-└── tests/              Unit tests
+│   ├── api/                Public API types (ApiKey, ReportValues, Language, Currency, …)
+│   ├── core/               Formula engine (CellRegistry, CellAddr, topological evaluation)
+│   ├── format/             Styles, FormatMatrix, SheetProtection, validation rules
+│   ├── body/               Domain model (BodyConfig, BodyLayout, FooterLayout, formulas)
+│   └── writer/             Excel writing (main.rs, layout.rs, structure.rs)
+└── workbook_protection/    ZIP-level workbook structure lock (SHA-512)
 
 examples/
-├── benchmark.rs        Performance benchmarking
-└── test_multilang.rs   Multi-language example
+├── benchmark.rs            Performance benchmarking
+└── test_multilang.rs       Multi-language example
 ```
 
 ## API
@@ -78,7 +76,7 @@ values.set(ApiKey::Currency, "EUR");
 values.set(ApiKey::ApprovedBudget(0), 50000.0);
 values.set_position_row(category, position, description, approved, reported, total, remark);
 values.set_header_input(category, approved, reported, total, remark);
-values.set_footer_bank(10000.0);
+values.with_footer_bank(10000.0);
 ```
 
 ### BodyConfig

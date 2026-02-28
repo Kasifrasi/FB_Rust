@@ -250,7 +250,14 @@ impl SheetProtection {
 /// ```ignore
 /// use kmw_fb_rust::WorkbookProtection;
 ///
+/// // Standard (100.000 Iterationen, ~25ms pro Report)
 /// let protection = WorkbookProtection::new("secret123");
+///
+/// // Schnell (1.000 Iterationen, ~0.3ms pro Report)
+/// let fast = WorkbookProtection::fast("secret123");
+///
+/// // Benutzerdefiniert
+/// let custom = WorkbookProtection::new("secret123").with_spin_count(10_000);
 /// ```
 #[derive(Debug, Clone)]
 pub struct WorkbookProtection {
@@ -258,17 +265,46 @@ pub struct WorkbookProtection {
     pub password: String,
     /// Lock structure (prevent sheet add/delete/move/rename)
     pub lock_structure: bool,
+    /// SHA-512 Iteration count (higher = slower but more secure)
+    ///
+    /// - `100_000` (Standard): ECMA-376 konform, ~25ms pro Report
+    /// - `1_000` (Fast): Hält Gelegenheitsnutzer ab, ~0.3ms pro Report
+    pub spin_count: u32,
 }
+
+/// Standard spin count (ECMA-376 konform)
+const DEFAULT_SPIN_COUNT: u32 = 100_000;
+/// Schneller spin count (ausreichend gegen Gelegenheitsnutzer)
+const FAST_SPIN_COUNT: u32 = 1_000;
 
 impl WorkbookProtection {
     /// Creates new workbook protection with the given password
     ///
-    /// By default, `lock_structure` is set to `true`.
+    /// Uses the standard ECMA-376 spin count of 100.000 iterations.
     pub fn new(password: impl Into<String>) -> Self {
         Self {
             password: password.into(),
             lock_structure: true,
+            spin_count: DEFAULT_SPIN_COUNT,
         }
+    }
+
+    /// Creates fast workbook protection (1.000 iterations instead of 100.000)
+    ///
+    /// ~80x schneller als `new()`. Ausreichend um Gelegenheitsnutzer abzuhalten,
+    /// aber nicht sicher gegen gezielte Brute-Force-Angriffe.
+    pub fn fast(password: impl Into<String>) -> Self {
+        Self {
+            password: password.into(),
+            lock_structure: true,
+            spin_count: FAST_SPIN_COUNT,
+        }
+    }
+
+    /// Sets a custom spin count for SHA-512 hashing
+    pub fn with_spin_count(mut self, count: u32) -> Self {
+        self.spin_count = count;
+        self
     }
 
     /// Sets whether to lock workbook structure
@@ -980,9 +1016,15 @@ impl ReportOptions {
         self
     }
 
-    /// Sets workbook protection (structure lock)
+    /// Sets workbook protection (structure lock, standard 100.000 Iterationen)
     pub fn with_workbook_protection(mut self, password: impl Into<String>) -> Self {
         self.workbook_protection = Some(WorkbookProtection::new(password));
+        self
+    }
+
+    /// Sets fast workbook protection (1.000 statt 100.000 Iterationen, ~80x schneller)
+    pub fn with_workbook_protection_fast(mut self, password: impl Into<String>) -> Self {
+        self.workbook_protection = Some(WorkbookProtection::fast(password));
         self
     }
 

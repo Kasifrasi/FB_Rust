@@ -1,11 +1,10 @@
 //! Kern-Logik für die Formel-Evaluierung
 //!
 //! Dieses Modul enthält die interne Logik:
-//! - `registry`: CellRegistry mit topologischer Sortierung
-//! - `cells`: CellAddress für Zelladressen
-//! - `definitions`: Registry-Builder und VLOOKUP-Funktionen
-//! - `formulas`: Formel-Evaluierung und Caching
-//! - `dynamic`: Dynamische Sections (für Body)
+//! - `registry`: `CellRegistry`, `CellAddr` — zentrale Zellverwaltung mit topologischer Sortierung
+//! - `definitions`: `build_registry()` — Registry-Builder und VLOOKUP-Evaluierung
+//! - `formulas`: `FormulaDefinition`, `FormulaCache` — Formeltypen und Cache
+//! - `dynamic`: `DynamicRegistry` — Infrastruktur für variable Sektionen
 
 mod definitions;
 mod dynamic;

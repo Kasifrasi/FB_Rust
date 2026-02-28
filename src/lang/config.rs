@@ -1,14 +1,25 @@
+//! Sprachkonfiguration für alle unterstützten Sprachen
+//!
+//! Definiert [`LanguageConfig`] mit den sprachspezifischen Sheet-Namen und
+//! Fehlermeldungen sowie die statischen Maps [`LANG_CONFIG`] und [`LANG_SUFFIXES`].
+
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
+/// Sprachspezifische Konfiguration für Sheet-Namen und Fehlermeldungen
 #[derive(Debug, Clone)]
 pub struct LanguageConfig {
+    /// Basisname für generierte Dateinamen (z.B. `"D_Finanzbericht"`)
     pub base: &'static str,
+    /// Sprachcode wie er in TEXT_MATRIX steht (z.B. `"deutsch"`)
     pub lang_val: &'static str,
+    /// Lokalisierter Sheet-Name (z.B. `"Finanzbericht"`)
     pub fb_sheet: &'static str,
+    /// Fehlermeldung für Dezimalstellen-Validierung in der jeweiligen Sprache
     pub decimal_err: &'static str,
 }
 
+/// Sprachkonfiguration, indiziert nach deutschem Sprachnamen (z.B. `"Deutsch"`, `"Englisch"`)
 pub static LANG_CONFIG: Lazy<HashMap<&'static str, LanguageConfig>> = Lazy::new(|| {
     HashMap::from([
         (
@@ -59,6 +70,7 @@ pub static LANG_CONFIG: Lazy<HashMap<&'static str, LanguageConfig>> = Lazy::new(
     ])
 });
 
+/// Dateiname-Suffixe pro Sprache (z.B. `"Deutsch"` → `"_de"`)
 pub static LANG_SUFFIXES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
     HashMap::from([
         ("Deutsch", "_de"),

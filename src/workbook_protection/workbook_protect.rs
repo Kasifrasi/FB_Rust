@@ -11,7 +11,7 @@ use std::io::{Cursor, Read, Write};
 use zip::write::FileOptions;
 use zip::{ZipArchive, ZipWriter};
 
-const SPIN_COUNT: u32 = 100_000;
+const DEFAULT_SPIN_COUNT: u32 = 100_000;
 const SALT_SIZE: usize = 16;
 
 /// Schützt die Arbeitsmappenstruktur einer existierenden Excel-Datei mit einem Passwort.
@@ -19,11 +19,29 @@ const SALT_SIZE: usize = 16;
 /// Dies verhindert, dass Benutzer Blätter hinzufügen, löschen, verschieben oder umbenennen.
 /// Die Implementierung folgt dem ECMA-376 Standard (Agile Encryption mit SHA-512).
 ///
+/// Verwendet den Standard spin count von 100.000 Iterationen.
+///
 /// # Argumente
 /// * `input_path` - Pfad zur ungeschützten .xlsx Datei
 /// * `output_path` - Pfad, wo die geschützte Datei gespeichert werden soll
 /// * `password` - Das zu setzende Passwort
 pub fn protect_workbook(input_path: &str, output_path: &str, password: &str) -> Result<()> {
+    protect_workbook_with_spin_count(input_path, output_path, password, DEFAULT_SPIN_COUNT)
+}
+
+/// Schützt die Arbeitsmappenstruktur mit konfigurierbarem spin count.
+///
+/// # Argumente
+/// * `input_path` - Pfad zur ungeschützten .xlsx Datei
+/// * `output_path` - Pfad, wo die geschützte Datei gespeichert werden soll
+/// * `password` - Das zu setzende Passwort
+/// * `spin_count` - Anzahl SHA-512 Iterationen (höher = sicherer aber langsamer)
+pub fn protect_workbook_with_spin_count(
+    input_path: &str,
+    output_path: &str,
+    password: &str,
+    spin_count: u32,
+) -> Result<()> {
     let file = File::open(input_path).context("Konnte Input-Datei nicht öffnen")?;
     let mut archive = ZipArchive::new(file).context("Konnte ZIP-Archiv nicht lesen")?;
 
@@ -31,7 +49,7 @@ pub fn protect_workbook(input_path: &str, output_path: &str, password: &str) -> 
     let mut zip_writer = ZipWriter::new(out_file);
 
     // Passwort-Hash berechnen
-    let (salt_b64, hash_b64) = hash_password(password);
+    let (salt_b64, hash_b64) = hash_password(password, spin_count);
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
@@ -48,7 +66,7 @@ pub fn protect_workbook(input_path: &str, output_path: &str, password: &str) -> 
 
         if name == "xl/workbook.xml" {
             // workbook.xml manipulieren, um workbookProtection einzufügen
-            let new_xml = inject_protection(&content, &salt_b64, &hash_b64)?;
+            let new_xml = inject_protection(&content, &salt_b64, &hash_b64, spin_count)?;
             zip_writer.write_all(&new_xml)?;
         } else {
             zip_writer.write_all(&content)?;
@@ -64,8 +82,8 @@ pub fn protect_workbook(input_path: &str, output_path: &str, password: &str) -> 
 /// Ablauf:
 /// 1. Salt generieren (16 Bytes)
 /// 2. H0 = SHA512(Salt + Password(UTF-16LE))
-/// 3. Loop 100.000x: H(n) = SHA512(H(n-1) + Iterator(4 Bytes LE))
-fn hash_password(password: &str) -> (String, String) {
+/// 3. Loop `spin_count` times: H(n) = SHA512(H(n-1) + Iterator(4 Bytes LE))
+fn hash_password(password: &str, spin_count: u32) -> (String, String) {
     let mut rng = rand::thread_rng();
     let mut salt = [0u8; SALT_SIZE];
     rng.fill_bytes(&mut salt);
@@ -80,7 +98,7 @@ fn hash_password(password: &str) -> (String, String) {
     hasher.update(&pw_utf16);
     let mut hash = hasher.finalize();
 
-    for i in 0..SPIN_COUNT {
+    for i in 0..spin_count {
         let mut iterator = [0u8; 4];
         let mut wtr = &mut iterator[..];
         wtr.write_u32::<LE>(i).unwrap();
@@ -101,7 +119,7 @@ fn hash_password(password: &str) -> (String, String) {
 ///
 /// Beachtet dabei die strikte XSD-Reihenfolge:
 /// Das Element muss VOR <bookViews> oder <sheets> eingefügt werden.
-fn inject_protection(xml_content: &[u8], salt: &str, hash: &str) -> Result<Vec<u8>> {
+fn inject_protection(xml_content: &[u8], salt: &str, hash: &str, spin_count: u32) -> Result<Vec<u8>> {
     let mut reader = Reader::from_reader(xml_content);
     reader.trim_text(false);
 
@@ -111,7 +129,7 @@ fn inject_protection(xml_content: &[u8], salt: &str, hash: &str) -> Result<Vec<u
 
     let protection_elem_str = format!(
         r#"<workbookProtection lockStructure="1" workbookAlgorithmName="SHA-512" workbookHashValue="{}" workbookSaltValue="{}" workbookSpinCount="{}"/>"#,
-        hash, salt, SPIN_COUNT
+        hash, salt, spin_count
     );
 
     loop {

@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .set_font_name("Arial")
             .set_font_size(10.0)
             .set_unlocked();
-        for col in 0..1000u16 {
+        for col in 0..22u16 {
             ws.set_column_format(col, &unlocked).ok();
         }
 

@@ -26,10 +26,7 @@ pub fn build_sheet_with_visibility(workbook: &mut Workbook, hidden: bool) -> Res
         ws.write_string_with_format(row_idx as u32, 0, *currency, &arial)?;
     }
 
-    // Columns B onwards (1+): Text Matrix (Languages)
-    // Each row in TEXT_MATRIX corresponds to a language (Deutsch, English, etc.)
-    // Each item in the inner vector corresponds to a translated term.
-    // We map TEXT_MATRIX[lang_idx][term_idx] to Sheet[Row = lang_idx][Col = term_idx + 1]
+    // Columns B onwards: TEXT_MATRIX[lang_idx][term_idx] → Sheet[lang_idx][term_idx + 1]
     for (row_idx, row) in TEXT_MATRIX.iter().enumerate() {
         for (col_idx, value) in row.iter().enumerate() {
             ws.write_string_with_format(row_idx as u32, (col_idx + 1) as u16, *value, &arial)?;

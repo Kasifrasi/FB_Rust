@@ -1,6 +1,7 @@
 //! Zell-Definitionen für den Finanzbericht
 //!
-//! Hier werden ALLE Zellen im Bereich A1:V31 registriert.
+//! Registriert alle statischen Berichtszellen (Header, Tabelle, Panel, Pre-Body).
+//! Body- und Footer-Zellen werden separat über `register_body_formulas` / `register_footer_formulas` eingetragen.
 //! Jede Zelle gehört zu genau einer Kategorie:
 //! - Api: Wert kommt von außen (ReportValues) - definiert in api.rs
 //! - Static: Fester Wert im Code (aktuell keine)
@@ -75,7 +76,6 @@ pub fn build_registry() -> Result<DynCellRegistry, RegistryError> {
     register_all_api_cells(&mut registry)?;
 
     // 2. Statische Zellen registrieren (aktuell keine)
-    // register_static_cells(&mut registry)?;
 
     // 3. Formel-Zellen registrieren (IN ABHÄNGIGKEITSREIHENFOLGE!)
     register_formula_cells(&mut registry)?;

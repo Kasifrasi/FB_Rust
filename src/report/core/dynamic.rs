@@ -232,7 +232,6 @@ impl DynamicSectionDef {
                     );
                 }
                 DynamicColumnKind::Formula { template, eval: _ } => {
-                    // TODO: Klonen von eval ist kompliziert, vereinfachen
                     registry.register_formula(
                         row,
                         col_def.col,

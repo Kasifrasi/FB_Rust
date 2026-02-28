@@ -1,3 +1,10 @@
+//! Statische Sprachdaten: Textmatrix und Währungsliste
+//!
+//! Enthält:
+//! - [`TEXT_MATRIX`]: 76 UI-Begriffe × 5 Sprachen (Deutsch, Englisch, Französisch, Spanisch,
+//!   Portugiesisch)
+//! - [`CURRENCIES`]: 164 ISO-4217-Währungscodes für das Währungs-Dropdown
+
 use once_cell::sync::Lazy;
 
 pub static TEXT_MATRIX: Lazy<Vec<Vec<&'static str>>> = Lazy::new(|| {

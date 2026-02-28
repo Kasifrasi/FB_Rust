@@ -155,14 +155,6 @@ pub fn apply_report_options(
         ws.protect_with_options(&prot_options);
     }
 
-    // 4. Validierungen anwenden (wenn konfiguriert)
-    // Note: Die eigentliche Anwendung erfordert Adress-Auflösung über BodyLayout
-    // Dies wird in einer späteren Version implementiert
-    if let Some(ref _validation) = options.validation {
-        // TODO: Validation targets zu Zelladressen auflösen und anwenden
-        // Dies erfordert Zugriff auf BodyLayout für dynamische Adressen
-    }
-
     Ok(())
 }
 
@@ -283,10 +275,11 @@ pub fn create_protected_report(
         workbook.save(&temp_path)?;
 
         // Apply workbook protection
-        crate::workbook_protection::protect_workbook(
+        crate::workbook_protection::protect_workbook_with_spin_count(
             temp_path.to_str().ok_or("Invalid temp path")?,
             output_path.to_str().ok_or("Invalid output path")?,
             &wb_prot.password,
+            wb_prot.spin_count,
         )?;
 
         // Clean up temp file

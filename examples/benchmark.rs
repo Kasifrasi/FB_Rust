@@ -221,7 +221,7 @@ fn benchmark_multi_threaded(
     start.elapsed()
 }
 
-fn run_benchmark(count: usize, output_dir: &Path) {
+fn run_benchmark(count: usize, output_dir: &Path, multi_only: bool) {
     println!("\n{}", "=".repeat(60));
     println!("  BENCHMARK: {} Dateien", count);
     println!("{}", "=".repeat(60));
@@ -232,19 +232,25 @@ fn run_benchmark(count: usize, output_dir: &Path) {
     }
     fs::create_dir_all(output_dir).unwrap();
 
-    // Single-threaded
-    print!("\n  Single-threaded... ");
-    std::io::Write::flush(&mut std::io::stdout()).unwrap();
-    let single_time = benchmark_single_threaded(count, output_dir);
-    println!("{:.2?}", single_time);
-    println!(
-        "    -> {:.2} Dateien/Sekunde",
-        count as f64 / single_time.as_secs_f64()
-    );
+    let single_time = if multi_only {
+        None
+    } else {
+        // Single-threaded
+        print!("\n  Single-threaded... ");
+        std::io::Write::flush(&mut std::io::stdout()).unwrap();
+        let t = benchmark_single_threaded(count, output_dir);
+        println!("{:.2?}", t);
+        println!(
+            "    -> {:.2} Dateien/Sekunde",
+            count as f64 / t.as_secs_f64()
+        );
 
-    // Cleanup
-    fs::remove_dir_all(output_dir).ok();
-    fs::create_dir_all(output_dir).unwrap();
+        // Cleanup
+        fs::remove_dir_all(output_dir).ok();
+        fs::create_dir_all(output_dir).unwrap();
+
+        Some(t)
+    };
 
     // Multi-threaded mit verschiedenen Thread-Anzahlen
     let thread_counts = [2, 4, 8, 16];
@@ -258,10 +264,12 @@ fn run_benchmark(count: usize, output_dir: &Path) {
             "    -> {:.2} Dateien/Sekunde",
             count as f64 / multi_time.as_secs_f64()
         );
-        println!(
-            "    -> Speedup: {:.2}x",
-            single_time.as_secs_f64() / multi_time.as_secs_f64()
-        );
+        if let Some(st) = single_time {
+            println!(
+                "    -> Speedup: {:.2}x",
+                st.as_secs_f64() / multi_time.as_secs_f64()
+            );
+        }
 
         // Cleanup zwischen Runs
         fs::remove_dir_all(output_dir).ok();
@@ -269,6 +277,86 @@ fn run_benchmark(count: usize, output_dir: &Path) {
     }
 
     // Finale Cleanup
+    fs::remove_dir_all(output_dir).ok();
+}
+
+/// Benchmark multi-threaded mit Workbook-Protection
+fn benchmark_multi_threaded_protected(
+    count: usize,
+    output_dir: &Path,
+    num_threads: usize,
+    spin_count: u32,
+) -> std::time::Duration {
+    let styles = Arc::new(ReportStyles::new());
+    let start = Instant::now();
+    let output_dir = Arc::new(output_dir.to_path_buf());
+
+    let chunk_size = count.div_ceil(num_threads);
+    let mut handles = Vec::new();
+
+    for thread_id in 0..num_threads {
+        let styles = Arc::clone(&styles);
+        let output_dir = Arc::clone(&output_dir);
+        let start_idx = thread_id * chunk_size;
+        let end_idx = std::cmp::min(start_idx + chunk_size, count);
+
+        let handle = thread::spawn(move || {
+            for i in start_idx..end_idx {
+                match generate_report_to_buffer(i, &styles) {
+                    Ok((filename, buffer)) => {
+                        let temp_file = output_dir.join(format!("{}.tmp", filename));
+                        let final_file = output_dir.join(&filename);
+                        fs::write(&temp_file, buffer).ok();
+                        kmw_fb_rust::workbook_protection::protect_workbook_with_spin_count(
+                            temp_file.to_str().unwrap(),
+                            final_file.to_str().unwrap(),
+                            "benchmark_password",
+                            spin_count,
+                        )
+                        .ok();
+                        fs::remove_file(&temp_file).ok();
+                    }
+                    Err(e) => eprintln!("Error generating report {}: {}", i, e),
+                }
+            }
+        });
+
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    start.elapsed()
+}
+
+fn run_benchmark_protected(count: usize, output_dir: &Path, spin_count: u32) {
+    println!("\n{}", "=".repeat(60));
+    println!(
+        "  BENCHMARK MIT PROTECTION: {} Dateien (spin_count={})",
+        count, spin_count
+    );
+    println!("{}", "=".repeat(60));
+
+    let thread_counts = [8, 16];
+
+    for &num_threads in &thread_counts {
+        if output_dir.exists() {
+            fs::remove_dir_all(output_dir).ok();
+        }
+        fs::create_dir_all(output_dir).unwrap();
+
+        print!("\n  Multi-threaded ({} threads)... ", num_threads);
+        std::io::Write::flush(&mut std::io::stdout()).unwrap();
+        let t = benchmark_multi_threaded_protected(count, output_dir, num_threads, spin_count);
+        println!("{:.2?}", t);
+        println!(
+            "    -> {:.2} Dateien/Sekunde",
+            count as f64 / t.as_secs_f64()
+        );
+    }
+
     fs::remove_dir_all(output_dir).ok();
 }
 
@@ -286,10 +374,19 @@ fn main() {
     let temp_dir = std::env::temp_dir().join("finanzbericht_benchmark");
 
     // Benchmark 100 Dateien
-    run_benchmark(100, &temp_dir);
+    run_benchmark(100, &temp_dir, false);
 
     // Benchmark 1000 Dateien
-    run_benchmark(1000, &temp_dir);
+    run_benchmark(1000, &temp_dir, false);
+
+    // Benchmark 10000 Dateien (nur multi-threaded)
+    run_benchmark(10_000, &temp_dir, true);
+
+    // Benchmark mit Fast Protection (1000 Dateien)
+    run_benchmark_protected(1000, &temp_dir, 1_000);
+
+    // Benchmark mit Standard Protection (1000 Dateien)
+    run_benchmark_protected(1000, &temp_dir, 100_000);
 
     println!("\n{}", "#".repeat(60));
     println!("  BENCHMARK ABGESCHLOSSEN");

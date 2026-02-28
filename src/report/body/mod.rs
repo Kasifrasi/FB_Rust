@@ -6,14 +6,14 @@
 //! - `register_body_formulas`: Registriert Body-Formeln mit der einheitlichen Registry
 //! - `register_footer_formulas`: Registriert Footer-Formeln mit der einheitlichen Registry
 //!
-//! Schreib-Logik → `writer/sections/body.rs` und `writer/sections/footer.rs`
+//! Schreib-Logik → `writer/structure.rs` (Merges/Blanks) und `writer/main.rs` (Zellwerte)
 
 mod config;
-mod formulas;
 mod layout;
+mod registration;
 
 pub use config::BodyConfig;
-pub use formulas::{register_body_formulas, register_footer_formulas};
+pub use registration::{register_body_formulas, register_footer_formulas};
 pub use layout::{
     BodyLayout, CategoryLayout, CategoryMode, FooterLayout, PositionRange, TOTAL_LABEL_INDEX,
 };

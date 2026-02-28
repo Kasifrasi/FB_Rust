@@ -1,10 +1,11 @@
 //! Cell Registry - Zentrale Verwaltung aller Zellen
 //!
-//! Jede Zelle im Bereich A1:V31 gehört zu genau einer Kategorie:
+//! Verwaltet alle Zellen des Berichts (statischer Bereich, Pre-Body, Body, Footer).
+//! Jede registrierte Zelle gehört zu genau einer Kategorie:
 //! - Api: Wert kommt von außen (ReportValues)
 //! - Static: Fester Wert im Code
 //! - Formula: Hat Excel-Formel + Rust-Evaluator
-//! - Empty: Standardwert (leere Zelle)
+//! - Empty: Nicht registriert = Standardwert
 //!
 //! Invarianten:
 //! - Api ∩ Static = ∅

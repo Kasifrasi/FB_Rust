@@ -13,6 +13,7 @@ use rust_xlsxwriter::{Worksheet, XlsxError};
 // Merge-Definition
 // ============================================================================
 
+/// A rectangular cell merge range, defined by inclusive row/column bounds.
 pub struct MergeRange {
     pub first_row: u32,
     pub first_col: u16,
@@ -21,6 +22,7 @@ pub struct MergeRange {
 }
 
 impl MergeRange {
+    /// Creates a new `MergeRange` from the given inclusive bounds.
     pub const fn new(first_row: u32, first_col: u16, last_row: u32, last_col: u16) -> Self {
         Self {
             first_row,
@@ -35,6 +37,7 @@ impl MergeRange {
 // Sheet Setup (Spaltenbreiten, Zeilenhöhen, Zoom, etc.)
 // ============================================================================
 
+/// Configures the worksheet with zoom level, column widths, and row heights.
 pub fn setup_sheet(ws: &mut Worksheet) -> Result<(), XlsxError> {
     // Page Setup
     ws.set_active(true);
@@ -97,6 +100,7 @@ fn setup_row_heights(ws: &mut Worksheet) -> Result<(), XlsxError> {
 // Freeze Panes
 // ============================================================================
 
+/// Freezes all rows above `row` so the header stays visible while scrolling.
 pub fn setup_freeze_panes(ws: &mut Worksheet, row: u32) -> Result<(), XlsxError> {
     ws.set_freeze_panes(row, 0)?;
     Ok(())
