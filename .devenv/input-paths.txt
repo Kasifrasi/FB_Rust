@@ -1,7 +1,0 @@
-/home/ardit/repos/Arbeit/KMW-FB_Rust/src_rust/.devenv/flake.json
-/home/ardit/repos/Arbeit/KMW-FB_Rust/src_rust/.devenv.flake.nix
-/home/ardit/repos/Arbeit/KMW-FB_Rust/src_rust/.env
-/home/ardit/repos/Arbeit/KMW-FB_Rust/src_rust/devenv.local.nix
-/home/ardit/repos/Arbeit/KMW-FB_Rust/src_rust/devenv.lock
-/home/ardit/repos/Arbeit/KMW-FB_Rust/src_rust/devenv.nix
-/home/ardit/repos/Arbeit/KMW-FB_Rust/src_rust/devenv.yaml
