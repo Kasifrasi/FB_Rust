@@ -7,145 +7,93 @@
 //! - Spanisch (S_Informe_financiero.xlsx)
 //! - Portugiesisch (P_Relatorio_financeiro.xlsx)
 
-use kmw_fb_rust::lang::{LANG_CONFIG, LANG_SUFFIXES};
-use kmw_fb_rust::lang::build_sheet as build_sprachversionen;
-use kmw_fb_rust::report::writer::setup_sheet;
-use kmw_fb_rust::report::ApiKey;
-use kmw_fb_rust::{
-    write_report_with_options, BodyConfig, ReportOptions, ReportStyles, ReportValues,
-};
-use rust_xlsxwriter::{Format, Workbook};
+use kmw_fb_rust::{PositionEntry, ReportConfig, TableEntry};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Erstelle mehrsprachige Finanzberichte...\n");
 
-    let languages = [
-        "Deutsch",
-        "Englisch",
-        "Französisch",
-        "Spanisch",
-        "Portugiesisch",
+    let reports: &[(&str, &str, &str)] = &[
+        ("deutsch",   "PROJ-2024-DE", "tests/output/D_Finanzbericht.xlsx"),
+        ("english",   "PROJ-2024-EN", "tests/output/E_Financial_report.xlsx"),
+        ("francais",  "PROJ-2024-FR", "tests/output/F_Rapport_financier.xlsx"),
+        ("espanol",   "PROJ-2024-ES", "tests/output/S_Informe_financiero.xlsx"),
+        ("portugues", "PROJ-2024-PT", "tests/output/P_Relatorio_financeiro.xlsx"),
     ];
 
-    for lang_key in &languages {
-        let config = LANG_CONFIG
-            .get(*lang_key)
-            .expect("Language config not found");
-        let suffix = LANG_SUFFIXES
-            .get(*lang_key)
-            .expect("Language suffix not found");
-
-        println!("Erstelle {} ({})...", lang_key, config.lang_val);
-
-        let mut workbook = Workbook::new();
-        let styles = ReportStyles::new();
-
-        // Sprachversionen-Sheet hinzufügen (für VLOOKUP-Formeln)
-        build_sprachversionen(&mut workbook)?;
-
-        // Worksheet erstellen mit lokalem Namen
-        let ws = workbook.add_worksheet();
-        ws.set_name(config.fb_sheet)?;
-
-        // Alle Spalten standardmäßig unlocked setzen
-        let unlocked = Format::new()
-            .set_font_name("Arial")
-            .set_font_size(10.0)
-            .set_unlocked();
-        for col in 0..22u16 {
-            ws.set_column_format(col, &unlocked).ok();
-        }
-
-        setup_sheet(ws)?;
-
-        // Test-Werte setzen
-        let mut values = ReportValues::new();
-
-        // WICHTIG: Sprache setzen (wird in E2 geschrieben für VLOOKUP)
-        values.set(ApiKey::Language, config.lang_val);
-        values.set(ApiKey::Currency, "EUR");
-        values.set(
-            ApiKey::ProjectNumber,
-            format!(
-                "PROJ-2024-{}",
-                suffix.trim_start_matches('_').to_uppercase()
-            ),
-        );
-        values.set(
-            ApiKey::ProjectTitle,
-            format!("Test Project ({})", config.lang_val),
-        );
-        values.set(ApiKey::ProjectStart, "01.01.2024");
-        values.set(ApiKey::ProjectEnd, "31.12.2024");
-        values.set(ApiKey::ReportStart, "01.01.2024");
-        values.set(ApiKey::ReportEnd, "30.06.2024");
-
-        // Einnahmen-Tabelle
-        for i in 0..5u8 {
-            values.set(ApiKey::ApprovedBudget(i), 10000.0 * (i + 1) as f64);
-            values.set(ApiKey::IncomeReportPeriod(i), 5000.0 * (i + 1) as f64);
-            values.set(ApiKey::IncomeTotal(i), 5000.0 * (i + 1) as f64);
-        }
-
-        // Body-Konfiguration
-        let body_config = BodyConfig::new()
-            .with_positions(1, 5)
-            .with_positions(2, 3)
-            .with_positions(3, 4)
-            .with_positions(4, 3)
-            .with_positions(5, 2)
-            .with_positions(6, 0)
-            .with_positions(7, 0)
-            .with_positions(8, 0);
-
-        // Kostenpositionen
-        values.set_position_row(1, 1, "Position 1.1", 15000.0, 7500.0, 7500.0, "");
-        values.set_position_row(1, 2, "Position 1.2", 25000.0, 12000.0, 12000.0, "");
-        values.set_position_row(1, 3, "Position 1.3", 5000.0, 2500.0, 2500.0, "");
-        values.set_position_row(1, 4, "Position 1.4", 8000.0, 4000.0, 4000.0, "");
-        values.set_position_row(1, 5, "Position 1.5", 2000.0, 1000.0, 1000.0, "");
-
-        values.set_position_row(2, 1, "Position 2.1", 1500.0, 800.0, 800.0, "");
-        values.set_position_row(2, 2, "Position 2.2", 3000.0, 2000.0, 2000.0, "");
-        values.set_position_row(2, 3, "Position 2.3", 2000.0, 1500.0, 1500.0, "");
-
-        values.set_position_row(3, 1, "Position 3.1", 2000.0, 1200.0, 1200.0, "");
-        values.set_position_row(3, 2, "Position 3.2", 5000.0, 2500.0, 2500.0, "");
-        values.set_position_row(3, 3, "Position 3.3", 1000.0, 500.0, 500.0, "");
-        values.set_position_row(3, 4, "Position 3.4", 800.0, 400.0, 400.0, "");
-
-        values.set_position_row(4, 1, "Position 4.1", 10000.0, 5000.0, 5000.0, "");
-        values.set_position_row(4, 2, "Position 4.2", 8000.0, 4000.0, 4000.0, "");
-        values.set_position_row(4, 3, "Position 4.3", 2000.0, 1000.0, 1000.0, "");
-
-        values.set_position_row(5, 1, "Position 5.1", 3000.0, 1500.0, 1500.0, "");
-        values.set_position_row(5, 2, "Position 5.2", 1500.0, 750.0, 750.0, "");
-
-        // Header-Eingabe Kategorien
-        values.set_header_input(6, 4000.0, 2000.0, 2000.0, "");
-        values.set_header_input(7, 6000.0, 3000.0, 3000.0, "");
-        values.set_header_input(8, 2500.0, 1250.0, 1250.0, "");
-
-        // Footer-Werte (Saldenabstimmung)
-        values.set_footer_bank(10000.0);
-        values.set_footer_kasse(2000.0);
-        values.set_footer_sonstiges(500.0);
-
-        // Report schreiben mit Optionen (Protection + versteckte Spalten)
-        let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
-        write_report_with_options(ws, &styles, suffix, &values, &body_config, &options)?;
-
-        // Datei speichern
-        let filename = format!("tests/output/{}.xlsx", config.base);
-        workbook.save(&filename)?;
+    for (language, proj_nr, filename) in reports {
+        create_report(language, proj_nr, filename)?;
         println!("  -> {} gespeichert", filename);
     }
 
-    println!("\nAlle 5 Dateien erstellt:");
-    for lang_key in &languages {
-        let config = LANG_CONFIG.get(*lang_key).unwrap();
-        println!("  - {}.xlsx ({})", config.base, config.lang_val);
-    }
+    println!("\nAlle 5 Dateien erstellt.");
+    Ok(())
+}
 
+fn create_report(
+    language: &str,
+    project_number: &str,
+    output_path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Erstelle {}...", language);
+
+    let config = ReportConfig {
+        language: language.to_string(),
+        currency: "EUR".to_string(),
+        project_number: Some(project_number.to_string()),
+        project_title: Some(format!("Test Project ({})", language)),
+        project_start: Some("01.01.2024".to_string()),
+        project_end: Some("31.12.2024".to_string()),
+        report_start: Some("01.01.2024".to_string()),
+        report_end: Some("30.06.2024".to_string()),
+
+        table: (0..5u8)
+            .map(|i| TableEntry {
+                index: i,
+                approved_budget: Some(10000.0 * (i + 1) as f64),
+                income_report: Some(5000.0 * (i + 1) as f64),
+                income_total: Some(5000.0 * (i + 1) as f64),
+                reason: None,
+            })
+            .collect(),
+
+        positions: vec![
+            PositionEntry { category: 1, position: 1, description: Some("Position 1.1".to_string()), approved: Some(15000.0), income_report: Some(7500.0), income_total: Some(7500.0), remark: None },
+            PositionEntry { category: 1, position: 2, description: Some("Position 1.2".to_string()), approved: Some(25000.0), income_report: Some(12000.0), income_total: Some(12000.0), remark: None },
+            PositionEntry { category: 1, position: 3, description: Some("Position 1.3".to_string()), approved: Some(5000.0), income_report: Some(2500.0), income_total: Some(2500.0), remark: None },
+            PositionEntry { category: 1, position: 4, description: Some("Position 1.4".to_string()), approved: Some(8000.0), income_report: Some(4000.0), income_total: Some(4000.0), remark: None },
+            PositionEntry { category: 1, position: 5, description: Some("Position 1.5".to_string()), approved: Some(2000.0), income_report: Some(1000.0), income_total: Some(1000.0), remark: None },
+            PositionEntry { category: 2, position: 1, description: Some("Position 2.1".to_string()), approved: Some(1500.0), income_report: Some(800.0), income_total: Some(800.0), remark: None },
+            PositionEntry { category: 2, position: 2, description: Some("Position 2.2".to_string()), approved: Some(3000.0), income_report: Some(2000.0), income_total: Some(2000.0), remark: None },
+            PositionEntry { category: 2, position: 3, description: Some("Position 2.3".to_string()), approved: Some(2000.0), income_report: Some(1500.0), income_total: Some(1500.0), remark: None },
+            PositionEntry { category: 3, position: 1, description: Some("Position 3.1".to_string()), approved: Some(2000.0), income_report: Some(1200.0), income_total: Some(1200.0), remark: None },
+            PositionEntry { category: 3, position: 2, description: Some("Position 3.2".to_string()), approved: Some(5000.0), income_report: Some(2500.0), income_total: Some(2500.0), remark: None },
+            PositionEntry { category: 3, position: 3, description: Some("Position 3.3".to_string()), approved: Some(1000.0), income_report: Some(500.0), income_total: Some(500.0), remark: None },
+            PositionEntry { category: 3, position: 4, description: Some("Position 3.4".to_string()), approved: Some(800.0), income_report: Some(400.0), income_total: Some(400.0), remark: None },
+            PositionEntry { category: 4, position: 1, description: Some("Position 4.1".to_string()), approved: Some(10000.0), income_report: Some(5000.0), income_total: Some(5000.0), remark: None },
+            PositionEntry { category: 4, position: 2, description: Some("Position 4.2".to_string()), approved: Some(8000.0), income_report: Some(4000.0), income_total: Some(4000.0), remark: None },
+            PositionEntry { category: 4, position: 3, description: Some("Position 4.3".to_string()), approved: Some(2000.0), income_report: Some(1000.0), income_total: Some(1000.0), remark: None },
+            PositionEntry { category: 5, position: 1, description: Some("Position 5.1".to_string()), approved: Some(3000.0), income_report: Some(1500.0), income_total: Some(1500.0), remark: None },
+            PositionEntry { category: 5, position: 2, description: Some("Position 5.2".to_string()), approved: Some(1500.0), income_report: Some(750.0), income_total: Some(750.0), remark: None },
+            // Header-Eingabe Kategorien (position = 0)
+            PositionEntry { category: 6, position: 0, description: None, approved: Some(4000.0), income_report: Some(2000.0), income_total: Some(2000.0), remark: None },
+            PositionEntry { category: 7, position: 0, description: None, approved: Some(6000.0), income_report: Some(3000.0), income_total: Some(3000.0), remark: None },
+            PositionEntry { category: 8, position: 0, description: None, approved: Some(2500.0), income_report: Some(1250.0), income_total: Some(1250.0), remark: None },
+        ],
+
+        body_positions: [(1u8, 5u16), (2, 3), (3, 4), (4, 3), (5, 2), (6, 0), (7, 0), (8, 0)]
+            .into_iter()
+            .collect(),
+
+        footer_bank: Some(10000.0),
+        footer_kasse: Some(2000.0),
+        footer_sonstiges: Some(500.0),
+
+        locked: true,
+        hide_columns_qv: true,
+
+        ..ReportConfig::default()
+    };
+
+    config.write_to(output_path)?;
     Ok(())
 }

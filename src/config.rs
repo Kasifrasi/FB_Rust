@@ -38,7 +38,7 @@ use std::path::Path;
 
 use crate::report::api::{ApiKey, CellValue, ReportValues};
 use crate::report::body::BodyConfig;
-use crate::report::format::{ReportOptions, ReportStyles};
+use crate::report::format::{ReportOptions, ReportStyles, RowGrouping};
 use crate::report::writer::create_protected_report;
 
 // ============================================================================
@@ -193,6 +193,13 @@ pub struct ReportConfig {
     ///
     /// Verhindert das Hinzufügen, Löschen und Umbenennen von Sheets.
     pub workbook_password: Option<String>,
+    /// Hilfsspalten Q-V ausblenden
+    pub hide_columns_qv: bool,
+    /// Language-Sheet ausblenden
+    pub hide_language_sheet: bool,
+    /// Zeilen-Gruppierung für ausklappbare Abschnitte
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub row_grouping: Option<RowGrouping>,
 }
 
 impl Default for ReportConfig {
@@ -216,6 +223,9 @@ impl Default for ReportConfig {
             footer_sonstiges: None,
             locked: false,
             workbook_password: None,
+            hide_columns_qv: false,
+            hide_language_sheet: false,
+            row_grouping: None,
         }
     }
 }
@@ -353,6 +363,15 @@ impl ReportConfig {
         };
         if let Some(ref pw) = self.workbook_password {
             opts = opts.with_workbook_protection(pw);
+        }
+        if self.hide_columns_qv {
+            opts = opts.with_hidden_columns_qv();
+        }
+        if self.hide_language_sheet {
+            opts = opts.with_hidden_language_sheet();
+        }
+        if let Some(ref rg) = self.row_grouping {
+            opts = opts.with_row_grouping(rg.clone());
         }
         opts
     }
