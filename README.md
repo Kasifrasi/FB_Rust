@@ -9,7 +9,6 @@ High-performance Excel financial report generator written in Rust.
 - Multi-language support (German, English, French, Spanish, Portuguese)
 - High performance (~1400 reports/second multi-threaded)
 - Sheet and workbook protection with locked formulas
-- Optional `serde` feature for Tauri / JSON integration
 
 ## Quick Start
 
@@ -58,70 +57,6 @@ let config = ReportConfig {
 config.write_to("report.xlsx")?;
 ```
 
-### Advanced / Low-Level API
-
-For fine-grained control over individual cells:
-
-```rust
-use kmw_fb_rust::{
-    create_protected_report, ApiKey, BodyConfig, ReportOptions, ReportStyles, ReportValues,
-};
-
-let styles = ReportStyles::new();
-let mut values = ReportValues::new()
-    .with_language("deutsch")
-    .with_currency("EUR");
-
-values.set_position_row(1, 1, "Personalkosten", 18000.0, 9000.0, 9000.0, "");
-
-let body_config = BodyConfig::new()
-    .with_positions(1, 5)
-    .with_positions(6, 0)
-    .with_positions(7, 0)
-    .with_positions(8, 0);
-
-let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
-
-create_protected_report("report.xlsx", &styles, &values, &body_config, &options)?;
-```
-
-## Tauri Integration
-
-Add the dependency with the `serde` feature:
-
-```toml
-# src-tauri/Cargo.toml
-[dependencies]
-kmw_fb_rust = { path = "../../KMW-FB_Rust/src_rust", features = ["serde"] }
-```
-
-```rust
-// src-tauri/src/main.rs
-use kmw_fb_rust::ReportConfig;
-
-#[tauri::command]
-fn generate_report(config: ReportConfig, output_path: String) -> Result<(), String> {
-    config.write_to(output_path).map_err(|e| e.to_string())
-}
-```
-
-```typescript
-// Frontend
-await invoke("generate_report", {
-    config: {
-        language: "deutsch",
-        currency: "EUR",
-        locked: true,
-        body_positions: { "1": 10, "2": 5, "6": 0, "7": 0, "8": 0 },
-        positions: [],
-        table: [],
-        left_panel: [],
-        right_panel: [],
-    },
-    outputPath: "/path/to/report.xlsx",
-});
-```
-
 ## Project Structure
 
 ```
@@ -146,12 +81,6 @@ examples/
 ├── profile.rs                 Phase-level profiling
 └── verify_password.rs         Password hash verification
 ```
-
-## Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `serde` | off | `Serialize`/`Deserialize` on `ReportConfig` and all related types — required for Tauri IPC |
 
 ## BodyConfig
 
