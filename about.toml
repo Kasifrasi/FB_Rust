@@ -9,4 +9,12 @@ accepted = [
   "Zlib",
   "Unicode-3.0",
   "bzip2-1.0.6",
+  "LGPL-2.1-or-later"
 ]
+
+[zstd-sys.clarify]
+license = "MIT"
+[[zstd-sys.clarify.files]]
+path = "LICENSE.Mit"
+checksum = "129e8edef29e9abcd2ebabe252f4ef1b1289cdca356bf0040284a2fbccfb96c8"
+license = "MIT"
