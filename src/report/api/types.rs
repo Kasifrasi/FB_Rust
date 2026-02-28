@@ -142,8 +142,8 @@ impl Currency {
     }
 
     /// Alle verfügbaren Währungen
-    pub fn all() -> Vec<&'static str> {
-        CURRENCIES.clone()
+    pub fn all() -> &'static [&'static str] {
+        &CURRENCIES
     }
 
     /// Prüft ob ein Währungscode gültig ist

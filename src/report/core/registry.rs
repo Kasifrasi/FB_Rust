@@ -40,12 +40,12 @@ impl CellAddr {
     }
 
     /// Zu Excel-Notation (z.B. "E2")
-    pub fn to_excel(&self) -> String {
+    pub fn to_excel(self) -> String {
         let col_letter = Self::col_to_letter(self.col);
         format!("{}{}", col_letter, self.row + 1)
     }
 
-    fn col_to_letter(col: u16) -> String {
+    pub(crate) fn col_to_letter(col: u16) -> String {
         let mut result = String::new();
         let mut c = col as u32;
         loop {
@@ -784,105 +784,6 @@ impl<'a> EvalContext<'a> {
             }
         }
         CellValue::Number(sum)
-    }
-}
-
-// ============================================================================
-// Cell Evaluator
-// ============================================================================
-
-/// Wertet alle Zellen aus
-pub struct CellEvaluator<'a, E>
-where
-    E: Fn(&EvalContext) -> CellValue,
-{
-    registry: &'a CellRegistry<E>,
-    api_values: &'a ReportValues,
-    computed: HashMap<CellAddr, CellValue>,
-}
-
-impl<'a, E> CellEvaluator<'a, E>
-where
-    E: Fn(&EvalContext) -> CellValue,
-{
-    pub fn new(registry: &'a CellRegistry<E>, api_values: &'a ReportValues) -> Self {
-        Self {
-            registry,
-            api_values,
-            computed: HashMap::new(),
-        }
-    }
-
-    /// Berechnet alle Zellwerte
-    pub fn evaluate_all(&mut self) -> Result<(), RegistryError> {
-        // 1. API-Werte eintragen
-        for addr in self.registry.api_cells() {
-            if let Some(CellKind::Api(api)) = self.registry.get(*addr) {
-                let value = self.get_api_value(api.key);
-                self.computed.insert(*addr, value);
-            }
-        }
-
-        // 2. Statische Werte eintragen
-        for addr in &self.registry.static_cells {
-            if let Some(CellKind::Static(s)) = self.registry.get(*addr) {
-                self.computed.insert(*addr, s.value.clone());
-            }
-        }
-
-        // 3. Formeln in topologischer Reihenfolge auswerten
-        let eval_order = self.registry.get_eval_order()?;
-
-        for addr in eval_order {
-            if let Some(CellKind::Formula(f)) = self.registry.get(addr) {
-                let ctx = EvalContext {
-                    computed: &self.computed,
-                    api_values: self.api_values,
-                };
-                let result = (f.eval)(&ctx);
-                self.computed.insert(addr, result);
-            }
-        }
-
-        Ok(())
-    }
-
-    fn get_api_value(&self, key: ApiKey) -> CellValue {
-        match key {
-            ApiKey::Language => self
-                .api_values
-                .language()
-                .map(|s| CellValue::Text(s.to_string()))
-                .unwrap_or(CellValue::Empty),
-            ApiKey::Currency => self
-                .api_values
-                .currency()
-                .map(|s| CellValue::Text(s.to_string()))
-                .unwrap_or(CellValue::Empty),
-            ApiKey::ProjectNumber => self
-                .api_values
-                .project_number()
-                .map(|s| CellValue::Text(s.to_string()))
-                .unwrap_or(CellValue::Empty),
-            ApiKey::ProjectTitle => self
-                .api_values
-                .project_title()
-                .map(|s| CellValue::Text(s.to_string()))
-                .unwrap_or(CellValue::Empty),
-            // Alle anderen API-Keys werden über den generischen Weg (get_api_value in writer.rs) behandelt
-            _ => CellValue::Empty,
-        }
-    }
-
-    /// Holt den berechneten Wert einer Zelle
-    pub fn get(&self, addr: CellAddr) -> &CellValue {
-        static EMPTY: CellValue = CellValue::Empty;
-        self.computed.get(&addr).unwrap_or(&EMPTY)
-    }
-
-    /// Gibt alle berechneten Werte zurück
-    pub fn into_values(self) -> HashMap<CellAddr, CellValue> {
-        self.computed
     }
 }
 

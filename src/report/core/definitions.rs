@@ -51,16 +51,6 @@ pub fn lookup_text(language: Option<&str>, index: usize) -> CellValue {
         .unwrap_or(CellValue::Empty)
 }
 
-/// Evaluiert einen VLOOKUP-Index und gibt den Text als String zurück
-///
-/// Convenience-Funktion für Fälle wo nur der String-Wert benötigt wird.
-pub fn lookup_text_string(language: Option<&str>, index: usize) -> Option<String> {
-    match lookup_text(language, index) {
-        CellValue::Text(s) => Some(s),
-        _ => None,
-    }
-}
-
 // ============================================================================
 // Registry Builder
 // ============================================================================
@@ -528,8 +518,8 @@ fn register_right_panel_calc(
 ) -> Result<(), RegistryError> {
     let row = addr.row;
     let excel_row = row + 1;
-    let col1_letter = col_to_letter(amount1_col);
-    let col2_letter = col_to_letter(amount2_col);
+    let col1_letter = CellAddr::col_to_letter(amount1_col);
+    let col2_letter = CellAddr::col_to_letter(amount2_col);
 
     let excel = Box::leak(
         format!(
@@ -623,23 +613,6 @@ fn evaluate_currency_or_lookup(ctx: &EvalContext, index: usize) -> CellValue {
         }
     }
     evaluate_text_lookup(ctx, index)
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-fn col_to_letter(col: u16) -> String {
-    let mut result = String::new();
-    let mut c = col as u32;
-    loop {
-        result.insert(0, (b'A' + (c % 26) as u8) as char);
-        if c < 26 {
-            break;
-        }
-        c = c / 26 - 1;
-    }
-    result
 }
 
 /// Wraps a typed FormulaCell into a boxed dynamic version

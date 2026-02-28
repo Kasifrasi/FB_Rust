@@ -186,12 +186,15 @@ fn main() {
         let suffix = LANG_SUFFIXES.get("Deutsch").unwrap();
         let ws = workbook.add_worksheet();
         ws.set_name(config.fb_sheet).unwrap();
+        setup_sheet(ws).unwrap();
+        t_ws_setup += t.elapsed();
+
+        let t = Instant::now();
         let unlocked = Format::new().set_font_name("Arial").set_font_size(10.0).set_unlocked();
         for col in 0..USED_COLUMNS {
             ws.set_column_format(col, &unlocked).ok();
         }
-        setup_sheet(ws).unwrap();
-        t_ws_setup += t.elapsed();
+        t_col_format += t.elapsed();
 
         let t = Instant::now();
         let (values, body_config) = build_test_values(i);
@@ -217,7 +220,8 @@ fn main() {
     println!("  Gesamt:           {:>8.2?}  ({:.1} Reports/s)", total_b, ITERATIONS as f64 / total_b.as_secs_f64());
     print_phase("Workbook::new()", t_workbook_setup, total_b);
     print_phase("build_sprachversionen()", t_lang_sheet, total_b);
-    print_phase("Worksheet + Col Setup", t_ws_setup, total_b);
+    print_phase("Worksheet Setup", t_ws_setup, total_b);
+    print_phase("Column Formats", t_col_format, total_b);
     print_phase("Build Values", t_values, total_b);
     print_phase("write_report_with_options()", t_write_report, total_b);
     print_phase("save_to_buffer()", t_save_buffer, total_b);

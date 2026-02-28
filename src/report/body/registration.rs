@@ -305,7 +305,7 @@ fn register_sum_formula_range(
     end_row: u32,
     col: u16,
 ) -> Result<(), RegistryError> {
-    let col_letter = col_to_letter(col);
+    let col_letter = CellAddr::col_to_letter(col);
     let excel = Box::leak(
         format!(
             "=SUM({}{}:{}{})",
@@ -381,7 +381,7 @@ fn register_sum_formula(
     sum_rows: &[u32],
     col: u16,
 ) -> Result<(), RegistryError> {
-    let col_letter = col_to_letter(col);
+    let col_letter = CellAddr::col_to_letter(col);
     let refs: Vec<String> = sum_rows
         .iter()
         .map(|r| format!("{}{}", col_letter, r + 1))
@@ -419,11 +419,6 @@ fn register_sum_formula(
 // ============================================================================
 // Hilfsfunktionen
 // ============================================================================
-
-/// Konvertiert Spalten-Index zu Buchstabe (0=A, 1=B, ...)
-fn col_to_letter(col: u16) -> char {
-    (b'A' + col as u8) as char
-}
 
 // ============================================================================
 // Footer-Formeln Registrierung

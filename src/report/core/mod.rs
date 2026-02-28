@@ -7,9 +7,8 @@
 mod definitions;
 mod registry;
 
-pub use definitions::{build_registry, lookup_text, lookup_text_string};
-pub use registry::{
-    CellAddr, CellEvaluator, CellKind, CellRegistry, DynEvaluator, DynRegistry, EvalContext,
-    FormulaCell, FormulaCellDeps, FormulaDeps, Inputs, RegistryError, SheetRef, Sheets, StaticVal,
-    Statics,
+pub(crate) use definitions::build_registry;
+pub(crate) use registry::{
+    CellAddr, CellKind, CellRegistry, DynRegistry, EvalContext,
+    FormulaCell, FormulaCellDeps, FormulaDeps, Inputs, RegistryError, Sheets, Statics,
 };

@@ -20,11 +20,6 @@ pub use api::{
     Language, PositionField, ReportDate, ReportValues,
 };
 pub use body::{BodyConfig, BodyLayout, CategoryMode};
-pub use core::{
-    build_registry, CellAddr, CellEvaluator, CellKind, CellRegistry, DynEvaluator, DynRegistry,
-    EvalContext, FormulaCell, FormulaCellDeps, FormulaDeps, Inputs, RegistryError, SheetRef,
-    Sheets, StaticVal, Statics,
-};
 pub use format::{
     build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,
     extend_format_matrix_with_prebody, BodyStyles, FieldValidation, FormatMatrix, HiddenRange,

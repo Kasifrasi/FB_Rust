@@ -58,7 +58,7 @@ pub fn protect_workbook_with_spin_count(
         let mut content = Vec::new();
         file.read_to_end(&mut content)?;
 
-        let options = FileOptions::default()
+        let options = FileOptions::<()>::default()
             .compression_method(file.compression())
             .unix_permissions(file.unix_mode().unwrap_or(0o644));
 
