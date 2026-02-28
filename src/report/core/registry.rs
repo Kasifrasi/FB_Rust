@@ -1029,6 +1029,16 @@ pub mod builder {
 }
 
 // ============================================================================
+// Convenience type aliases
+// ============================================================================
+
+/// Boxed dynamic evaluator closure for use with [`CellRegistry`].
+pub type DynEvaluator = Box<dyn Fn(&EvalContext) -> CellValue>;
+
+/// [`CellRegistry`] with a boxed dynamic evaluator — the concrete type used throughout the codebase.
+pub type DynRegistry = CellRegistry<DynEvaluator>;
+
+// ============================================================================
 // Tests
 // ============================================================================
 

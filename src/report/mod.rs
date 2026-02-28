@@ -21,9 +21,9 @@ pub use api::{
 };
 pub use body::{BodyConfig, BodyLayout, CategoryMode};
 pub use core::{
-    build_registry, CellAddr, CellEvaluator, CellKind, CellRegistry, EvalContext,
-    FormulaCell, FormulaCellDeps, FormulaDeps, Inputs,
-    RegistryError, SheetRef, Sheets, StaticVal, Statics,
+    build_registry, CellAddr, CellEvaluator, CellKind, CellRegistry, DynEvaluator, DynRegistry,
+    EvalContext, FormulaCell, FormulaCellDeps, FormulaDeps, Inputs, RegistryError, SheetRef,
+    Sheets, StaticVal, Statics,
 };
 pub use format::{
     build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,

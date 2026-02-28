@@ -8,10 +8,7 @@ use crate::report::api::{CellValue, ReportValues};
 use crate::report::body::{
     register_body_formulas, register_footer_formulas, BodyConfig, BodyLayout, FooterLayout,
 };
-use crate::report::core::{build_registry, CellAddr, CellKind, CellRegistry, EvalContext};
-
-// Type alias for complex CellRegistry type
-type DynCellRegistry = CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>;
+use crate::report::core::{build_registry, CellAddr, CellKind, DynRegistry, EvalContext};
 use crate::report::format::{
     build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,
     extend_format_matrix_with_prebody, FormatMatrix, ReportOptions, ReportStyles, SectionStyles,
@@ -268,22 +265,22 @@ pub fn create_protected_report(
 
     // 6. Apply workbook protection if configured
     if let Some(wb_prot) = &options.workbook_protection {
-        // Create temporary file
-        let temp_path = output_path.with_extension("tmp.xlsx");
+        // NamedTempFile is deleted automatically on Drop (even on error or panic)
+        let tmp = tempfile::NamedTempFile::new_in(
+            output_path.parent().unwrap_or(Path::new(".")),
+        )?;
 
-        // Save unprotected version to temp
-        workbook.save(&temp_path)?;
+        workbook.save(tmp.path())?;
 
-        // Apply workbook protection
         crate::workbook_protection::protect_workbook_with_spin_count(
-            temp_path.to_str().ok_or("Invalid temp path")?,
+            tmp.path().to_str().ok_or("Invalid temp path")?,
             output_path.to_str().ok_or("Invalid output path")?,
             &wb_prot.password,
             wb_prot.spin_count,
         )?;
 
-        // Clean up temp file
-        std::fs::remove_file(temp_path)?;
+        // Atomically rename temp → final path (no Drop → no deletion)
+        tmp.persist(output_path)?;
     } else {
         // Save directly without protection
         workbook.save(output_path)?;
@@ -345,7 +342,7 @@ fn apply_row_grouping(
 /// Verwendet topologische Sortierung (Kahn's Algorithmus) um sicherzustellen,
 /// dass Formel-Dependencies vor ihren Abhängigen evaluiert werden.
 fn evaluate_all_cells(
-    registry: &DynCellRegistry,
+    registry: &DynRegistry,
     values: &ReportValues,
 ) -> Result<HashMap<CellAddr, CellValue>, XlsxError> {
     let mut computed: HashMap<CellAddr, CellValue> = HashMap::new();
@@ -387,7 +384,7 @@ fn get_api_value(values: &ReportValues, key: crate::report::api::ApiKey) -> Cell
 /// Schreibt alle Zellen aus der Registry (API-Werte und Formeln mit Cache)
 fn write_cells_from_registry(
     ws: &mut Worksheet,
-    registry: &DynCellRegistry,
+    registry: &DynRegistry,
     computed: &HashMap<CellAddr, CellValue>,
     fmt: &FormatMatrix,
 ) -> Result<(), XlsxError> {

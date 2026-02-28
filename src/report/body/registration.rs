@@ -47,12 +47,9 @@ use super::layout::FooterLayout;
 use super::layout::{BodyLayout, CategoryMode, TOTAL_LABEL_INDEX};
 use crate::report::api::{ApiKey, CellValue, FooterField, PositionField};
 use crate::report::core::{
-    CellAddr, CellRegistry, EvalContext, FormulaCell, FormulaCellDeps, FormulaDeps, Inputs,
+    CellAddr, DynRegistry, EvalContext, FormulaCell, FormulaCellDeps, FormulaDeps, Inputs,
     RegistryError, Sheets, Statics,
 };
-
-/// Typ-Alias für die Registry mit dynamischen Evaluatoren
-pub type DynRegistry = CellRegistry<Box<dyn Fn(&EvalContext) -> CellValue>>;
 
 /// Registriert alle Body-Formeln basierend auf dem Layout
 ///
