@@ -8,7 +8,7 @@
   ];
 
   # Projekt-Tools im Root
-  packages = [ pkgs.xdg-utils pkgs.flatpak pkgs.flatpak-builder pkgs.cargo-expand pkgs.cargo-license pkgs.cargo-about pkgs.cargo-llvm-cov pkgs.cargo-audit pkgs.cargo-nextest];
+  packages = [ pkgs.xdg-utils pkgs.flatpak pkgs.flatpak-builder pkgs.cargo-expand pkgs.cargo-license pkgs.cargo-about pkgs.cargo-llvm-cov pkgs.cargo-audit pkgs.cargo-nextest pkgs.cargo-deny];
 
   # Einfacher Start-Check
   enterShell = ''

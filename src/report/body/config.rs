@@ -37,6 +37,8 @@ pub const ALL_CATEGORIES: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
 ///     .with_positions(7, 1);   // Kategorie 7: 1 Position unter Header
 /// ```
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(from = "HashMap<u8, u16>", into = "HashMap<u8, u16>"))]
 pub struct BodyConfig {
     /// Anzahl Positionen pro Kategorie (0 = Header-Eingabe)
     positions: HashMap<u8, u16>,
@@ -94,19 +96,39 @@ impl BodyConfig {
 
 impl Default for BodyConfig {
     fn default() -> Self {
-        // Standard: Kategorien 1-5 haben 20/30 Positionen, 6-8 haben 0 (Header-Eingabe)
         Self {
-            positions: HashMap::from([
-                (1, 20),
-                (2, 20),
-                (3, 30),
-                (4, 30),
-                (5, 20),
-                (6, 0), // Header-Eingabe
-                (7, 0), // Header-Eingabe
-                (8, 0), // Header-Eingabe
-            ]),
+            positions: Self::default_positions(),
         }
+    }
+}
+
+impl BodyConfig {
+    /// Gibt die Standard-Positions-Map zurück (Kategorien 1-5: 20/30 Zeilen, 6-8: Header-Eingabe)
+    pub fn default_positions() -> HashMap<u8, u16> {
+        HashMap::from([
+            (1, 20),
+            (2, 20),
+            (3, 30),
+            (4, 30),
+            (5, 20),
+            (6, 0), // Header-Eingabe
+            (7, 0), // Header-Eingabe
+            (8, 0), // Header-Eingabe
+        ])
+    }
+}
+
+#[cfg(feature = "serde")]
+impl From<HashMap<u8, u16>> for BodyConfig {
+    fn from(positions: HashMap<u8, u16>) -> Self {
+        BodyConfig { positions }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl From<BodyConfig> for HashMap<u8, u16> {
+    fn from(config: BodyConfig) -> Self {
+        config.positions
     }
 }
 

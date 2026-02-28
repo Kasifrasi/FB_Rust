@@ -4,7 +4,6 @@ use byteorder::{WriteBytesExt, LE};
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use quick_xml::writer::Writer;
-use rand::RngCore;
 use sha2::{Digest, Sha512};
 use std::fs::File;
 use std::io::{Cursor, Read, Write};
@@ -84,9 +83,8 @@ pub fn protect_workbook_with_spin_count(
 /// 2. H0 = SHA512(Salt + Password(UTF-16LE))
 /// 3. Loop `spin_count` times: H(n) = SHA512(H(n-1) + Iterator(4 Bytes LE))
 fn hash_password(password: &str, spin_count: u32) -> (String, String) {
-    let mut rng = rand::thread_rng();
     let mut salt = [0u8; SALT_SIZE];
-    rng.fill_bytes(&mut salt);
+    getrandom::fill(&mut salt).expect("OS RNG unavailable");
 
     let pw_utf16: Vec<u8> = password
         .encode_utf16()

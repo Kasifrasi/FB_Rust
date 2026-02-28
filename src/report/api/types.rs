@@ -24,6 +24,8 @@ use std::str::FromStr;
 /// assert_eq!(lang.as_str(), "deutsch");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum Language {
     /// Deutsch
     #[default]
@@ -112,6 +114,8 @@ impl FromStr for Language {
 /// let invalid = Currency::new("INVALID"); // None
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
 pub struct Currency(String);
 
 impl Currency {
@@ -195,6 +199,7 @@ impl Default for Currency {
 ///     .with_positions(Category::Sachkosten, 15);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Category {
     /// Kategorie 1: Personalkosten
     Bauausgaben = 1,
@@ -304,6 +309,8 @@ impl fmt::Display for Category {
 /// assert_eq!(date.format_iso(), "2024-01-15");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(try_from = "String", into = "String"))]
 pub struct ReportDate {
     year: u16,
     month: u8,
@@ -479,6 +486,21 @@ impl ReportDate {
 impl fmt::Display for ReportDate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.format_de())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl From<ReportDate> for String {
+    fn from(d: ReportDate) -> Self {
+        d.format_iso()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<String> for ReportDate {
+    type Error = DateError;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::parse(&s)
     }
 }
 

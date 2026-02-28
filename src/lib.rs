@@ -35,14 +35,13 @@
 //! workbook.save("report.xlsx")?;
 //! ```
 
+pub mod config;
 pub mod lang;
 pub mod report;
-
-// Workbook Protection Module
-#[path = "workbook_protection/workbook_protect.rs"]
 pub mod workbook_protection;
 
 // Public API re-exports
+pub use config::{PanelEntry, PositionEntry, ReportConfig, TableEntry};
 pub use lang::{
     build_sheet as build_language_sheet,
     build_sheet_with_visibility as build_language_sheet_with_visibility,
