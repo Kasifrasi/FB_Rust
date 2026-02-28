@@ -112,6 +112,6 @@ cargo deny check       # License and security audit
 Licensed under either of
 
 - [MIT License](LICENSE-MIT)
-- [Apache License, Version 2.0](LICENSE-APACHE)
+- [Apache License, Version 2.0](LICENSE-2.0)
 
 at your option.
