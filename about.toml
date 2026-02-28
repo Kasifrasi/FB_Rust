@@ -13,8 +13,17 @@ accepted = [
 ]
 
 [zstd-sys.clarify]
-license = "MIT"
+# Dieses Crate benötigt BEIDE Lizenzen (AND)
+license = "MIT AND BSD-3-Clause"
+
+# 1. MIT-Lizenz (Rust-Wrapper)
 [[zstd-sys.clarify.files]]
 path = "LICENSE.Mit"
-checksum = "129e8edef29e9abcd2ebabe252f4ef1b1289cdca356bf0040284a2fbccfb96c8"
 license = "MIT"
+checksum = "129e8edef29e9abcd2ebabe252f4ef1b1289cdca356bf0040284a2fbccfb96c8"
+
+# 2. Der Beweis für die BSD-Lizenz (Zstandard C-Code von Meta)
+[[zstd-sys.clarify.files]]
+path = "LICENSE.BSD-3-Clause"
+license = "BSD-3-Clause"
+checksum = "48341f685c87304089aa099b23c386f8bacc519ef555aa7a13e239908907b3fd"
