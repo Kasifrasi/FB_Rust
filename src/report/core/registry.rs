@@ -505,13 +505,10 @@ impl<E> CellRegistry<E> {
 
     /// Berechnet die topologische Sortierung der Formeln (mit Cache)
     pub fn compute_eval_order(&mut self) -> Result<&[CellAddr], RegistryError> {
-        if self.eval_order.is_some() {
-            return Ok(self.eval_order.as_ref().unwrap());
+        if self.eval_order.is_none() {
+            self.eval_order = Some(self.topological_sort()?);
         }
-
-        let order = self.topological_sort()?;
-        self.eval_order = Some(order);
-        Ok(self.eval_order.as_ref().unwrap())
+        Ok(self.eval_order.as_deref().unwrap())
     }
 
     /// Gibt die topologische Sortierung zurück (ohne Cache zu ändern)
