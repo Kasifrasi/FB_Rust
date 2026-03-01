@@ -689,6 +689,7 @@ impl std::error::Error for ValidationError {}
 /// Allows grouping rows together with expand/collapse functionality.
 /// Groups can be nested up to 7 levels deep.
 #[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RowGrouping {
     /// List of row groups
     groups: Vec<RowGroup>,
@@ -698,6 +699,7 @@ pub struct RowGrouping {
 
 /// A single row group definition
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RowGroup {
     /// First row of the group (0-indexed)
     pub start_row: u32,

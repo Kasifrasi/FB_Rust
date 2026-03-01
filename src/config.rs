@@ -197,7 +197,7 @@ pub struct ReportConfig {
     /// Language-Sheet ausblenden
     pub hide_language_sheet: bool,
     /// Zeilen-Gruppierung für ausklappbare Abschnitte
-    #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub row_grouping: Option<RowGrouping>,
 }
 

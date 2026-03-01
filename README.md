@@ -17,7 +17,16 @@ cargo build --release
 cargo test
 cargo run --example test_all_fields --release
 cargo run --example test_multilang --release
+
+# Criterion-Benchmarks (Statistik + HTML-Report)
+cargo bench
+# Report öffnen: target/criterion/report/index.html
+
+# Throughput-Benchmark + README-Update
 cargo run --example benchmark --release
+
+# Für maximale Reproduzierbarkeit: System-Tuning vorher
+# sudo pyperf system tune && cargo bench && sudo pyperf system reset
 ```
 
 ## Usage
@@ -68,9 +77,10 @@ src/
 └── report/
     ├── api/                ApiKey, ReportValues, Language, Currency, ReportDate, …
     ├── core/               Formula engine (CellRegistry, CellAddr, topological eval)
-    ├── format/             Styles, FormatMatrix, SheetProtection, validation rules
+    ├── options.rs          ReportOptions, SheetProtection, validation rules
+    ├── styles.rs           ReportStyles, FormatMatrix (internal)
     ├── body/               BodyConfig, BodyLayout, FooterLayout, formulas
-    └── writer/             Excel writing (main.rs, layout.rs, structure.rs)
+    └── writer/             Excel writing (engine.rs, layout.rs, structure.rs)
 
 examples/
 ├── test_all_fields.rs         All fields populated (complete reference example)
@@ -94,10 +104,40 @@ let config = BodyConfig::new()
 
 ## Performance
 
-| Files | Single-thread | 8 Threads | Speedup |
-|-------|---------------|-----------|---------|
-| 100   | 264/sec       | 1464/sec  | 5.55x   |
-| 1000  | 259/sec       | 1231/sec  | 4.76x   |
+> **Methodology:** Throughput (files/sec) measured across multiple samples after warmup.
+> CV = coefficient of variation (σ/μ) — lower means more stable results.
+> Run `cargo run --example benchmark --release` to reproduce on your hardware.
+
+<!-- PERF_START -->
+**Environment:** AMD Ryzen 5 Pro 7535U with Radeon Graphics · 6 cores (12 logical) · 30 GB RAM · Linux (NixOS 26.05)
+
+| Files | Threads | Mean | Std Dev | CV | Throughput |
+|-------|---------|------|---------|----|------------|
+|    100 |       1 |    344ms |    ±17ms |  5.1% |      291/sec |
+|    100 |       2 |    162ms |     ±3ms |  1.9% |      616/sec |
+|    100 |       4 |     89ms |     ±6ms |  6.7% |     1129/sec |
+|    100 |       8 |     70ms |     ±2ms |  2.7% |     1426/sec |
+|    100 |      16 |     66ms |     ±2ms |  2.8% |     1523/sec |
+|  1,000 |       1 |    3.41s |    ±73ms |  2.1% |      293/sec |
+|  1,000 |       2 |    1.66s |    ±14ms |  0.8% |      604/sec |
+|  1,000 |       4 |    961ms |    ±60ms |  6.3% |     1040/sec |
+|  1,000 |       8 |    716ms |    ±14ms |  2.0% |     1397/sec |
+|  1,000 |      16 |    678ms |    ±10ms |  1.5% |     1474/sec |
+| 10,000 |       2 |   17.81s |   ±796ms |  4.5% |      561/sec |
+| 10,000 |       4 |   10.31s |   ±117ms |  1.1% |      970/sec |
+| 10,000 |       8 |    7.50s |   ±117ms |  1.6% |     1334/sec |
+| 10,000 |      16 |    7.60s |   ±138ms |  1.8% |     1315/sec |
+
+**With workbook protection (precomputed hash, 1,000 files, 8 threads):**
+
+| Spin Count | Mean | CV | Throughput |
+|------------|------|----|------------|
+|      1,000 |    925ms |  2.8% |     1081/sec |
+|      1,000 |    923ms |  0.9% |     1084/sec |
+
+*Last updated: 2026-03-14*
+<!-- PERF_END -->
+
 
 ## Testing
 

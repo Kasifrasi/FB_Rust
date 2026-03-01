@@ -1,389 +1,764 @@
 //! Benchmark: Finanzbericht-Generierung
 //!
-//! Vergleicht single-threaded vs multi-threaded Performance
-//! bei 100 und 1000 Dateien mit unterschiedlichen Parametern.
+//! Professioneller Throughput-Benchmark mit Warmup, statistischer Auswertung
+//! und automatischem README-Update.
 //!
 //! Usage:
 //!   cargo run --example benchmark --release
 //!
-//! Die generierten Dateien werden in einem temporären Verzeichnis erstellt
-//! und nach dem Benchmark gelöscht.
+//! Die Ergebnisse werden auf der Konsole ausgegeben und in README.md geschrieben
+//! (zwischen <!-- PERF_START --> und <!-- PERF_END --> Markern).
 
-use kmw_fb_rust::lang::build_sheet as build_sprachversionen;
-use kmw_fb_rust::lang::{LANG_CONFIG, LANG_SUFFIXES};
-use kmw_fb_rust::report::writer::setup_sheet;
-use kmw_fb_rust::report::ApiKey;
-use kmw_fb_rust::{write_report_with_options, BodyConfig, ReportOptions, ReportValues};
-use rust_xlsxwriter::{Format, Workbook};
+use kmw_fb_rust::{precompute_hash_with_spin_count, PositionEntry, ReportConfig, TableEntry};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+use sysinfo::System;
 
-/// Sprachen für den Benchmark
-const LANGUAGES: [&str; 5] = [
-    "Deutsch",
-    "Englisch",
-    "Französisch",
-    "Spanisch",
-    "Portugiesisch",
+// ============================================================================
+// Konfiguration
+// ============================================================================
+
+const LANGUAGES: [&str; 5] = ["deutsch", "english", "francais", "espanol", "portugues"];
+const CURRENCIES: [&str; 5] = ["EUR", "USD", "GBP", "CHF", "BRL"];
+
+/// Benchmark-Konfigurationen: (file_count, warmup, samples, multi_only)
+const BENCH_CONFIGS: &[(usize, usize, usize, bool)] = &[
+    (100, 5, 20, false),
+    (1_000, 3, 10, false),
+    (10_000, 1, 3, true),
 ];
 
-/// Anzahl tatsächlich genutzter Spalten (A-V = 0-21)
-const USED_COLUMNS: u16 = 22;
+/// Thread-Anzahlen für Multi-threaded-Benchmarks
+const THREAD_COUNTS: &[usize] = &[2, 4, 8, 16];
 
-/// Generiert einen einzelnen Finanzbericht mit variablen Parametern.
-///
-/// Gibt den Excel-Buffer zurück statt direkt auf Disk zu schreiben.
-fn generate_report_to_buffer(
-    index: usize,
-) -> Result<(String, Vec<u8>), Box<dyn std::error::Error + Send + Sync>> {
-    // Sprache basierend auf Index rotieren
-    let lang_key = LANGUAGES[index % LANGUAGES.len()];
-    let config = LANG_CONFIG.get(lang_key).unwrap();
-    let suffix = LANG_SUFFIXES.get(lang_key).unwrap();
+/// Thread-Anzahl für Protected-Benchmarks
+const PROT_THREADS: usize = 8;
 
-    let mut workbook = Workbook::new();
+// ============================================================================
+// Hardware-Info
+// ============================================================================
 
-    // Sprachversionen-Sheet
-    build_sprachversionen(&mut workbook)?;
+struct HardwareInfo {
+    cpu: String,
+    physical_cores: usize,
+    logical_cores: usize,
+    ram_gb: u64,
+    os: String,
+}
 
-    // Worksheet erstellen
-    let ws = workbook.add_worksheet();
-    ws.set_name(config.fb_sheet)?;
+impl HardwareInfo {
+    fn collect() -> Self {
+        let mut sys = System::new();
+        sys.refresh_cpu_all();
+        sys.refresh_memory();
 
-    // Nur genutzte Spalten formatieren (A-V statt 1000)
-    let unlocked = Format::new()
-        .set_font_name("Arial")
-        .set_font_size(10.0)
-        .set_unlocked();
-    for col in 0..USED_COLUMNS {
-        ws.set_column_format(col, &unlocked).ok();
+        let cpu = sys
+            .cpus()
+            .first()
+            .map(|c| c.brand().to_string())
+            .unwrap_or_else(|| "Unknown CPU".to_string());
+
+        let logical_cores = sys.cpus().len();
+        let physical_cores = sys.physical_core_count().unwrap_or(logical_cores);
+        let ram_gb = sys.total_memory() / 1_073_741_824;
+        let os = System::long_os_version().unwrap_or_else(|| "Unknown OS".to_string());
+
+        Self {
+            cpu,
+            physical_cores,
+            logical_cores,
+            ram_gb,
+            os,
+        }
     }
 
-    setup_sheet(ws)?;
+    fn summary(&self) -> String {
+        format!(
+            "{} · {} cores ({} logical) · {} GB RAM · {}",
+            self.cpu, self.physical_cores, self.logical_cores, self.ram_gb, self.os
+        )
+    }
+}
 
-    // Variable Werte basierend auf Index
-    let mut values = ReportValues::new();
-    values.set(ApiKey::Language, config.lang_val);
-    values.set(
-        ApiKey::Currency,
-        if index.is_multiple_of(2) {
-            "EUR"
+// ============================================================================
+// Statistik
+// ============================================================================
+
+struct BenchStats {
+    /// Throughput-Samples: Dateien/Sekunde pro Messung
+    samples: Vec<f64>,
+}
+
+impl BenchStats {
+    fn new(samples: Vec<f64>) -> Self {
+        assert!(!samples.is_empty(), "BenchStats requires at least one sample");
+        Self { samples }
+    }
+
+    fn mean(&self) -> f64 {
+        self.samples.iter().sum::<f64>() / self.samples.len() as f64
+    }
+
+    fn std_dev(&self) -> f64 {
+        if self.samples.len() < 2 {
+            return 0.0;
+        }
+        let mean = self.mean();
+        let variance = self.samples.iter().map(|x| (x - mean).powi(2)).sum::<f64>()
+            / (self.samples.len() - 1) as f64;
+        variance.sqrt()
+    }
+
+    fn cv_percent(&self) -> f64 {
+        let mean = self.mean();
+        if mean == 0.0 {
+            return 0.0;
+        }
+        self.std_dev() / mean * 100.0
+    }
+
+    fn min(&self) -> f64 {
+        self.samples.iter().cloned().fold(f64::INFINITY, f64::min)
+    }
+
+    fn max(&self) -> f64 {
+        self.samples.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+    }
+
+    fn median(&self) -> f64 {
+        let mut sorted = self.samples.clone();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let n = sorted.len();
+        if n % 2 == 0 {
+            (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
         } else {
-            "USD"
-        },
-    );
-    values.set(ApiKey::ProjectNumber, format!("PROJ-{:05}", index));
-    values.set(
-        ApiKey::ProjectTitle,
-        format!("Project {} ({})", index, config.lang_val),
-    );
-    values.set(
-        ApiKey::ProjectStart,
-        format!("01.{:02}.2024", (index % 12) + 1),
-    );
-    values.set(ApiKey::ProjectEnd, "31.12.2024");
-    values.set(
-        ApiKey::ReportStart,
-        format!("01.{:02}.2024", (index % 12) + 1),
-    );
-    values.set(ApiKey::ReportEnd, "30.06.2024");
-
-    // Variable Einnahmen
-    let base_budget = 10000.0 + (index as f64 * 100.0);
-    for i in 0..5u8 {
-        values.set(ApiKey::ApprovedBudget(i), base_budget * (i + 1) as f64);
-        values.set(
-            ApiKey::IncomeReportPeriod(i),
-            base_budget * 0.5 * (i + 1) as f64,
-        );
-        values.set(ApiKey::IncomeTotal(i), base_budget * 0.5 * (i + 1) as f64);
+            sorted[n / 2]
+        }
     }
 
-    // Variable Body-Konfiguration
-    let pos_offset = (index % 5) as u16;
-    let body_config = BodyConfig::new()
-        .with_positions(1, 5 + pos_offset)
-        .with_positions(2, 3 + pos_offset)
-        .with_positions(3, 4 + pos_offset)
-        .with_positions(4, 3 + pos_offset)
-        .with_positions(5, 2 + pos_offset)
-        .with_positions(6, 0)
-        .with_positions(7, 0)
-        .with_positions(8, 0);
+    /// Mittlere Dauer pro Batch (aus Throughput berechnet)
+    fn mean_duration(&self, file_count: usize) -> Duration {
+        let mean_throughput = self.mean();
+        if mean_throughput == 0.0 {
+            return Duration::ZERO;
+        }
+        Duration::from_secs_f64(file_count as f64 / mean_throughput)
+    }
 
-    // Kostenpositionen mit variablen Werten
+    /// Qualitätsurteil basierend auf CV
+    fn quality(&self) -> &'static str {
+        match self.cv_percent() as u32 {
+            0..=4 => "excellent",
+            5..=9 => "good",
+            10..=19 => "fair",
+            _ => "noisy",
+        }
+    }
+}
+
+// ============================================================================
+// Benchmark-Ergebnis
+// ============================================================================
+
+struct BenchResult {
+    label: String,
+    file_count: usize,
+    threads: usize,
+    stats: BenchStats,
+}
+
+impl BenchResult {
+    fn throughput_mean(&self) -> f64 {
+        self.stats.mean()
+    }
+}
+
+// ============================================================================
+// Report-Generierung
+// ============================================================================
+
+fn build_config(index: usize) -> ReportConfig {
+    let lang = LANGUAGES[index % 5];
+    let pos_offset = (index % 5) as u16;
     let base_cost = 1000.0 + (index as f64 * 10.0);
-    for cat in 1..=5u8 {
-        let num_pos = match cat {
-            1 => 5 + pos_offset,
-            2 => 3 + pos_offset,
-            3 => 4 + pos_offset,
-            4 => 3 + pos_offset,
-            5 => 2 + pos_offset,
-            _ => 0,
-        };
-        for pos in 1..=num_pos {
-            let cost = base_cost * (cat as f64) * (pos as f64 / 2.0);
-            values.set_position_row(
-                cat,
-                pos,
-                format!("Position {}.{}", cat, pos),
-                cost,
-                cost * 0.5,
-                cost * 0.5,
-                "",
+    let base_budget = 10_000.0 + (index as f64 * 100.0);
+
+    let table: Vec<TableEntry> = (0..5u8)
+        .map(|i| TableEntry {
+            index: i,
+            approved_budget: Some(base_budget * (i + 1) as f64),
+            income_report: Some(base_budget * 0.5 * (i + 1) as f64),
+            income_total: Some(base_budget * 0.5 * (i + 1) as f64),
+            reason: None,
+        })
+        .collect();
+
+    let cat_counts: [(u8, u16); 8] = [
+        (1, 5 + pos_offset),
+        (2, 3 + pos_offset),
+        (3, 4 + pos_offset),
+        (4, 3 + pos_offset),
+        (5, 2 + pos_offset),
+        (6, 0),
+        (7, 0),
+        (8, 0),
+    ];
+
+    let mut positions = Vec::new();
+    for &(cat, count) in &cat_counts {
+        if count == 0 {
+            let (a, b, c) = match cat {
+                6 => (4.0, 2.0, 2.0),
+                7 => (6.0, 3.0, 3.0),
+                _ => (2.5, 1.25, 1.25),
+            };
+            positions.push(PositionEntry {
+                category: cat,
+                position: 0,
+                description: None,
+                approved: Some(base_cost * a),
+                income_report: Some(base_cost * b),
+                income_total: Some(base_cost * c),
+                remark: None,
+            });
+        } else {
+            for pos in 1..=count {
+                let cost = base_cost * (cat as f64) * (pos as f64 / 2.0);
+                positions.push(PositionEntry {
+                    category: cat,
+                    position: pos,
+                    description: Some(format!("Position {}.{}", cat, pos)),
+                    approved: Some(cost),
+                    income_report: Some(cost * 0.5),
+                    income_total: Some(cost * 0.5),
+                    remark: None,
+                });
+            }
+        }
+    }
+
+    ReportConfig {
+        language: lang.to_string(),
+        currency: CURRENCIES[index % 5].to_string(),
+        project_number: Some(format!("PROJ-{:05}", index)),
+        project_title: Some(format!("Project {} ({})", index, lang)),
+        project_start: Some(format!("01.{:02}.2024", (index % 12) + 1)),
+        project_end: Some("31.12.2024".to_string()),
+        report_start: Some(format!("01.{:02}.2024", (index % 12) + 1)),
+        report_end: Some("30.06.2024".to_string()),
+        table,
+        positions,
+        body_positions: cat_counts.into_iter().collect(),
+        footer_bank: Some(base_cost * 10.0),
+        footer_kasse: Some(base_cost * 2.0),
+        footer_sonstiges: Some(base_cost * 0.5),
+        locked: true,
+        hide_columns_qv: true,
+        ..ReportConfig::default()
+    }
+}
+
+// ============================================================================
+// Messung
+// ============================================================================
+
+/// Führt eine Batch-Generierung durch und gibt die Dauer zurück.
+fn run_single(count: usize, output_dir: &Path, offset: usize) -> Duration {
+    let start = Instant::now();
+    for i in 0..count {
+        let config = build_config(offset + i);
+        let path = output_dir.join(format!("r_{:07}.xlsx", offset + i));
+        config.write_to(&path).ok();
+    }
+    start.elapsed()
+}
+
+fn run_multi(count: usize, output_dir: &Path, num_threads: usize, offset: usize) -> Duration {
+    let start = Instant::now();
+    let output_dir = Arc::new(output_dir.to_path_buf());
+    let chunk_size = count.div_ceil(num_threads);
+
+    let handles: Vec<_> = (0..num_threads)
+        .map(|tid| {
+            let dir = Arc::clone(&output_dir);
+            let start_i = offset + tid * chunk_size;
+            let end_i = (offset + count).min(start_i + chunk_size);
+            thread::spawn(move || {
+                for i in start_i..end_i {
+                    let config = build_config(i);
+                    let path = dir.join(format!("r_{:07}.xlsx", i));
+                    config.write_to(&path).ok();
+                }
+            })
+        })
+        .collect();
+
+    for h in handles {
+        h.join().unwrap();
+    }
+    start.elapsed()
+}
+
+fn run_multi_protected(
+    count: usize,
+    output_dir: &Path,
+    num_threads: usize,
+    hash: &Arc<kmw_fb_rust::PrecomputedHash>,
+    offset: usize,
+) -> Duration {
+    let start = Instant::now();
+    let output_dir = Arc::new(output_dir.to_path_buf());
+    let chunk_size = count.div_ceil(num_threads);
+
+    let handles: Vec<_> = (0..num_threads)
+        .map(|tid| {
+            let dir = Arc::clone(&output_dir);
+            let hash = Arc::clone(hash);
+            let start_i = offset + tid * chunk_size;
+            let end_i = (offset + count).min(start_i + chunk_size);
+            thread::spawn(move || {
+                for i in start_i..end_i {
+                    let config = build_config(i);
+                    let path = dir.join(format!("r_{:07}.xlsx", i));
+                    config.write_to_precomputed(&path, &hash).ok();
+                }
+            })
+        })
+        .collect();
+
+    for h in handles {
+        h.join().unwrap();
+    }
+    start.elapsed()
+}
+
+/// Misst einen Benchmark mit Warmup und N Samples.
+/// Gibt Throughput-Samples (Dateien/Sekunde) zurück.
+fn measure<F>(count: usize, warmup: usize, samples: usize, dir: &Path, run_fn: F) -> BenchStats
+where
+    F: Fn(&Path, usize) -> Duration,
+{
+    // Warmup (verwerfen)
+    for w in 0..warmup {
+        let offset = w * count;
+        run_fn(dir, offset);
+        // Dateien löschen um Disk-Füllstand konstant zu halten
+        cleanup_dir(dir);
+    }
+
+    // Samples messen
+    let mut throughput_samples = Vec::with_capacity(samples);
+    for s in 0..samples {
+        let offset = (warmup + s) * count;
+        let duration = run_fn(dir, offset);
+        let throughput = count as f64 / duration.as_secs_f64();
+        throughput_samples.push(throughput);
+        cleanup_dir(dir);
+    }
+
+    BenchStats::new(throughput_samples)
+}
+
+fn cleanup_dir(dir: &Path) {
+    if dir.exists() {
+        fs::remove_dir_all(dir).ok();
+    }
+    fs::create_dir_all(dir).ok();
+}
+
+// ============================================================================
+// Alle Benchmarks ausführen
+// ============================================================================
+
+fn run_all_benchmarks(base_dir: &Path) -> Vec<BenchResult> {
+    let mut results = Vec::new();
+    let cpu_count = thread::available_parallelism().map(|p| p.get()).unwrap_or(4);
+
+    for &(file_count, warmup, samples, multi_only) in BENCH_CONFIGS {
+        let dir = base_dir.join(format!("bench_{}", file_count));
+        fs::create_dir_all(&dir).unwrap();
+
+        // Single-threaded (außer bei multi_only)
+        if !multi_only {
+            println!(
+                "\n  [{} files] Single-threaded  (warmup={}, samples={})",
+                fmt_count(file_count),
+                warmup,
+                samples
+            );
+            print!("    ");
+            let stats = measure(file_count, warmup, samples, &dir, |d, off| {
+                print!(".");
+                std::io::Write::flush(&mut std::io::stdout()).ok();
+                run_single(file_count, d, off)
+            });
+            println!(
+                " {:.0}/sec  (CV {:.1}% — {})",
+                stats.mean(),
+                stats.cv_percent(),
+                stats.quality()
+            );
+            results.push(BenchResult {
+                label: format!("{} files", fmt_count(file_count)),
+                file_count,
+                threads: 1,
+                stats,
+            });
+        }
+
+        // Multi-threaded
+        let active_threads: Vec<usize> = THREAD_COUNTS
+            .iter()
+            .copied()
+            .filter(|&t| t <= cpu_count * 2)
+            .collect();
+
+        for num_threads in active_threads {
+            println!(
+                "\n  [{} files] {}-threaded  (warmup={}, samples={})",
+                fmt_count(file_count),
+                num_threads,
+                warmup,
+                samples
+            );
+            print!("    ");
+            let stats = measure(file_count, warmup, samples, &dir, |d, off| {
+                print!(".");
+                std::io::Write::flush(&mut std::io::stdout()).ok();
+                run_multi(file_count, d, num_threads, off)
+            });
+            println!(
+                " {:.0}/sec  (CV {:.1}% — {})",
+                stats.mean(),
+                stats.cv_percent(),
+                stats.quality()
+            );
+            results.push(BenchResult {
+                label: format!("{} files", fmt_count(file_count)),
+                file_count,
+                threads: num_threads,
+                stats,
+            });
+        }
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    // Protected benchmarks
+    let prot_file_count = 1_000;
+    let prot_warmup = 2;
+    let prot_samples = 5;
+
+    for &spin_count in &[1_000u32, 100_000u32] {
+        let label = if spin_count == 1_000 { "fast" } else { "standard" };
+        let dir = base_dir.join(format!("bench_prot_{}", spin_count));
+        fs::create_dir_all(&dir).unwrap();
+        let hash = Arc::new(precompute_hash_with_spin_count("benchmark_password", spin_count));
+
+        println!(
+            "\n  [{} files, {} threads, protection {}] (warmup={}, samples={})",
+            fmt_count(prot_file_count),
+            PROT_THREADS,
+            label,
+            prot_warmup,
+            prot_samples
+        );
+        print!("    ");
+
+        let hash_ref = Arc::clone(&hash);
+        let stats = measure(
+            prot_file_count,
+            prot_warmup,
+            prot_samples,
+            &dir,
+            move |d, off| {
+                print!(".");
+                std::io::Write::flush(&mut std::io::stdout()).ok();
+                run_multi_protected(prot_file_count, d, PROT_THREADS, &hash_ref, off)
+            },
+        );
+        println!(
+            " {:.0}/sec  (CV {:.1}% — {})",
+            stats.mean(),
+            stats.cv_percent(),
+            stats.quality()
+        );
+        results.push(BenchResult {
+            label: format!("1,000 files + protection (spin={})", spin_count),
+            file_count: prot_file_count,
+            threads: PROT_THREADS,
+            stats,
+        });
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    results
+}
+
+// ============================================================================
+// Ausgabe
+// ============================================================================
+
+fn print_summary(results: &[BenchResult], hw: &HardwareInfo) {
+    println!("\n\n{}", "=".repeat(70));
+    println!("  ERGEBNISSE");
+    println!("  {}", hw.summary());
+    println!("{}", "=".repeat(70));
+
+    // Standard-Benchmarks
+    let standard: Vec<_> = results
+        .iter()
+        .filter(|r| !r.label.contains("protection"))
+        .collect();
+
+    if !standard.is_empty() {
+        println!(
+            "\n  {:<22} {:>7} {:>10} {:>8} {:>7} {:>20} {:>8}",
+            "Configuration", "Threads", "Median", "Std Dev", "CV", "Range (files/sec)", "Throughput"
+        );
+        println!("  {}", "-".repeat(90));
+        for r in &standard {
+            let dur = Duration::from_secs_f64(r.file_count as f64 / r.stats.median());
+            let std_dur = Duration::from_secs_f64(
+                r.stats.std_dev() * r.file_count as f64 / r.stats.mean().powi(2),
+            );
+            println!(
+                "  {:<22} {:>7} {:>10} {:>8} {:>6.1}% {:>9.0}–{:<9.0} {:>8.0}/sec",
+                r.label,
+                r.threads,
+                fmt_duration(dur),
+                format!("±{}", fmt_duration(std_dur)),
+                r.stats.cv_percent(),
+                r.stats.min(),
+                r.stats.max(),
+                r.throughput_mean(),
             );
         }
     }
 
-    // Header-Eingabe Kategorien
-    values.set_header_input(6, base_cost * 4.0, base_cost * 2.0, base_cost * 2.0, "");
-    values.set_header_input(7, base_cost * 6.0, base_cost * 3.0, base_cost * 3.0, "");
-    values.set_header_input(8, base_cost * 2.5, base_cost * 1.25, base_cost * 1.25, "");
+    // Protected benchmarks
+    let protected: Vec<_> = results
+        .iter()
+        .filter(|r| r.label.contains("protection"))
+        .collect();
 
-    // Footer-Werte
-    values.set_footer_bank(base_cost * 10.0);
-    values.set_footer_kasse(base_cost * 2.0);
-    values.set_footer_sonstiges(base_cost * 0.5);
-
-    // Report schreiben mit Optionen (Protection + versteckte Spalten)
-    let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
-    write_report_with_options(ws, suffix, &values, &body_config, &options)?;
-
-    // In-Memory Buffer statt direkt auf Disk
-    let filename = format!("report_{:05}.xlsx", index);
-    let buffer = workbook.save_to_buffer()?;
-
-    Ok((filename, buffer))
-}
-
-/// Benchmark single-threaded
-fn benchmark_single_threaded(count: usize, output_dir: &Path) -> std::time::Duration {
-    let start = Instant::now();
-
-    for i in 0..count {
-        match generate_report_to_buffer(i) {
-            Ok((filename, buffer)) => {
-                fs::write(output_dir.join(filename), buffer).ok();
-            }
-            Err(e) => eprintln!("Error generating report {}: {}", i, e),
+    if !protected.is_empty() {
+        println!("\n  Protection benchmarks (precomputed hash):");
+        println!(
+            "  {:<38} {:>7} {:>10} {:>7} {:>20} {:>8}",
+            "Configuration", "Threads", "Median", "CV", "Range (files/sec)", "Throughput"
+        );
+        println!("  {}", "-".repeat(90));
+        for r in &protected {
+            let dur = Duration::from_secs_f64(r.file_count as f64 / r.stats.median());
+            println!(
+                "  {:<38} {:>7} {:>10} {:>6.1}% {:>9.0}–{:<9.0} {:>8.0}/sec",
+                r.label,
+                r.threads,
+                fmt_duration(dur),
+                r.stats.cv_percent(),
+                r.stats.min(),
+                r.stats.max(),
+                r.throughput_mean(),
+            );
         }
     }
 
-    start.elapsed()
+    println!("\n  CV legend: excellent (<5%)  good (5–10%)  fair (10–20%)  noisy (>20%)");
+    println!("{}", "=".repeat(70));
 }
 
-/// Benchmark multi-threaded
-fn benchmark_multi_threaded(
-    count: usize,
-    output_dir: &Path,
-    num_threads: usize,
-) -> std::time::Duration {
-    let start = Instant::now();
-    let output_dir = Arc::new(output_dir.to_path_buf());
+// ============================================================================
+// README-Update
+// ============================================================================
 
-    let chunk_size = count.div_ceil(num_threads);
-    let mut handles = Vec::new();
+const PERF_START: &str = "<!-- PERF_START -->";
+const PERF_END: &str = "<!-- PERF_END -->";
+const README_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/README.md");
 
-    for thread_id in 0..num_threads {
-        let output_dir = Arc::clone(&output_dir);
-        let start_idx = thread_id * chunk_size;
-        let end_idx = std::cmp::min(start_idx + chunk_size, count);
+fn generate_perf_markdown(results: &[BenchResult], hw: &HardwareInfo) -> String {
+    let mut out = String::new();
 
-        let handle = thread::spawn(move || {
-            for i in start_idx..end_idx {
-                match generate_report_to_buffer(i) {
-                    Ok((filename, buffer)) => {
-                        fs::write(output_dir.join(filename), buffer).ok();
-                    }
-                    Err(e) => eprintln!("Error generating report {}: {}", i, e),
-                }
-            }
-        });
+    out.push_str(&format!("**Environment:** {}\n\n", hw.summary()));
 
-        handles.push(handle);
+    // Haupt-Tabelle
+    let standard: Vec<_> = results
+        .iter()
+        .filter(|r| !r.label.contains("protection"))
+        .collect();
+
+    if !standard.is_empty() {
+        out.push_str("| Files | Threads | Mean | Std Dev | CV | Throughput |\n");
+        out.push_str("|-------|---------|------|---------|----|------------|\n");
+
+        for r in &standard {
+            let dur = r.stats.mean_duration(r.file_count);
+            let std_dur = Duration::from_secs_f64(
+                r.stats.std_dev() * r.file_count as f64 / r.stats.mean().powi(2),
+            );
+            out.push_str(&format!(
+                "| {:>6} | {:>7} | {:>8} | {:>8} | {:>4.1}% | {:>8.0}/sec |\n",
+                fmt_count(r.file_count),
+                r.threads,
+                fmt_duration(dur),
+                format!("±{}", fmt_duration(std_dur)),
+                r.stats.cv_percent(),
+                r.throughput_mean(),
+            ));
+        }
+        out.push('\n');
     }
 
-    for handle in handles {
-        handle.join().unwrap();
+    // Protected-Tabelle
+    let protected: Vec<_> = results
+        .iter()
+        .filter(|r| r.label.contains("protection"))
+        .collect();
+
+    if !protected.is_empty() {
+        out.push_str(&format!(
+            "**With workbook protection (precomputed hash, 1,000 files, {} threads):**\n\n",
+            PROT_THREADS
+        ));
+        out.push_str("| Spin Count | Mean | CV | Throughput |\n");
+        out.push_str("|------------|------|----|------------|\n");
+        for r in &protected {
+            let spin = if r.label.contains("1000") { "1,000" } else { "100,000" };
+            let dur = r.stats.mean_duration(r.file_count);
+            out.push_str(&format!(
+                "| {:>10} | {:>8} | {:>4.1}% | {:>8.0}/sec |\n",
+                spin,
+                fmt_duration(dur),
+                r.stats.cv_percent(),
+                r.throughput_mean(),
+            ));
+        }
+        out.push('\n');
     }
 
-    start.elapsed()
+    // Datum
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| {
+            let secs = d.as_secs();
+            let days = secs / 86400;
+            let year = 1970 + days / 365;
+            let day_of_year = days % 365;
+            let month = (day_of_year / 30) + 1;
+            let day = (day_of_year % 30) + 1;
+            format!("{:04}-{:02}-{:02}", year, month.min(12), day.min(31))
+        })
+        .unwrap_or_else(|_| "unknown".to_string());
+
+    out.push_str(&format!("*Last updated: {}*\n", now));
+    out
 }
 
-fn run_benchmark(count: usize, output_dir: &Path, multi_only: bool) {
-    println!("\n{}", "=".repeat(60));
-    println!("  BENCHMARK: {} Dateien", count);
-    println!("{}", "=".repeat(60));
+fn update_readme(results: &[BenchResult], hw: &HardwareInfo) {
+    let readme_path = PathBuf::from(README_PATH);
 
-    // Verzeichnis leeren
-    if output_dir.exists() {
-        fs::remove_dir_all(output_dir).ok();
-    }
-    fs::create_dir_all(output_dir).unwrap();
-
-    let single_time = if multi_only {
-        None
-    } else {
-        // Single-threaded
-        print!("\n  Single-threaded... ");
-        std::io::Write::flush(&mut std::io::stdout()).unwrap();
-        let t = benchmark_single_threaded(count, output_dir);
-        println!("{:.2?}", t);
-        println!(
-            "    -> {:.2} Dateien/Sekunde",
-            count as f64 / t.as_secs_f64()
-        );
-
-        // Cleanup
-        fs::remove_dir_all(output_dir).ok();
-        fs::create_dir_all(output_dir).unwrap();
-
-        Some(t)
+    let content = match fs::read_to_string(&readme_path) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("\n  Warning: README.md not found or unreadable: {}", e);
+            return;
+        }
     };
 
-    // Multi-threaded mit verschiedenen Thread-Anzahlen
-    let thread_counts = [2, 4, 8, 16];
-
-    for &num_threads in &thread_counts {
-        print!("\n  Multi-threaded ({} threads)... ", num_threads);
-        std::io::Write::flush(&mut std::io::stdout()).unwrap();
-        let multi_time = benchmark_multi_threaded(count, output_dir, num_threads);
-        println!("{:.2?}", multi_time);
-        println!(
-            "    -> {:.2} Dateien/Sekunde",
-            count as f64 / multi_time.as_secs_f64()
-        );
-        if let Some(st) = single_time {
-            println!(
-                "    -> Speedup: {:.2}x",
-                st.as_secs_f64() / multi_time.as_secs_f64()
-            );
+    let start_pos = match content.find(PERF_START) {
+        Some(p) => p,
+        None => {
+            eprintln!("\n  Warning: {} marker not found in README.md", PERF_START);
+            return;
         }
+    };
+    let end_pos = match content.find(PERF_END) {
+        Some(p) => p,
+        None => {
+            eprintln!("\n  Warning: {} marker not found in README.md", PERF_END);
+            return;
+        }
+    };
 
-        // Cleanup zwischen Runs
-        fs::remove_dir_all(output_dir).ok();
-        fs::create_dir_all(output_dir).unwrap();
-    }
-
-    // Finale Cleanup
-    fs::remove_dir_all(output_dir).ok();
-}
-
-/// Benchmark multi-threaded mit Workbook-Protection (precomputed hash)
-fn benchmark_multi_threaded_protected(
-    count: usize,
-    output_dir: &Path,
-    num_threads: usize,
-    spin_count: u32,
-) -> std::time::Duration {
-    let hash = Arc::new(kmw_fb_rust::precompute_hash_with_spin_count(
-        "benchmark_password",
-        spin_count,
-    ));
-    let start = Instant::now();
-    let output_dir = Arc::new(output_dir.to_path_buf());
-
-    let chunk_size = count.div_ceil(num_threads);
-    let mut handles = Vec::new();
-
-    for thread_id in 0..num_threads {
-        let hash = Arc::clone(&hash);
-        let output_dir = Arc::clone(&output_dir);
-        let start_idx = thread_id * chunk_size;
-        let end_idx = std::cmp::min(start_idx + chunk_size, count);
-
-        let handle = thread::spawn(move || {
-            for i in start_idx..end_idx {
-                match generate_report_to_buffer(i) {
-                    Ok((filename, buffer)) => {
-                        let temp_file = output_dir.join(format!("{}.tmp", filename));
-                        let final_file = output_dir.join(&filename);
-                        fs::write(&temp_file, buffer).ok();
-                        kmw_fb_rust::protect_workbook_precomputed(
-                            temp_file.to_str().unwrap(),
-                            final_file.to_str().unwrap(),
-                            &hash,
-                        )
-                        .ok();
-                        fs::remove_file(&temp_file).ok();
-                    }
-                    Err(e) => eprintln!("Error generating report {}: {}", i, e),
-                }
-            }
-        });
-
-        handles.push(handle);
-    }
-
-    for handle in handles {
-        handle.join().unwrap();
-    }
-
-    start.elapsed()
-}
-
-fn run_benchmark_protected(count: usize, output_dir: &Path, spin_count: u32) {
-    println!("\n{}", "=".repeat(60));
-    println!(
-        "  BENCHMARK MIT PROTECTION: {} Dateien (spin_count={})",
-        count, spin_count
+    let new_content = generate_perf_markdown(results, hw);
+    let updated = format!(
+        "{}{}\n{}{}\n{}",
+        &content[..start_pos],
+        PERF_START,
+        new_content,
+        PERF_END,
+        &content[end_pos + PERF_END.len()..]
     );
-    println!("{}", "=".repeat(60));
 
-    let thread_counts = [8, 16];
-
-    for &num_threads in &thread_counts {
-        if output_dir.exists() {
-            fs::remove_dir_all(output_dir).ok();
-        }
-        fs::create_dir_all(output_dir).unwrap();
-
-        print!("\n  Multi-threaded ({} threads)... ", num_threads);
-        std::io::Write::flush(&mut std::io::stdout()).unwrap();
-        let t = benchmark_multi_threaded_protected(count, output_dir, num_threads, spin_count);
-        println!("{:.2?}", t);
-        println!(
-            "    -> {:.2} Dateien/Sekunde",
-            count as f64 / t.as_secs_f64()
-        );
+    match fs::write(&readme_path, updated) {
+        Ok(_) => println!("\n  README.md updated."),
+        Err(e) => eprintln!("\n  Warning: could not write README.md: {}", e),
     }
-
-    fs::remove_dir_all(output_dir).ok();
 }
+
+// ============================================================================
+// Hilfsfunktionen
+// ============================================================================
+
+fn fmt_count(n: usize) -> String {
+    if n >= 1_000 {
+        format!("{},{:03}", n / 1_000, n % 1_000)
+    } else {
+        n.to_string()
+    }
+}
+
+fn fmt_duration(d: Duration) -> String {
+    let ms = d.as_secs_f64() * 1000.0;
+    if ms >= 1_000.0 {
+        format!("{:.2}s", ms / 1000.0)
+    } else {
+        format!("{:.0}ms", ms)
+    }
+}
+
+// ============================================================================
+// main
+// ============================================================================
 
 fn main() {
-    println!("\n{}", "#".repeat(60));
+    println!("\n{}", "#".repeat(70));
     println!("  FINANZBERICHT BENCHMARK");
-    println!("  Vergleich: Single-threaded vs Multi-threaded");
-    println!("{}", "#".repeat(60));
+    println!("  Warmup + Statistical Sampling");
+    println!("{}", "#".repeat(70));
 
-    let cpu_count = thread::available_parallelism()
-        .map(|p| p.get())
-        .unwrap_or(4);
-    println!("\n  Verfügbare CPU-Kerne: {}", cpu_count);
+    // Hardware erkennen
+    print!("\n  Detecting hardware... ");
+    std::io::Write::flush(&mut std::io::stdout()).ok();
+    let hw = HardwareInfo::collect();
+    println!("{}", hw.summary());
+
+    let cpu_count = thread::available_parallelism().map(|p| p.get()).unwrap_or(4);
+    println!("  Max threads tested: min({}, {})", cpu_count * 2, THREAD_COUNTS.last().unwrap());
+    println!("\n  Note: Run with --release for representative results.");
+    println!("  Methodology: Throughput (files/sec) measured per sample.");
+    println!("               CV = coefficient of variation (lower = more stable).\n");
 
     let temp_dir = std::env::temp_dir().join("finanzbericht_benchmark");
+    fs::create_dir_all(&temp_dir).unwrap();
 
-    // Benchmark 100 Dateien
-    run_benchmark(100, &temp_dir, false);
+    // Benchmarks ausführen
+    let results = run_all_benchmarks(&temp_dir);
 
-    // Benchmark 1000 Dateien
-    run_benchmark(1000, &temp_dir, false);
+    // Zusammenfassung ausgeben
+    print_summary(&results, &hw);
 
-    // Benchmark 10000 Dateien (nur multi-threaded)
-    run_benchmark(10_000, &temp_dir, true);
+    // README aktualisieren
+    update_readme(&results, &hw);
 
-    // Benchmark mit Fast Protection (1000 Dateien)
-    run_benchmark_protected(1000, &temp_dir, 1_000);
+    // Temp-Verzeichnis aufräumen
+    fs::remove_dir_all(&temp_dir).ok();
 
-    // Benchmark mit Standard Protection (1000 Dateien)
-    run_benchmark_protected(1000, &temp_dir, 100_000);
-
-    println!("\n{}", "#".repeat(60));
+    println!("\n{}", "#".repeat(70));
     println!("  BENCHMARK ABGESCHLOSSEN");
-    println!("{}\n", "#".repeat(60));
+    println!("{}\n", "#".repeat(70));
 }
