@@ -38,36 +38,64 @@ cargo bench
 `ReportConfig` is the main entry point — it bundles all parameters in one serializable struct:
 
 ```rust
-use fb_rust::{ReportConfig, PositionEntry};
+use fb_rust::{PanelEntry, PositionEntry, ReportConfig, TableEntry};
 
 let config = ReportConfig {
+    // Header
     language: "deutsch".to_string(),
     currency: "EUR".to_string(),
     project_number: Some("PROJ-2025-001".to_string()),
     project_title: Some("Bildungsprojekt Ostafrika".to_string()),
-    locked: true,
-    hide_columns_qv: true,
-    positions: vec![
-        PositionEntry {
-            category: 1,
-            position: 1,
-            description: Some("Personalkosten".to_string()),
-            approved: Some(18000.0),
-            income_report: Some(9000.0),
-            income_total: Some(9000.0),
-            remark: None,
+    project_start: Some("01.01.2025".to_string()),
+    project_end: Some("31.12.2027".to_string()),
+    report_start: Some("01.01.2025".to_string()),
+    report_end: Some("30.06.2025".to_string()),
+
+    // Income table (max 5 rows, index 0–4)
+    table: vec![
+        TableEntry {
+            index: 0,
+            approved_budget: Some(80000.0),
+            income_report: Some(50000.0),
+            income_total: Some(50000.0),
+            reason: Some("1. Rate".to_string()),
         },
     ],
+
+    // Cash book panels (max 18 rows each, index 0–17)
+    left_panel: vec![
+        PanelEntry { index: 0, date: Some("15.01.2025".to_string()), amount_euro: Some(9000.0), amount_local: None },
+    ],
+    right_panel: vec![],
+
+    // Cost positions (category 1–8, position 0 = header-input, 1..N = row)
+    positions: vec![
+        PositionEntry { category: 1, position: 1, description: Some("Projektleitung".to_string()), approved: Some(18000.0), income_report: Some(9000.0), income_total: Some(9000.0), remark: None },
+        PositionEntry { category: 6, position: 0, description: None, approved: Some(3000.0), income_report: Some(1500.0), income_total: Some(1500.0), remark: Some("Verwaltung".to_string()) },
+    ],
+
     // Categories 1–8: value = number of position rows (0 = header-input mode)
-    body_positions: [(1u8, 5u16), (2, 3), (6, 0), (7, 0), (8, 0)]
+    body_positions: [(1u8, 5u16), (2, 3), (3, 4), (4, 3), (5, 2), (6, 0), (7, 0), (8, 0)]
         .into_iter()
         .collect(),
+
+    // Footer balances
     footer_bank: Some(8500.0),
-    ..ReportConfig::default()
+    footer_kasse: Some(1200.0),
+    footer_sonstiges: Some(300.0),
+
+    // Options
+    locked: true,
+    workbook_password: Some("secret".to_string()),
+    hide_columns_qv: true,
+    hide_language_sheet: true,
+    row_grouping: None,
 };
 
 config.write_to("report.xlsx")?;
 ```
+
+> See [`examples/test_all_fields.rs`](examples/test_all_fields.rs) for a complete reference with all fields populated.
 
 ## Project Structure
 
