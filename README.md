@@ -10,6 +10,7 @@ High-performance Excel financial report generator written in Rust.
 - High performance (~1200 reports/second multi-threaded)
 - Sheet and workbook protection with locked formulas
 - Typed error handling (`ReportError`, `ProtectionError`) — no `anyhow` or `Box<dyn Error>`
+- Optional serde support (`--features serde`) with validated deserialization
 
 ## Quick Start
 
@@ -81,6 +82,9 @@ src/
     ├── body/               BodyConfig, BodyLayout, FooterLayout, formulas
     └── writer/             Excel writing (engine.rs, layout.rs, structure.rs)
 
+tests/
+└── serde_integration.rs    Serde JSON roundtrip tests (26 tests, feature-gated)
+
 examples/
 ├── test_all_fields.rs         All fields populated (complete reference example)
 ├── test_multilang.rs          5 languages
@@ -131,9 +135,10 @@ let config = BodyConfig::new()
 ## Testing
 
 ```bash
-cargo test             # All tests (unit + integration)
-cargo test --lib       # Unit tests only
-cargo deny check       # License and security audit
+cargo test                                             # Unit tests (63 tests)
+cargo test --features serde --test serde_integration   # Serde JSON tests (26 tests)
+cargo test --features serde                            # All tests (89 tests)
+cargo deny check                                       # License and security audit
 ```
 
 ## License
