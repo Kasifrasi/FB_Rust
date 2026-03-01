@@ -21,8 +21,8 @@ use std::collections::HashMap;
 fn test_report_config_full_roundtrip() {
     let config = ReportConfig {
         header: ReportHeader {
-            language: "english".to_string(),
-            currency: "USD".to_string(),
+            language: Language::English,
+            currency: Currency::usd(),
             project_number: Some("PROJ-2025-001".to_string()),
             project_title: Some("Bildungsprojekt".to_string()),
             project_start: Some("01.01.2025".to_string()),
@@ -78,7 +78,6 @@ fn test_report_config_full_roundtrip() {
             sonstiges: None,
         },
         options: ReportOptions {
-            locked: true,
             sheet_password: Some("blatt_pw".to_string()),
             workbook_password: Some("geheim".to_string()),
             hide_columns_qv: true,
@@ -96,8 +95,8 @@ fn test_report_config_full_roundtrip() {
     let deserialized: ReportConfig = serde_json::from_str(&json).expect("deserialize");
 
     // Header
-    assert_eq!(deserialized.header.language, "english");
-    assert_eq!(deserialized.header.currency, "USD");
+    assert_eq!(deserialized.header.language, Language::English);
+    assert_eq!(deserialized.header.currency, Currency::usd());
     assert_eq!(
         deserialized.header.project_number.as_deref(),
         Some("PROJ-2025-001")
@@ -159,7 +158,6 @@ fn test_report_config_full_roundtrip() {
     assert_eq!(deserialized.footer.sonstiges, None);
 
     // Options
-    assert!(deserialized.options.locked);
     assert_eq!(
         deserialized.options.workbook_password.as_deref(),
         Some("geheim")
@@ -185,9 +183,9 @@ fn test_report_config_minimal_roundtrip() {
     let json = serde_json::to_string(&config).expect("serialize");
     let deserialized: ReportConfig = serde_json::from_str(&json).expect("deserialize");
 
-    assert_eq!(deserialized.header.language, "deutsch");
-    assert_eq!(deserialized.header.currency, "EUR");
-    assert!(!deserialized.options.locked);
+    assert_eq!(deserialized.header.language, Language::Deutsch);
+    assert_eq!(deserialized.header.currency, Currency::eur());
+    assert!(deserialized.options.sheet_password.is_none());
     assert!(deserialized.body.table.is_empty());
     assert!(deserialized.body.left_panel.is_empty());
     assert!(deserialized.body.right_panel.is_empty());
@@ -203,9 +201,9 @@ fn test_report_config_empty_json() {
     let json = r#"{}"#;
     let config: ReportConfig = serde_json::from_str(json).expect("deserialize empty");
 
-    assert_eq!(config.header.language, "deutsch");
-    assert_eq!(config.header.currency, "EUR");
-    assert!(!config.options.locked);
+    assert_eq!(config.header.language, Language::Deutsch);
+    assert_eq!(config.header.currency, Currency::eur());
+    assert!(config.options.sheet_password.is_none());
     assert!(config.body.table.is_empty());
 }
 
@@ -221,12 +219,12 @@ fn test_report_config_partial_json() {
 
     let config: ReportConfig = serde_json::from_str(json).expect("deserialize partial");
 
-    assert_eq!(config.header.language, "english");
-    assert_eq!(config.header.currency, "GBP");
+    assert_eq!(config.header.language, Language::English);
+    assert_eq!(config.header.currency, Currency::gbp());
     assert!(config.header.project_number.is_none());
     assert!(config.body.table.is_empty());
     assert!(config.footer.bank.is_none());
-    assert!(!config.options.locked);
+    assert!(config.options.sheet_password.is_none());
 }
 
 // ============================================================================
@@ -584,7 +582,7 @@ fn test_report_config_from_typescript_json() {
             "kasse": 500.0
         },
         "options": {
-            "locked": true,
+            "sheet_password": "geheim",
             "hide_columns_qv": false,
             "hide_language_sheet": false
         }
@@ -592,14 +590,14 @@ fn test_report_config_from_typescript_json() {
 
     let config: ReportConfig = serde_json::from_str(json).expect("deserialize TypeScript JSON");
 
-    assert_eq!(config.header.language, "deutsch");
-    assert_eq!(config.header.currency, "EUR");
+    assert_eq!(config.header.language, Language::Deutsch);
+    assert_eq!(config.header.currency, Currency::eur());
     assert_eq!(config.header.project_number.as_deref(), Some("2025-001"));
     assert_eq!(
         config.header.project_title.as_deref(),
         Some("Klimaschutzprojekt")
     );
-    assert!(config.options.locked);
+    assert_eq!(config.options.sheet_password.as_deref(), Some("geheim"));
     assert_eq!(config.body.body_positions[&1], 10);
     assert_eq!(config.body.body_positions[&2], 5);
     assert_eq!(config.body.positions.len(), 1);
@@ -677,7 +675,6 @@ fn test_report_config_all_null_optionals() {
             "sonstiges": null
         },
         "options": {
-            "locked": false,
             "workbook_password": null,
             "hide_columns_qv": false,
             "hide_language_sheet": false
@@ -686,8 +683,8 @@ fn test_report_config_all_null_optionals() {
 
     let config: ReportConfig = serde_json::from_str(json).expect("all-null optionals");
 
-    assert_eq!(config.header.language, "english");
-    assert_eq!(config.header.currency, "GBP");
+    assert_eq!(config.header.language, Language::English);
+    assert_eq!(config.header.currency, Currency::gbp());
     assert!(config.header.project_number.is_none());
     assert!(config.header.project_title.is_none());
     assert!(config.footer.bank.is_none());

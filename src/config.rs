@@ -33,7 +33,7 @@
 //!             ],
 //!         },
 //!         footer: { bank: 12000.0, kasse: 500.0 },
-//!         options: { locked: true },
+//!         options: { sheet_password: "geheim" },
 //!     },
 //!     outputPath: "/home/user/report.xlsx"
 //! });
@@ -44,7 +44,7 @@ use std::path::Path;
 
 use derive_builder::Builder;
 
-use crate::report::api::{ApiKey, CellValue, ReportValues};
+use crate::report::api::{ApiKey, CellValue, Currency, Language, ReportValues};
 use crate::report::body::BodyConfig;
 use crate::report::options::{RowGrouping, SheetOptions, SheetProtection};
 use crate::report::writer::{create_protected_report, create_protected_report_precomputed};
@@ -154,39 +154,39 @@ pub struct PositionEntry {
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq, Builder)]
-#[builder(setter(into), default)]
+#[builder(default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct ReportHeader {
-    /// Language: "deutsch", "english", "francais", "espanol", "portugues"
-    pub language: String,
-    /// Currency code (ISO 4217), e.g. "EUR", "USD"
-    pub currency: String,
+    /// Language (validated enum)
+    pub language: Language,
+    /// Currency (validated ISO 4217 code)
+    pub currency: Currency,
     /// Project number (cell D5)
-    #[builder(setter(strip_option))]
+    #[builder(setter(into, strip_option))]
     pub project_number: Option<String>,
     /// Project title (cell D6)
-    #[builder(setter(strip_option))]
+    #[builder(setter(into, strip_option))]
     pub project_title: Option<String>,
     /// Project start date (cell E8)
-    #[builder(setter(strip_option))]
+    #[builder(setter(into, strip_option))]
     pub project_start: Option<String>,
     /// Project end date (cell G8)
-    #[builder(setter(strip_option))]
+    #[builder(setter(into, strip_option))]
     pub project_end: Option<String>,
     /// Report period start (cell E9)
-    #[builder(setter(strip_option))]
+    #[builder(setter(into, strip_option))]
     pub report_start: Option<String>,
     /// Report period end (cell G9)
-    #[builder(setter(strip_option))]
+    #[builder(setter(into, strip_option))]
     pub report_end: Option<String>,
 }
 
 impl Default for ReportHeader {
     fn default() -> Self {
         Self {
-            language: "deutsch".to_string(),
-            currency: "EUR".to_string(),
+            language: Language::Deutsch,
+            currency: Currency::eur(),
             project_number: None,
             project_title: None,
             project_start: None,
@@ -286,7 +286,6 @@ pub struct ReportFooter {
 ///
 /// ```json
 /// {
-///   "locked": true,
 ///   "sheet_password": "sheet_secret",
 ///   "hide_columns_qv": true,
 ///   "hide_language_sheet": false,
@@ -302,9 +301,7 @@ pub struct ReportFooter {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct ReportOptions {
-    /// Lock sheet (default protection for all cells except input fields)
-    pub locked: bool,
-    /// Sheet protection password (`None` = no password, sheet still protected when `locked = true`)
+    /// Sheet protection password (`None` = no protection, `""` = protection without password)
     #[builder(setter(into, strip_option))]
     pub sheet_password: Option<String>,
     /// Hide helper columns Q-V
@@ -315,6 +312,7 @@ pub struct ReportOptions {
     #[builder(setter(into, strip_option))]
     pub workbook_password: Option<String>,
     /// Row grouping for collapsible sections
+    #[builder(setter(strip_option))]
     #[cfg_attr(feature = "serde", serde(default))]
     pub row_grouping: Option<RowGrouping>,
 }
@@ -336,8 +334,8 @@ pub struct ReportOptions {
 /// let config = ReportConfigBuilder::default()
 ///     .header(
 ///         ReportHeaderBuilder::default()
-///             .language("deutsch")
-///             .currency("EUR")
+///             .language(Language::Deutsch)
+///             .currency(Currency::eur())
 ///             .project_number("PROJ-001")
 ///             .build()?
 ///     )
@@ -348,7 +346,7 @@ pub struct ReportOptions {
 ///     )
 ///     .options(
 ///         ReportOptionsBuilder::default()
-///             .locked(true)
+///             .sheet_password("geheim")
 ///             .build()?
 ///     )
 ///     .build()?;
@@ -386,7 +384,6 @@ pub struct ReportOptions {
 ///   },
 ///   "footer": { "bank": 8500.0, "kasse": 250.50 },
 ///   "options": {
-///     "locked": true,
 ///     "sheet_password": "sheet_secret",
 ///     "workbook_password": "wb_secret",
 ///     "hide_columns_qv": true,
@@ -433,6 +430,7 @@ impl ReportConfig {
     /// - [`Io`](crate::ReportError::Io) — file system error
     /// - [`InvalidPath`](crate::ReportError::InvalidPath) — path contains non-UTF-8
     pub fn write_to(&self, output_path: impl AsRef<Path>) -> Result<(), crate::error::ReportError> {
+        self.validate()?;
         let values = self.build_values();
         let body_config = self.build_body_config();
         let sheet_opts = self.build_sheet_options();
@@ -474,6 +472,7 @@ impl ReportConfig {
         output_path: impl AsRef<Path>,
         hash: &crate::workbook_protection::PrecomputedHash,
     ) -> Result<(), crate::error::ReportError> {
+        self.validate()?;
         let values = self.build_values();
         let body_config = self.build_body_config();
         let sheet_opts = self.build_sheet_options();
@@ -488,11 +487,92 @@ impl ReportConfig {
         Ok(())
     }
 
+    fn validate(&self) -> Result<(), crate::error::ReportError> {
+        use std::collections::HashSet;
+
+        // Language and Currency are validated at the type level (Language enum, Currency struct).
+
+        // Table index: 0-4
+        for e in &self.body.table {
+            if e.index > 4 {
+                return Err(crate::error::ReportError::Validation(format!(
+                    "table entry index {} out of range (must be 0-4)",
+                    e.index
+                )));
+            }
+        }
+
+        // Panel index: 0-17
+        for (panel_name, entries) in [
+            ("left_panel", &self.body.left_panel),
+            ("right_panel", &self.body.right_panel),
+        ] {
+            for e in entries {
+                if e.index > 17 {
+                    return Err(crate::error::ReportError::Validation(format!(
+                        "{panel_name} entry index {} out of range (must be 0-17)",
+                        e.index
+                    )));
+                }
+            }
+        }
+
+        // Positions: category 1-8, position vs body_positions, duplicates
+        let mut seen = HashSet::new();
+        for e in &self.body.positions {
+            if e.category < 1 || e.category > 8 {
+                return Err(crate::error::ReportError::Validation(format!(
+                    "position category {} out of range (must be 1-8)",
+                    e.category
+                )));
+            }
+
+            if !seen.insert((e.category, e.position)) {
+                return Err(crate::error::ReportError::Validation(format!(
+                    "duplicate position: category {}, position {}",
+                    e.category, e.position
+                )));
+            }
+
+            let max_positions = self
+                .body
+                .body_positions
+                .get(&e.category)
+                .copied()
+                .unwrap_or_else(|| {
+                    BodyConfig::default_positions()
+                        .get(&e.category)
+                        .copied()
+                        .unwrap_or(0)
+                });
+
+            if max_positions == 0 {
+                // Header-input mode: only position 0 allowed
+                if e.position != 0 {
+                    return Err(crate::error::ReportError::Validation(format!(
+                        "category {} has 0 positions (header-input mode), but position {} was given (must be 0)",
+                        e.category, e.position
+                    )));
+                }
+            } else {
+                // Normal mode: position must be 1..=max_positions
+                if e.position == 0 || e.position > max_positions {
+                    return Err(crate::error::ReportError::Validation(format!(
+                        "category {} has {} positions, but position {} was given (must be 1-{})",
+                        e.category, max_positions, e.position, max_positions
+                    )));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     fn build_values(&self) -> ReportValues {
         let h = &self.header;
         let mut v = ReportValues::new()
-            .with_language(&h.language)
-            .with_currency(&h.currency);
+            .with_lang(h.language)
+            .with_curr(h.currency.clone());
 
         if let Some(ref s) = h.project_number {
             v = v.with_project_number(s);
@@ -601,9 +681,9 @@ impl ReportConfig {
     }
 
     fn build_sheet_options(&self) -> SheetOptions {
-        let mut opts = if self.options.locked {
+        let mut opts = if let Some(ref pw) = self.options.sheet_password {
             let mut prot = SheetProtection::from_defaults();
-            if let Some(ref pw) = self.options.sheet_password {
+            if !pw.is_empty() {
                 prot = prot.with_password(pw);
             }
             SheetOptions::new().with_protection(prot)
@@ -635,5 +715,197 @@ fn opt_str(v: Option<String>) -> CellValue {
     match v {
         Some(s) if !s.is_empty() => CellValue::Text(s),
         _ => CellValue::Empty,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn valid_config() -> ReportConfig {
+        ReportConfig {
+            body: ReportBody {
+                table: vec![TableEntry { index: 0, ..Default::default() }],
+                positions: vec![
+                    PositionEntry { category: 1, position: 1, ..Default::default() },
+                    PositionEntry { category: 6, position: 0, ..Default::default() },
+                ],
+                body_positions: [(1u8, 5u16), (6, 0)].into_iter().collect(),
+                ..ReportBody::default()
+            },
+            ..ReportConfig::default()
+        }
+    }
+
+    #[test]
+    fn test_validate_valid_config() {
+        assert!(valid_config().validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_default_config() {
+        assert!(ReportConfig::default().validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_table_index_out_of_range() {
+        let config = ReportConfig {
+            body: ReportBody {
+                table: vec![TableEntry { index: 5, ..Default::default() }],
+                ..ReportBody::default()
+            },
+            ..ReportConfig::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.to_string().contains("table entry index 5"));
+    }
+
+    #[test]
+    fn test_validate_left_panel_index_out_of_range() {
+        let config = ReportConfig {
+            body: ReportBody {
+                left_panel: vec![PanelEntry { index: 18, ..Default::default() }],
+                ..ReportBody::default()
+            },
+            ..ReportConfig::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.to_string().contains("left_panel entry index 18"));
+    }
+
+    #[test]
+    fn test_validate_right_panel_index_out_of_range() {
+        let config = ReportConfig {
+            body: ReportBody {
+                right_panel: vec![PanelEntry { index: 20, ..Default::default() }],
+                ..ReportBody::default()
+            },
+            ..ReportConfig::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.to_string().contains("right_panel entry index 20"));
+    }
+
+    #[test]
+    fn test_validate_category_out_of_range_zero() {
+        let config = ReportConfig {
+            body: ReportBody {
+                positions: vec![PositionEntry { category: 0, position: 1, ..Default::default() }],
+                ..ReportBody::default()
+            },
+            ..ReportConfig::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.to_string().contains("category 0 out of range"));
+    }
+
+    #[test]
+    fn test_validate_category_out_of_range_nine() {
+        let config = ReportConfig {
+            body: ReportBody {
+                positions: vec![PositionEntry { category: 9, position: 1, ..Default::default() }],
+                ..ReportBody::default()
+            },
+            ..ReportConfig::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.to_string().contains("category 9 out of range"));
+    }
+
+    #[test]
+    fn test_validate_position_exceeds_body_positions() {
+        let config = ReportConfig {
+            body: ReportBody {
+                positions: vec![PositionEntry { category: 1, position: 6, ..Default::default() }],
+                body_positions: [(1u8, 5u16)].into_iter().collect(),
+                ..ReportBody::default()
+            },
+            ..ReportConfig::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.to_string().contains("category 1 has 5 positions, but position 6"));
+    }
+
+    #[test]
+    fn test_validate_position_zero_for_normal_category() {
+        let config = ReportConfig {
+            body: ReportBody {
+                positions: vec![PositionEntry { category: 1, position: 0, ..Default::default() }],
+                body_positions: [(1u8, 5u16)].into_iter().collect(),
+                ..ReportBody::default()
+            },
+            ..ReportConfig::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.to_string().contains("category 1 has 5 positions, but position 0"));
+    }
+
+    #[test]
+    fn test_validate_position_nonzero_for_header_input() {
+        let config = ReportConfig {
+            body: ReportBody {
+                positions: vec![PositionEntry { category: 6, position: 1, ..Default::default() }],
+                body_positions: [(6u8, 0u16)].into_iter().collect(),
+                ..ReportBody::default()
+            },
+            ..ReportConfig::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.to_string().contains("category 6 has 0 positions (header-input mode)"));
+    }
+
+    #[test]
+    fn test_validate_duplicate_position() {
+        let config = ReportConfig {
+            body: ReportBody {
+                positions: vec![
+                    PositionEntry { category: 1, position: 1, ..Default::default() },
+                    PositionEntry { category: 1, position: 1, ..Default::default() },
+                ],
+                body_positions: [(1u8, 5u16)].into_iter().collect(),
+                ..ReportBody::default()
+            },
+            ..ReportConfig::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.to_string().contains("duplicate position: category 1, position 1"));
+    }
+
+    #[test]
+    fn test_validate_uses_default_body_positions() {
+        // Category 1 not in body_positions → falls back to default (20)
+        let config = ReportConfig {
+            body: ReportBody {
+                positions: vec![PositionEntry { category: 1, position: 15, ..Default::default() }],
+                body_positions: HashMap::new(),
+                ..ReportBody::default()
+            },
+            ..ReportConfig::default()
+        };
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_typed_language_in_header() {
+        let config = ReportConfig {
+            header: ReportHeader {
+                language: Language::English,
+                ..ReportHeader::default()
+            },
+            ..ReportConfig::default()
+        };
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_typed_currency_in_header() {
+        let config = ReportConfig {
+            header: ReportHeader {
+                currency: Currency::usd(),
+                ..ReportHeader::default()
+            },
+            ..ReportConfig::default()
+        };
+        assert!(config.validate().is_ok());
     }
 }

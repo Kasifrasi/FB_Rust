@@ -18,8 +18,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ReportConfigBuilder::default()
         .header(
             ReportHeaderBuilder::default()
-                .language("deutsch")
-                .currency("EUR")
+                .language(Language::Deutsch)
+                .currency(Currency::eur())
                 .project_number("PROJ-2024-001")
                 .project_title("Bildungsprojekt Ostafrika")
                 .project_start("01.01.2024")
@@ -126,7 +126,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .options(
             ReportOptionsBuilder::default()
-                .locked(true)
+                .sheet_password("blatt_geheim")
+                .workbook_password("wb_geheim")
                 .hide_columns_qv(true)
                 .hide_language_sheet(true)
                 .build()?

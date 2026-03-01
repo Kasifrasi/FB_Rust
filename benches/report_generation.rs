@@ -10,8 +10,8 @@
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use fb_rust::{
-    precompute_hash_with_spin_count, PanelEntry, PositionEntry, ReportBody, ReportConfig,
-    ReportFooter, ReportHeader, ReportOptions, RowGrouping, TableEntry,
+    precompute_hash_with_spin_count, Currency, Language, PanelEntry, PositionEntry, ReportBody,
+    ReportConfig, ReportFooter, ReportHeader, ReportOptions, RowGrouping, TableEntry,
 };
 use std::fs;
 use std::sync::Arc;
@@ -22,7 +22,13 @@ use std::time::{Duration, Instant};
 // Realistische Test-Config: Alle API-Features aktiv
 // ============================================================================
 
-const LANGUAGES: [&str; 5] = ["deutsch", "english", "francais", "espanol", "portugues"];
+const LANGUAGES: [Language; 5] = [
+    Language::Deutsch,
+    Language::English,
+    Language::Francais,
+    Language::Espanol,
+    Language::Portugues,
+];
 const CURRENCIES: [&str; 5] = ["EUR", "USD", "GBP", "CHF", "BRL"];
 const BENCH_PASSWORD: &str = "bench_protection_pw";
 const BENCH_SPIN_COUNT: u32 = 1_000;
@@ -35,7 +41,7 @@ const BENCH_SPIN_COUNT: u32 = 1_000;
 /// - 2×18 Panel-Einträge (Kassenbuch links + rechts)
 /// - 50 Kostenpositionen (Kat. 1–5 je 10) + 3 Header-Input (Kat. 6–8)
 /// - 3 Footer-Werte (Bank, Kasse, Sonstiges)
-/// - Sheet Protection (locked)
+/// - Sheet Protection (sheet_password)
 /// - Hidden columns (Q–V) + hidden language sheet
 /// - Row Grouping mit collapsed sections
 ///
@@ -122,8 +128,8 @@ fn build_config(index: usize) -> ReportConfig {
 
     ReportConfig {
         header: ReportHeader {
-            language: LANGUAGES[lang_idx].to_string(),
-            currency: CURRENCIES[lang_idx].to_string(),
+            language: LANGUAGES[lang_idx],
+            currency: Currency::new(CURRENCIES[lang_idx]).unwrap(),
             project_number: Some(format!("PROJ-{:05}", index)),
             project_title: Some(format!("Projekt {} ({})", index, LANGUAGES[lang_idx])),
             project_start: Some(format!("01.{:02}.2024", (index % 12) + 1)),
@@ -144,7 +150,7 @@ fn build_config(index: usize) -> ReportConfig {
             sonstiges: Some(base * 0.3),
         },
         options: ReportOptions {
-            locked: true,
+            sheet_password: Some("bench_pw".to_string()),
             hide_columns_qv: true,
             hide_language_sheet: true,
             row_grouping: Some(

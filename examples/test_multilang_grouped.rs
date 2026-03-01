@@ -9,21 +9,21 @@
 //! - Evaluierung: 0 Positionen (nur Header)
 //! - Audit: 0 Positionen (nur Header)
 //! - Reserve: 0 Positionen (nur Header)
+//!
+//! **Builder-Pattern** — kein `Some()`, kein `.to_string()`.
 
-use fb_rust::{ReportConfig, ReportHeader, ReportOptions, RowGrouping};
+use fb_rust::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let languages = ["deutsch", "english", "francais", "espanol", "portugues"];
-
-    for lang in &languages {
-        create_report(lang)?;
+    for lang in Language::all() {
+        create_report(*lang)?;
     }
 
     println!("\n✅ Alle 5 Reports erstellt!");
     Ok(())
 }
 
-fn create_report(language: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn create_report(language: Language) -> Result<(), Box<dyn std::error::Error>> {
     println!("Erstelle Report für: {}", language);
 
     // Zeilen-Berechnung für Gruppierung (Body startet bei Zeile 26, 0-basiert):
@@ -34,26 +34,28 @@ fn create_report(language: &str) -> Result<(), Box<dyn std::error::Error>> {
     //   Kat 4 (30 Pos): Header=102, Pos=103-132, Footer=133 → Gruppe 115-132 (letzte 18)
     //   Kat 5 (20 Pos): Header=134, Pos=135-154, Footer=155 → Gruppe 140-154 (letzte 15)
     //   Kat 6-8: je 1 Zeile (Header-Eingabe), keine Gruppierung
-    let row_grouping = RowGrouping::new()
-        .add_collapsed_group(32, 46)
-        .add_collapsed_group(54, 68)
-        .add_collapsed_group(83, 100)
-        .add_collapsed_group(115, 132)
-        .add_collapsed_group(140, 154);
 
     // body_positions entspricht dem Default (1:20, 2:20, 3:30, 4:30, 5:20, 6-8:0)
-    let config = ReportConfig {
-        header: ReportHeader {
-            language: language.to_string(),
-            ..ReportHeader::default()
-        },
-        options: ReportOptions {
-            hide_language_sheet: true,
-            row_grouping: Some(row_grouping),
-            ..ReportOptions::default()
-        },
-        ..ReportConfig::default()
-    };
+    let config = ReportConfigBuilder::default()
+        .header(
+            ReportHeaderBuilder::default()
+                .language(language)
+                .build()?
+        )
+        .options(
+            ReportOptionsBuilder::default()
+                .hide_language_sheet(true)
+                .row_grouping(
+                    RowGrouping::new()
+                        .add_collapsed_group(32, 46)
+                        .add_collapsed_group(54, 68)
+                        .add_collapsed_group(83, 100)
+                        .add_collapsed_group(115, 132)
+                        .add_collapsed_group(140, 154)
+                )
+                .build()?
+        )
+        .build()?;
 
     let filename = format!("test_grouped_{}.xlsx", language);
     config.write_to(&filename)?;

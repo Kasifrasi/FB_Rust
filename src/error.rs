@@ -36,6 +36,8 @@ pub enum ReportError {
     Io(std::io::Error),
     /// Output path contains non-UTF-8 characters
     InvalidPath(String),
+    /// Input validation error (positions, table index, panel index)
+    Validation(String),
 }
 
 impl fmt::Display for ReportError {
@@ -45,6 +47,7 @@ impl fmt::Display for ReportError {
             Self::Protection(e) => write!(f, "Workbook protection error: {e}"),
             Self::Io(e) => write!(f, "I/O error: {e}"),
             Self::InvalidPath(p) => write!(f, "Path contains non-UTF-8 characters: {p}"),
+            Self::Validation(msg) => write!(f, "Validation error: {msg}"),
         }
     }
 }
@@ -56,6 +59,7 @@ impl std::error::Error for ReportError {
             Self::Protection(e) => Some(e),
             Self::Io(e) => Some(e),
             Self::InvalidPath(_) => None,
+            Self::Validation(_) => None,
         }
     }
 }

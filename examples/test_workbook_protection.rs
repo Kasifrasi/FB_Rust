@@ -1,28 +1,34 @@
 //! Test: Workbook-Protection Integration
 //!
-//! Demonstriert die `ReportConfig` API mit verschiedenen Schutz-Stufen
+//! Demonstriert die `ReportConfig` Builder-API mit verschiedenen Schutz-Stufen:
+//! 1. Kein Schutz
+//! 2. Nur Workbook-Protection (Passwort)
+//! 3. Sheet-Protection + Workbook-Protection (getrennte Passwörter)
+//!
+//! **Builder-Pattern** — kein `Some()`, kein `.to_string()`.
 
-use fb_rust::{ReportConfig, ReportHeader, ReportOptions};
+use fb_rust::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing Workbook-Protection Integration...\n");
 
     // Test 1: Report ohne Schutz
     {
-        println!("1. Creating report WITHOUT workbook protection...");
-        let config = ReportConfig {
-            header: ReportHeader {
-                language: "deutsch".to_string(),
-                currency: "EUR".to_string(),
-                project_number: Some("TEST-001".to_string()),
-                project_title: Some("Test Project".to_string()),
-                project_start: Some("01.01.2024".to_string()),
-                project_end: Some("31.12.2024".to_string()),
-                report_start: Some("01.01.2024".to_string()),
-                report_end: Some("31.03.2024".to_string()),
-            },
-            ..ReportConfig::default()
-        };
+        println!("1. Creating report WITHOUT protection...");
+        let config = ReportConfigBuilder::default()
+            .header(
+                ReportHeaderBuilder::default()
+                    .language(Language::Deutsch)
+                    .currency(Currency::eur())
+                    .project_number("TEST-001")
+                    .project_title("Test Project")
+                    .project_start("01.01.2024")
+                    .project_end("31.12.2024")
+                    .report_start("01.01.2024")
+                    .report_end("31.03.2024")
+                    .build()?
+            )
+            .build()?;
         config.write_to("examples/output/test_no_wb_protection.xlsx")?;
         println!("   ✓ Created: examples/output/test_no_wb_protection.xlsx");
     }
@@ -30,55 +36,59 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Test 2: Report mit Workbook-Protection (kein Sheet-Schutz)
     {
         println!("\n2. Creating report WITH workbook protection...");
-        let config = ReportConfig {
-            header: ReportHeader {
-                language: "deutsch".to_string(),
-                currency: "EUR".to_string(),
-                project_number: Some("TEST-002".to_string()),
-                project_title: Some("Protected Project".to_string()),
-                project_start: Some("01.01.2024".to_string()),
-                project_end: Some("31.12.2024".to_string()),
-                report_start: Some("01.01.2024".to_string()),
-                report_end: Some("31.03.2024".to_string()),
-            },
-            options: ReportOptions {
-                workbook_password: Some("secret123".to_string()),
-                ..ReportOptions::default()
-            },
-            ..ReportConfig::default()
-        };
+        let config = ReportConfigBuilder::default()
+            .header(
+                ReportHeaderBuilder::default()
+                    .language(Language::Deutsch)
+                    .currency(Currency::eur())
+                    .project_number("TEST-002")
+                    .project_title("Protected Project")
+                    .project_start("01.01.2024")
+                    .project_end("31.12.2024")
+                    .report_start("01.01.2024")
+                    .report_end("31.03.2024")
+                    .build()?
+            )
+            .options(
+                ReportOptionsBuilder::default()
+                    .workbook_password("secret123")
+                    .build()?
+            )
+            .build()?;
         config.write_to("examples/output/test_with_wb_protection.xlsx")?;
         println!("   ✓ Created: examples/output/test_with_wb_protection.xlsx");
-        println!("   ℹ Password: secret123");
+        println!("   ℹ Workbook Password: secret123");
     }
 
-    // Test 3: Report mit Sheet- + Workbook-Protection
+    // Test 3: Report mit Sheet- + Workbook-Protection (getrennte Passwörter)
     {
         println!("\n3. Creating report WITH sheet AND workbook protection...");
-        let config = ReportConfig {
-            header: ReportHeader {
-                language: "deutsch".to_string(),
-                currency: "EUR".to_string(),
-                project_number: Some("TEST-003".to_string()),
-                project_title: Some("Fully Protected Project".to_string()),
-                project_start: Some("01.01.2024".to_string()),
-                project_end: Some("31.12.2024".to_string()),
-                report_start: Some("01.01.2024".to_string()),
-                report_end: Some("31.03.2024".to_string()),
-            },
-            options: ReportOptions {
-                locked: true,
-                workbook_password: Some("test456".to_string()),
-                hide_columns_qv: true,
-                hide_language_sheet: true,
-                ..ReportOptions::default()
-            },
-            ..ReportConfig::default()
-        };
+        let config = ReportConfigBuilder::default()
+            .header(
+                ReportHeaderBuilder::default()
+                    .language(Language::Deutsch)
+                    .currency(Currency::eur())
+                    .project_number("TEST-003")
+                    .project_title("Fully Protected Project")
+                    .project_start("01.01.2024")
+                    .project_end("31.12.2024")
+                    .report_start("01.01.2024")
+                    .report_end("31.03.2024")
+                    .build()?
+            )
+            .options(
+                ReportOptionsBuilder::default()
+                    .sheet_password("blatt_geheim")
+                    .workbook_password("wb_geheim")
+                    .hide_columns_qv(true)
+                    .hide_language_sheet(true)
+                    .build()?
+            )
+            .build()?;
         config.write_to("examples/output/test_full_protection.xlsx")?;
         println!("   ✓ Created: examples/output/test_full_protection.xlsx");
-        println!("   ℹ Sheet Password: (default) - see PROTECTION_DEFAULTS");
-        println!("   ℹ Workbook Password: test456");
+        println!("   ℹ Sheet Password:    blatt_geheim");
+        println!("   ℹ Workbook Password: wb_geheim");
     }
 
     println!("\n✅ All tests completed successfully!");

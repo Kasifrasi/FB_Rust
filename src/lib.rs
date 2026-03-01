@@ -11,8 +11,8 @@
 //! use fb_rust::*;
 //!
 //! let config = ReportConfigBuilder::default()
-//!     .header(ReportHeaderBuilder::default().language("deutsch").currency("EUR").build()?)
-//!     .options(ReportOptionsBuilder::default().locked(true).build()?)
+//!     .header(ReportHeaderBuilder::default().language(Language::Deutsch).currency(Currency::eur()).build()?)
+//!     .options(ReportOptionsBuilder::default().sheet_password("geheim").build()?)
 //!     .build()?;
 //! config.write_to("report.xlsx")?;
 //! ```
@@ -44,7 +44,7 @@
 //!     "project_number": "2025-001",
 //!     "project_title": "Klimaschutzprojekt"
 //!   },
-//!   "options": { "locked": true }
+//!   "options": { "sheet_password": "geheim" }
 //! }
 //! ```
 //!
@@ -56,7 +56,7 @@
 //!
 //! | Flag    | Effect |
 //! |---------|--------|
-//! | `serde` | Enables `Serialize`/`Deserialize` on all public API types. Required for Tauri integration. Activates `deny_unknown_fields` on [`ReportConfig`], `try_from` validation on [`Currency`] and [`ReportDate`]. |
+//! | `serde` | Enables `Serialize`/`Deserialize` on all public API types. Required for Tauri integration. Activates `deny_unknown_fields` on [`ReportConfig`], enum validation on [`Language`], `try_from` validation on [`Currency`] and [`ReportDate`]. |
 //!
 //! ## Module Overview
 //!

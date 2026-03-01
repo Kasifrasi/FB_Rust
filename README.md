@@ -46,8 +46,8 @@ use fb_rust::*;
 let config = ReportConfigBuilder::default()
     .header(
         ReportHeaderBuilder::default()
-            .language("deutsch")
-            .currency("EUR")
+            .language(Language::Deutsch)
+            .currency(Currency::eur())
             .project_number("PROJ-2025-001")
             .project_title("Bildungsprojekt Ostafrika")
             .project_start("01.01.2025")
@@ -92,7 +92,7 @@ let config = ReportConfigBuilder::default()
     )
     .options(
         ReportOptionsBuilder::default()
-            .locked(true)
+            .sheet_password("blatt_geheim")
             .workbook_password("secret")
             .hide_columns_qv(true)
             .hide_language_sheet(true)
@@ -106,17 +106,17 @@ config.write_to("report.xlsx")?;
 Or using struct literals directly:
 
 ```rust
-use fb_rust::{ReportConfig, ReportHeader, ReportOptions};
+use fb_rust::{Currency, Language, ReportConfig, ReportHeader, ReportOptions};
 
 let config = ReportConfig {
     header: ReportHeader {
-        language: "deutsch".to_string(),
-        currency: "EUR".to_string(),
+        language: Language::Deutsch,
+        currency: Currency::eur(),
         project_number: Some("PROJ-2025-001".to_string()),
         ..ReportHeader::default()
     },
     options: ReportOptions {
-        locked: true,
+        sheet_password: Some("geheim".to_string()),
         ..ReportOptions::default()
     },
     ..ReportConfig::default()
@@ -143,7 +143,7 @@ src/
     └── writer/             Excel writing (engine.rs, layout.rs, structure.rs)
 
 tests/
-└── serde_integration.rs    Serde JSON roundtrip tests (26 tests, feature-gated)
+└── serde_integration.rs    Serde JSON roundtrip tests (27 tests, feature-gated)
 
 examples/
 ├── test_all_fields.rs         All fields populated (complete reference example)
@@ -185,9 +185,9 @@ examples/
 ## Testing
 
 ```bash
-cargo test                                             # Unit tests (63 tests)
-cargo test --features serde --test serde_integration   # Serde JSON tests (26 tests)
-cargo test --features serde                            # All tests (89 tests)
+cargo test                                             # Unit tests (77 tests)
+cargo test --features serde --test serde_integration   # Serde JSON tests (27 tests)
+cargo test --features serde                            # All tests (104 tests)
 cargo deny check                                       # License and security audit
 ```
 
