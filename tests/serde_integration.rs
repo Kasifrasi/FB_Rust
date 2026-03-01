@@ -257,21 +257,39 @@ fn test_language_deserialize_invalid() {
 // ============================================================================
 
 #[test]
-fn test_currency_serde_transparent() {
-    // Serialisiert als nackter String, nicht als Struct
+fn test_currency_serde_roundtrip() {
+    // Serialisiert als nackter String
     let eur = Currency::eur();
     let json = serde_json::to_string(&eur).expect("serialize");
     assert_eq!(json, r#""EUR""#);
 
-    // Deserialisiert vom nackten String
+    // Deserialisiert vom String — mit Validierung
     let usd: Currency = serde_json::from_str(r#""USD""#).expect("deserialize");
-    assert_eq!(usd.as_str(), "USD");
+    assert_eq!(usd, Currency::usd());
 
     // Roundtrip
     let chf = Currency::chf();
     let json = serde_json::to_string(&chf).expect("serialize");
     let back: Currency = serde_json::from_str(&json).expect("deserialize");
-    assert_eq!(back.as_str(), "CHF");
+    assert_eq!(back, chf);
+}
+
+#[test]
+fn test_currency_deserialize_invalid() {
+    // Ungültige Währungscodes werden beim Deserialisieren abgelehnt
+    let invalid = [r#""INVALID""#, r#""XYZ""#, r#"""#];
+
+    for json in &invalid {
+        let result = serde_json::from_str::<Currency>(json);
+        assert!(result.is_err(), "{} should fail to deserialize", json);
+    }
+}
+
+#[test]
+fn test_currency_deserialize_case_insensitive() {
+    // Currency::new() akzeptiert case-insensitive, also auch serde
+    let lower: Currency = serde_json::from_str(r#""eur""#).expect("lowercase");
+    assert_eq!(lower.as_str(), "EUR"); // Gespeichert in Uppercase
 }
 
 // ============================================================================
@@ -584,9 +602,8 @@ fn test_report_config_from_typescript_json() {
 // ============================================================================
 
 #[test]
-fn test_report_config_unknown_fields_ignored() {
-    // serde default: unbekannte Felder werden stillschweigend ignoriert
-    // (gewünscht für Tauri-Integration — TypeScript kann extra Felder senden)
+fn test_report_config_unknown_fields_rejected() {
+    // deny_unknown_fields: unbekannte Felder erzeugen einen Fehler
     let json = r#"{
         "language": "deutsch",
         "currency": "EUR",
@@ -597,9 +614,8 @@ fn test_report_config_unknown_fields_ignored() {
         "unknown_extra_field": true
     }"#;
 
-    let config: ReportConfig = serde_json::from_str(json)
-        .expect("unknown fields should be silently ignored");
-    assert_eq!(config.language, "deutsch");
+    let result = serde_json::from_str::<ReportConfig>(json);
+    assert!(result.is_err(), "unknown fields should be rejected");
 }
 
 #[test]

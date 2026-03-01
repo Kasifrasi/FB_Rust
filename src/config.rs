@@ -49,7 +49,7 @@ use crate::workbook_protection::WorkbookProtection;
 /// Einzelne Zeile des oberen Tabellen-Bereichs (Zeilen 15-19, Index 0-4)
 ///
 /// Enthält bewilligtes Budget und Einnahmen-Felder für eine der 5 Tabellenzeilen.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TableEntry {
     /// 0-basierter Index (0-4)
@@ -65,7 +65,7 @@ pub struct TableEntry {
 }
 
 /// Einzelne Zeile eines Kassenbuch-Panels (links oder rechts, Index 0-17)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PanelEntry {
     /// 0-basierter Index (0-17)
@@ -79,7 +79,7 @@ pub struct PanelEntry {
 }
 
 /// Einzelne Kostenpositions-Zeile im Body-Bereich
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PositionEntry {
     /// Kategorie (1-8)
@@ -122,8 +122,9 @@ pub struct PositionEntry {
 /// };
 /// config.write_to("examples/output/report.xlsx").unwrap();
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct ReportConfig {
     // -------------------------------------------------------------------------
     // Header-Felder

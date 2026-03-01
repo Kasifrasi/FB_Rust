@@ -36,7 +36,7 @@ pub const ALL_CATEGORIES: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
 ///     .with_positions(6, 0)    // Kategorie 6: Header-Eingabe (0 Positionen)
 ///     .with_positions(7, 1);   // Kategorie 7: 1 Position unter Header
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(from = "HashMap<u8, u16>", into = "HashMap<u8, u16>"))]
 pub struct BodyConfig {

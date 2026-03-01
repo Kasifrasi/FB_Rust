@@ -115,7 +115,7 @@ impl FromStr for Language {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(transparent))]
+#[cfg_attr(feature = "serde", serde(try_from = "String", into = "String"))]
 pub struct Currency(String);
 
 impl Currency {
@@ -179,6 +179,22 @@ impl fmt::Display for Currency {
 impl Default for Currency {
     fn default() -> Self {
         Currency::eur()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<String> for Currency {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Currency::new(&s).ok_or_else(|| format!("Unknown currency: {}", s))
+    }
+}
+
+#[cfg(feature = "serde")]
+impl From<Currency> for String {
+    fn from(c: Currency) -> Self {
+        c.0
     }
 }
 
