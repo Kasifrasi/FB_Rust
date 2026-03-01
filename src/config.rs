@@ -231,7 +231,7 @@ impl Default for ReportConfig {
 
 impl ReportConfig {
     /// Schreibt den Finanzbericht in die angegebene Datei.
-    pub fn write_to(&self, output_path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn write_to(&self, output_path: impl AsRef<Path>) -> Result<(), crate::error::ReportError> {
         let values = self.build_values();
         let body_config = self.build_body_config();
         let options = self.build_options();
@@ -260,7 +260,7 @@ impl ReportConfig {
         &self,
         output_path: impl AsRef<Path>,
         hash: &crate::workbook_protection::PrecomputedHash,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), crate::error::ReportError> {
         let values = self.build_values();
         let body_config = self.build_body_config();
         let options = self.build_options();

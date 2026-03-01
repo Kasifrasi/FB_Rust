@@ -18,7 +18,6 @@ serde = ["dep:serde"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
-anyhow = "1.0"
 rust_xlsxwriter = "0.94.0"
 zip = "8.1.0"
 quick-xml = "0.39"

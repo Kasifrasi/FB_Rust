@@ -1,4 +1,3 @@
-use anyhow::{Context, Result};
 use base64::{engine::general_purpose, Engine as _};
 use byteorder::{WriteBytesExt, LE};
 use quick_xml::events::Event;
@@ -12,6 +11,72 @@ use zip::{ZipArchive, ZipWriter};
 
 const DEFAULT_SPIN_COUNT: u32 = 100_000;
 const SALT_SIZE: usize = 16;
+
+// ============================================================================
+// ProtectionError
+// ============================================================================
+
+/// Fehler bei Workbook-Protection-Operationen.
+///
+/// Deckt ZIP-Manipulation, XML-Parsing und Datei-I/O ab,
+/// die beim Injizieren der Workbook-Protection in eine .xlsx-Datei auftreten.
+#[derive(Debug)]
+pub enum ProtectionError {
+    /// I/O-Fehler (Datei öffnen, lesen, schreiben)
+    Io(std::io::Error),
+    /// ZIP-Archiv-Fehler (lesen, schreiben, Einträge kopieren)
+    Zip(zip::result::ZipError),
+    /// XML-Parsing- oder Schreibfehler
+    Xml(quick_xml::Error),
+    /// XML-Elementname enthält ungültiges UTF-8
+    InvalidUtf8(std::str::Utf8Error),
+}
+
+impl std::fmt::Display for ProtectionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Io(e) => write!(f, "I/O error during workbook protection: {e}"),
+            Self::Zip(e) => write!(f, "ZIP archive error during workbook protection: {e}"),
+            Self::Xml(e) => write!(f, "XML error during workbook protection: {e}"),
+            Self::InvalidUtf8(e) => write!(f, "Invalid UTF-8 in XML element name: {e}"),
+        }
+    }
+}
+
+impl std::error::Error for ProtectionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(e) => Some(e),
+            Self::Zip(e) => Some(e),
+            Self::Xml(e) => Some(e),
+            Self::InvalidUtf8(e) => Some(e),
+        }
+    }
+}
+
+impl From<std::io::Error> for ProtectionError {
+    fn from(e: std::io::Error) -> Self {
+        Self::Io(e)
+    }
+}
+
+impl From<zip::result::ZipError> for ProtectionError {
+    fn from(e: zip::result::ZipError) -> Self {
+        Self::Zip(e)
+    }
+}
+
+impl From<quick_xml::Error> for ProtectionError {
+    fn from(e: quick_xml::Error) -> Self {
+        Self::Xml(e)
+    }
+}
+
+impl From<std::str::Utf8Error> for ProtectionError {
+    fn from(e: std::str::Utf8Error) -> Self {
+        Self::InvalidUtf8(e)
+    }
+}
 
 /// Fester Salt für deterministische Hash-Berechnung.
 /// Gleicher Salt → gleiches Passwort → gleicher Hash (kein Zufallselement).
@@ -134,7 +199,7 @@ pub fn protect_workbook_precomputed(
     input_path: &str,
     output_path: &str,
     hash: &PrecomputedHash,
-) -> Result<()> {
+) -> Result<(), ProtectionError> {
     write_protected_zip(input_path, output_path, &hash.salt_b64, &hash.hash_b64, hash.spin_count)
 }
 
@@ -149,7 +214,7 @@ pub fn protect_workbook_precomputed(
 /// * `input_path` - Pfad zur ungeschützten .xlsx Datei
 /// * `output_path` - Pfad, wo die geschützte Datei gespeichert werden soll
 /// * `password` - Das zu setzende Passwort
-pub fn protect_workbook(input_path: &str, output_path: &str, password: &str) -> Result<()> {
+pub fn protect_workbook(input_path: &str, output_path: &str, password: &str) -> Result<(), ProtectionError> {
     protect_workbook_with_spin_count(input_path, output_path, password, DEFAULT_SPIN_COUNT)
 }
 
@@ -165,7 +230,7 @@ pub fn protect_workbook_with_spin_count(
     output_path: &str,
     password: &str,
     spin_count: u32,
-) -> Result<()> {
+) -> Result<(), ProtectionError> {
     let (salt_b64, hash_b64) = hash_password(password, spin_count);
     write_protected_zip(input_path, output_path, &salt_b64, &hash_b64, spin_count)
 }
@@ -181,11 +246,11 @@ fn write_protected_zip(
     salt_b64: &str,
     hash_b64: &str,
     spin_count: u32,
-) -> Result<()> {
-    let file = File::open(input_path).context("Konnte Input-Datei nicht öffnen")?;
-    let mut archive = ZipArchive::new(file).context("Konnte ZIP-Archiv nicht lesen")?;
+) -> Result<(), ProtectionError> {
+    let file = File::open(input_path)?;
+    let mut archive = ZipArchive::new(file)?;
 
-    let out_file = File::create(output_path).context("Konnte Output-Datei nicht erstellen")?;
+    let out_file = File::create(output_path)?;
     let mut zip_writer = ZipWriter::new(out_file);
 
     for i in 0..archive.len() {
@@ -256,7 +321,7 @@ fn hash_password(password: &str, spin_count: u32) -> (String, String) {
 ///
 /// Beachtet dabei die strikte XSD-Reihenfolge:
 /// Das Element muss VOR <bookViews> oder <sheets> eingefügt werden.
-fn inject_protection(xml_content: &[u8], salt: &str, hash: &str, spin_count: u32) -> Result<Vec<u8>> {
+fn inject_protection(xml_content: &[u8], salt: &str, hash: &str, spin_count: u32) -> Result<Vec<u8>, ProtectionError> {
     let mut reader = Reader::from_reader(xml_content);
 
     let mut writer = Writer::new(Cursor::new(Vec::new()));
@@ -344,7 +409,7 @@ fn inject_protection(xml_content: &[u8], salt: &str, hash: &str, spin_count: u32
 }
 
 /// Hilfsfunktion zum Schreiben des XML-Tags
-fn write_protection_tag<W: std::io::Write>(writer: &mut Writer<W>, tag: &str) -> Result<()> {
+fn write_protection_tag<W: std::io::Write>(writer: &mut Writer<W>, tag: &str) -> Result<(), ProtectionError> {
     let mut temp_reader = Reader::from_str(tag);
     temp_reader.config_mut().trim_text_start = true;
     temp_reader.config_mut().trim_text_end = true;

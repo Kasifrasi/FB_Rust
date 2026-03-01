@@ -29,14 +29,16 @@
 //! ```
 
 pub mod config;
+pub mod error;
 pub mod lang;
 pub mod report;
 pub mod workbook_protection;
 
+pub use error::ReportError;
 pub use workbook_protection::{
     precompute_hash, precompute_hash_with_spin_count,
     protect_workbook, protect_workbook_precomputed, protect_workbook_with_spin_count,
-    PrecomputedHash, WorkbookProtection,
+    PrecomputedHash, ProtectionError, WorkbookProtection,
 };
 
 // Public API re-exports

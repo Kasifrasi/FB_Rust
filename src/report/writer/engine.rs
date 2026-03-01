@@ -180,7 +180,7 @@ pub(crate) fn create_protected_report(
     options: &ReportOptions,
     wb_protection: Option<&crate::workbook_protection::WorkbookProtection>,
     hide_language_sheet: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), crate::error::ReportError> {
     let output_path = output_path.as_ref();
 
     let mut workbook = Workbook::new();
@@ -211,8 +211,12 @@ pub(crate) fn create_protected_report(
         workbook.save(tmp.path())?;
 
         crate::workbook_protection::protect_workbook_with_spin_count(
-            tmp.path().to_str().ok_or("Invalid temp path")?,
-            output_path.to_str().ok_or("Invalid output path")?,
+            tmp.path().to_str().ok_or_else(|| {
+                crate::error::ReportError::InvalidPath(format!("{:?}", tmp.path()))
+            })?,
+            output_path.to_str().ok_or_else(|| {
+                crate::error::ReportError::InvalidPath(format!("{:?}", output_path))
+            })?,
             &wb_prot.password,
             wb_prot.spin_count,
         )?;
@@ -236,7 +240,7 @@ pub(crate) fn create_protected_report_precomputed(
     options: &ReportOptions,
     hide_language_sheet: bool,
     hash: &crate::workbook_protection::PrecomputedHash,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), crate::error::ReportError> {
     let output_path = output_path.as_ref();
 
     let mut workbook = Workbook::new();
@@ -266,8 +270,12 @@ pub(crate) fn create_protected_report_precomputed(
     workbook.save(tmp.path())?;
 
     crate::workbook_protection::protect_workbook_precomputed(
-        tmp.path().to_str().ok_or("Invalid temp path")?,
-        output_path.to_str().ok_or("Invalid output path")?,
+        tmp.path().to_str().ok_or_else(|| {
+            crate::error::ReportError::InvalidPath(format!("{:?}", tmp.path()))
+        })?,
+        output_path.to_str().ok_or_else(|| {
+            crate::error::ReportError::InvalidPath(format!("{:?}", output_path))
+        })?,
         hash,
     )?;
 

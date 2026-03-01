@@ -287,6 +287,8 @@ pub enum RegistryError {
     },
     /// Zyklus in Formel-Abhängigkeiten
     CycleDetected { involved: Vec<CellAddr> },
+    /// Dynamischer Key ohne explizite Adresse registriert
+    DynamicKeyRequiresAddress { key_debug: String },
 }
 
 impl fmt::Display for RegistryError {
@@ -326,6 +328,13 @@ impl fmt::Display for RegistryError {
             Self::CycleDetected { involved } => {
                 write!(f, "Cycle detected in formula dependencies: {:?}", involved)
             }
+            Self::DynamicKeyRequiresAddress { key_debug } => {
+                write!(
+                    f,
+                    "Dynamic API key {} requires an explicit address; use register_api_at() instead",
+                    key_debug
+                )
+            }
         }
     }
 }
@@ -364,7 +373,9 @@ impl<E> CellRegistry<E> {
     ///
     /// Für dynamische Keys (wie `Position`) verwende `register_api_at()`.
     pub fn register_api(&mut self, key: ApiKey) -> Result<(), RegistryError> {
-        let addr = key.addr();
+        let addr = key.static_addr().ok_or_else(|| RegistryError::DynamicKeyRequiresAddress {
+            key_debug: format!("{:?}", key),
+        })?;
         self.check_not_registered(addr, "Api")?;
 
         self.cells.insert(addr, CellKind::Api(ApiCell { key }));
@@ -953,8 +964,8 @@ mod tests {
 
     #[test]
     fn test_api_key_addr() {
-        assert_eq!(ApiKey::Language.addr(), CellAddr::new(1, 4));
-        assert_eq!(ApiKey::Currency.addr(), CellAddr::new(2, 4));
+        assert_eq!(ApiKey::Language.static_addr().unwrap(), CellAddr::new(1, 4));
+        assert_eq!(ApiKey::Currency.static_addr().unwrap(), CellAddr::new(2, 4));
     }
 
     #[test]

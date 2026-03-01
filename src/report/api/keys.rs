@@ -168,22 +168,6 @@ macro_rules! define_api_cells {
                 }
             }
 
-            /// Gibt die Zelladresse zurück (0-basiert)
-            ///
-            /// **Panics** für dynamische Keys (`Position`, `Footer`) - verwende `static_addr()`
-            /// oder berechne die Adresse über `BodyLayout::position_addr()` / `FooterLayout`.
-            pub const fn addr(&self) -> CellAddr {
-                match self {
-                    // Einzelzellen
-                    $( Self::$single_name => CellAddr::new($single_row, $single_col), )*
-                    // Bereichszellen
-                    $( Self::$range_name(i) => CellAddr::new($range_start_row + *i as u32, $range_col), )*
-                    // Dynamische Keys - sollte nicht direkt aufgerufen werden
-                    Self::Position { .. } => panic!("Position keys have no static address"),
-                    Self::Footer(_) => panic!("Footer keys have no static address"),
-                }
-            }
-
             /// Prüft, ob dieser Key eine zur Laufzeit berechnete Adresse hat
             pub const fn is_dynamic(&self) -> bool {
                 matches!(self, Self::Position { .. } | Self::Footer(_))
@@ -215,17 +199,6 @@ macro_rules! define_api_cells {
                 singles + ranges
             }
 
-            // Legacy-Alias für Kompatibilität
-            #[deprecated(note = "Use all_static_keys() instead")]
-            pub fn all_keys() -> impl Iterator<Item = ApiKey> {
-                Self::all_static_keys()
-            }
-
-            // Legacy-Alias für Kompatibilität
-            #[deprecated(note = "Use static_count() instead")]
-            pub const fn count() -> usize {
-                Self::static_count()
-            }
         }
 
         /// Registriert alle statischen API-Zellen in der Registry
@@ -341,26 +314,26 @@ mod tests {
 
     #[test]
     fn test_single_cell_addresses() {
-        assert_eq!(ApiKey::Language.addr(), CellAddr::new(1, 4)); // E2
-        assert_eq!(ApiKey::Currency.addr(), CellAddr::new(2, 4)); // E3
-        assert_eq!(ApiKey::ProjectNumber.addr(), CellAddr::new(4, 3)); // D5
-        assert_eq!(ApiKey::ProjectStart.addr(), CellAddr::new(7, 4)); // E8
-        assert_eq!(ApiKey::ReportEnd.addr(), CellAddr::new(8, 6)); // G9
+        assert_eq!(ApiKey::Language.static_addr().unwrap(), CellAddr::new(1, 4)); // E2
+        assert_eq!(ApiKey::Currency.static_addr().unwrap(), CellAddr::new(2, 4)); // E3
+        assert_eq!(ApiKey::ProjectNumber.static_addr().unwrap(), CellAddr::new(4, 3)); // D5
+        assert_eq!(ApiKey::ProjectStart.static_addr().unwrap(), CellAddr::new(7, 4)); // E8
+        assert_eq!(ApiKey::ReportEnd.static_addr().unwrap(), CellAddr::new(8, 6)); // G9
     }
 
     #[test]
     fn test_range_cell_addresses() {
         // ApprovedBudget: D15-D19
-        assert_eq!(ApiKey::ApprovedBudget(0).addr(), CellAddr::new(14, 3)); // D15
-        assert_eq!(ApiKey::ApprovedBudget(4).addr(), CellAddr::new(18, 3)); // D19
+        assert_eq!(ApiKey::ApprovedBudget(0).static_addr().unwrap(), CellAddr::new(14, 3)); // D15
+        assert_eq!(ApiKey::ApprovedBudget(4).static_addr().unwrap(), CellAddr::new(18, 3)); // D19
 
         // LeftDate: L14-L31
-        assert_eq!(ApiKey::LeftDate(0).addr(), CellAddr::new(13, 11)); // L14
-        assert_eq!(ApiKey::LeftDate(17).addr(), CellAddr::new(30, 11)); // L31
+        assert_eq!(ApiKey::LeftDate(0).static_addr().unwrap(), CellAddr::new(13, 11)); // L14
+        assert_eq!(ApiKey::LeftDate(17).static_addr().unwrap(), CellAddr::new(30, 11)); // L31
 
         // RightAmountLocal: U14-U31
-        assert_eq!(ApiKey::RightAmountLocal(0).addr(), CellAddr::new(13, 20)); // U14
-        assert_eq!(ApiKey::RightAmountLocal(17).addr(), CellAddr::new(30, 20)); // U31
+        assert_eq!(ApiKey::RightAmountLocal(0).static_addr().unwrap(), CellAddr::new(13, 20)); // U14
+        assert_eq!(ApiKey::RightAmountLocal(17).static_addr().unwrap(), CellAddr::new(30, 20)); // U31
     }
 
     #[test]

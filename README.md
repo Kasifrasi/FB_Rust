@@ -9,6 +9,7 @@ High-performance Excel financial report generator written in Rust.
 - Multi-language support (German, English, French, Spanish, Portuguese)
 - High performance (~1200 reports/second multi-threaded)
 - Sheet and workbook protection with locked formulas
+- Typed error handling (`ReportError`, `ProtectionError`) — no `anyhow` or `Box<dyn Error>`
 
 ## Quick Start
 
@@ -69,8 +70,9 @@ config.write_to("report.xlsx")?;
 src/
 ├── lib.rs                  Public re-exports and crate documentation
 ├── config.rs               ReportConfig — main entry point (Tauri-ready)
+├── error.rs                ReportError — typed top-level error enum
 ├── lang/                   Language data (TEXT_MATRIX, CURRENCIES) and sheet builder
-├── workbook_protection.rs  ZIP-level workbook structure lock (SHA-512)
+├── workbook_protection.rs  ProtectionError + ZIP-level workbook structure lock (SHA-512)
 └── report/
     ├── api/                ApiKey, ReportValues, Language, Currency, ReportDate, …
     ├── core/               Formula engine (CellRegistry, CellAddr, topological eval)
