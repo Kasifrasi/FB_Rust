@@ -235,7 +235,7 @@ impl ReportConfig {
         let values = self.build_values();
         let body_config = self.build_body_config();
         let options = self.build_options();
-        let wb_prot = self.workbook_password.as_ref().map(|pw| WorkbookProtection::new(pw));
+        let wb_prot = self.workbook_password.as_ref().map(WorkbookProtection::new);
         create_protected_report(
             output_path, &values, &body_config, &options,
             wb_prot.as_ref(), self.hide_language_sheet,

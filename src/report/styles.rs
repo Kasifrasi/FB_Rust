@@ -65,13 +65,11 @@ pub struct ReportStyles {
     pub fill_value: Color,
     pub fill_summary: Color,
     pub fl_orange: Color,
-    pub blue_link: Color,
 
     // --- Borders ---
     pub border_thin: FormatBorder,
     pub border_medium: FormatBorder,
     pub border_dotted: FormatBorder,
-    pub border_dashed: FormatBorder,
 
     // --- Base ---
     pub base: Format,
@@ -82,7 +80,6 @@ pub struct ReportStyles {
     pub center_center: Format,
     pub center_center_bold: Format,
     pub center_center_bold_right: Format,
-    pub left_top_wrap: Format,
 
     // --- Header Specifics ---
     pub header_label: Format,
@@ -130,7 +127,6 @@ impl ReportStyles {
         let fill_value = Color::RGB(0xF2F2F2);
         let fill_summary = Color::RGB(0xD9D9D9);
         let fl_orange = Color::RGB(0xFFCC00);
-        let blue_link = Color::RGB(0x0563C1);
 
         // Borders
         let border_thin = FormatBorder::Thin;
@@ -307,18 +303,15 @@ impl ReportStyles {
             fill_value,
             fill_summary,
             fl_orange,
-            blue_link,
             border_thin,
             border_medium,
             border_dotted,
-            border_dashed,
             base,
             left_center,
             left_center_bold,
             center_center,
             center_center_bold,
             center_center_bold_right,
-            left_top_wrap,
             header_label,
             header_suffix,
             input_orange_dashed,
