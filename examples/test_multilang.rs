@@ -42,7 +42,7 @@ fn create_report(
         .header(
             ReportHeaderBuilder::default()
                 .language(language)
-                .currency(Currency::eur())
+                .currency(Currency::EUR)
                 .project_number(project_number)
                 .project_title(format!("Test Project ({})", language))
                 .project_start("01.01.2024")

@@ -29,7 +29,9 @@ const LANGUAGES: [Language; 5] = [
     Language::Espanol,
     Language::Portugues,
 ];
-const CURRENCIES: [&str; 5] = ["EUR", "USD", "GBP", "CHF", "BRL"];
+const BENCH_CURRENCIES: [Currency; 5] = [
+    Currency::EUR, Currency::USD, Currency::GBP, Currency::CHF, Currency::BRL,
+];
 const BENCH_PASSWORD: &str = "bench_protection_pw";
 const BENCH_SPIN_COUNT: u32 = 1_000;
 
@@ -129,7 +131,7 @@ fn build_config(index: usize) -> ReportConfig {
     ReportConfig {
         header: ReportHeader {
             language: LANGUAGES[lang_idx],
-            currency: Currency::new(CURRENCIES[lang_idx]).unwrap(),
+            currency: BENCH_CURRENCIES[lang_idx],
             project_number: Some(format!("PROJ-{:05}", index)),
             project_title: Some(format!("Projekt {} ({})", index, LANGUAGES[lang_idx])),
             project_start: Some(format!("01.{:02}.2024", (index % 12) + 1)),

@@ -47,7 +47,7 @@ let config = ReportConfigBuilder::default()
     .header(
         ReportHeaderBuilder::default()
             .language(Language::Deutsch)
-            .currency(Currency::eur())
+            .currency(Currency::EUR)
             .project_number("PROJ-2025-001")
             .project_title("Bildungsprojekt Ostafrika")
             .project_start("01.01.2025")
@@ -111,7 +111,7 @@ use fb_rust::{Currency, Language, ReportConfig, ReportHeader, ReportOptions};
 let config = ReportConfig {
     header: ReportHeader {
         language: Language::Deutsch,
-        currency: Currency::eur(),
+        currency: Currency::EUR,
         project_number: Some("PROJ-2025-001".to_string()),
         ..ReportHeader::default()
     },

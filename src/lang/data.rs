@@ -1,10 +1,12 @@
-//! Statische Sprachdaten: Textmatrix und Währungsliste
+//! Statische Sprachdaten: Textmatrix und Währungen
 //!
 //! Enthält:
 //! - [`TEXT_MATRIX`]: 76 UI-Begriffe × 5 Sprachen (Deutsch, Englisch, Französisch, Spanisch,
 //!   Portugiesisch)
-//! - [`CURRENCIES`]: 164 ISO-4217-Währungscodes für das Währungs-Dropdown
+//! - [`Currency`]: ISO-4217-Enum mit allen 153 unterstützten Währungscodes
 
+use std::fmt;
+use std::str::FromStr;
 use std::sync::LazyLock;
 
 pub static TEXT_MATRIX: LazyLock<Vec<Vec<&'static str>>> = LazyLock::new(|| {
@@ -337,19 +339,127 @@ pub static TEXT_MATRIX: LazyLock<Vec<Vec<&'static str>>> = LazyLock::new(|| {
     ]
 });
 
-pub static CURRENCIES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
-    vec![
-        "AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT",
-        "BGN", "BHD", "BIF", "BMD", "BND", "BOB", "BRL", "BSD", "BTN", "BWP", "BYN", "BZD", "CAD",
-        "CDF", "CHF", "CLP", "CNY", "COP", "CRC", "CUP", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD",
-        "EGP", "ERN", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GHS", "GIP", "GMD", "GNF", "GTQ",
-        "GYD", "HKD", "HNL", "HTG", "HUF", "IDR", "ILS", "INR", "IQD", "IRR", "ISK", "JMD", "JOD",
-        "JPY", "KES", "KGS", "KHR", "KMF", "KRW", "KWD", "KYD", "KZT", "LAK", "LBP", "LKR", "LRD",
-        "LSL", "LYD", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRU", "MUR", "MVR", "MWK",
-        "MXN", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "OMR", "PAB", "PEN", "PGK",
-        "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF", "SAR", "SBD", "SCR", "SDG",
-        "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "SSP", "STN", "SYP", "SZL", "THB", "TJS", "TMT",
-        "TND", "TOP", "TRY", "TTD", "TWD", "TZS", "UAH", "UGX", "USD", "UYU", "UZS", "VES", "VND",
-        "VUV", "WST", "XAF", "XCD", "XOF", "XPF", "YER", "ZAR", "ZMW", "ZWL",
-    ]
-});
+// ============================================================================
+// Currency - ISO 4217 Enum
+// ============================================================================
+
+macro_rules! define_currency {
+    ($($variant:ident),* $(,)?) => {
+        /// ISO 4217 currency code.
+        ///
+        /// All 153 standard codes are available as enum variants (`Currency::EUR`,
+        /// `Currency::USD`, etc.). Parse from a string with `FromStr` (case-insensitive).
+        ///
+        /// # Example
+        /// ```ignore
+        /// use fb_rust::Currency;
+        ///
+        /// let eur = Currency::EUR;
+        /// let usd: Currency = "USD".parse().unwrap();
+        /// let invalid: Result<Currency, _> = "INVALID".parse();
+        /// assert!(invalid.is_err());
+        /// ```
+        ///
+        /// ## Serde (requires `serde` feature)
+        ///
+        /// Serializes to the uppercase code string. Deserializes case-insensitively.
+        ///
+        /// ```json
+        /// "EUR"
+        /// "USD"
+        /// ```
+        #[allow(clippy::upper_case_acronyms)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+        #[cfg_attr(feature = "serde", serde(try_from = "String", into = "String"))]
+        pub enum Currency {
+            $($variant),*
+        }
+
+        impl Currency {
+            /// Returns the ISO 4217 code as a static string slice.
+            pub fn as_str(&self) -> &'static str {
+                match self {
+                    $(Currency::$variant => stringify!($variant),)*
+                }
+            }
+
+            /// Returns a slice of all 153 supported currency codes.
+            pub fn all() -> &'static [Currency] {
+                const ALL: &[Currency] = &[$(Currency::$variant),*];
+                ALL
+            }
+        }
+
+        impl FromStr for Currency {
+            type Err = String;
+
+            /// Parses a currency code (case-insensitive).
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                match s.to_uppercase().as_str() {
+                    $(stringify!($variant) => Ok(Currency::$variant),)*
+                    _ => Err(format!("Unknown currency: {}", s)),
+                }
+            }
+        }
+    };
+}
+
+define_currency!(
+    AED, AFN, ALL, AMD, ANG, AOA, ARS, AUD, AWG, AZN,
+    BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BSD, BTN, BWP, BYN, BZD,
+    CAD, CDF, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK,
+    DJF, DKK, DOP, DZD,
+    EGP, ERN, ETB, EUR,
+    FJD, FKP,
+    GBP, GEL, GHS, GIP, GMD, GNF, GTQ, GYD,
+    HKD, HNL, HTG, HUF,
+    IDR, ILS, INR, IQD, IRR, ISK,
+    JMD, JOD, JPY,
+    KES, KGS, KHR, KMF, KRW, KWD, KYD, KZT,
+    LAK, LBP, LKR, LRD, LSL, LYD,
+    MAD, MDL, MGA, MKD, MMK, MNT, MOP, MRU, MUR, MVR, MWK, MXN, MYR, MZN,
+    NAD, NGN, NIO, NOK, NPR, NZD,
+    OMR,
+    PAB, PEN, PGK, PHP, PKR, PLN, PYG,
+    QAR,
+    RON, RSD, RUB, RWF,
+    SAR, SBD, SCR, SDG, SEK, SGD, SHP, SLE, SOS, SRD, SSP, STN, SYP, SZL,
+    THB, TJS, TMT, TND, TOP, TRY, TTD, TWD, TZS,
+    UAH, UGX, USD, UYU, UZS,
+    VES, VND, VUV,
+    WST,
+    XAF, XCD, XOF, XPF,
+    YER,
+    ZAR, ZMW, ZWL,
+);
+
+impl fmt::Display for Currency {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[allow(clippy::derivable_impls)] // macro-generated enum: #[default] on EUR not possible in macro
+impl Default for Currency {
+    fn default() -> Self {
+        Currency::EUR
+    }
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<String> for Currency {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl From<Currency> for String {
+    fn from(c: Currency) -> Self {
+        c.as_str().to_string()
+    }
+}
+

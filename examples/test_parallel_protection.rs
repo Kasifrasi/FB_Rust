@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .header(
             ReportHeaderBuilder::default()
                 .language(Language::Deutsch)
-                .currency(Currency::eur())
+                .currency(Currency::EUR)
                 .project_number("BENCH-001")
                 .project_title("Protection Benchmark")
                 .build()?,

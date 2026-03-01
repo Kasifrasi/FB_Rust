@@ -1,4 +1,5 @@
-use super::data::{CURRENCIES, TEXT_MATRIX};
+use super::data::TEXT_MATRIX;
+use crate::report::api::Currency;
 use rust_xlsxwriter::{Format, Workbook, XlsxError};
 
 /// Erstellt das Sprachversionen-Sheet (sichtbar)
@@ -22,8 +23,8 @@ pub fn build_sheet_with_visibility(workbook: &mut Workbook, hidden: bool) -> Res
     let arial = Format::new().set_font_name("Arial").set_font_size(10.0);
 
     // Column A (0): Currencies
-    for (row_idx, currency) in CURRENCIES.iter().enumerate() {
-        ws.write_string_with_format(row_idx as u32, 0, *currency, &arial)?;
+    for (row_idx, currency) in Currency::all().iter().enumerate() {
+        ws.write_string_with_format(row_idx as u32, 0, (*currency).as_str(), &arial)?;
     }
 
     // Columns B onwards: TEXT_MATRIX[lang_idx][term_idx] → Sheet[lang_idx][term_idx + 1]

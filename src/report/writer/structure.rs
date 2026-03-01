@@ -4,7 +4,7 @@
 //! Dieses Modul schreibt nur die Excel-Struktur die VOR den Inhalten existieren muss.
 
 use super::layout::MergeRange;
-use crate::lang::data::CURRENCIES;
+use crate::report::api::Currency;
 use crate::report::body::{BodyLayout, CategoryLayout, CategoryMode, FooterLayout};
 use crate::report::styles::FormatMatrix;
 use rust_xlsxwriter::{DataValidation, Worksheet, XlsxError};
@@ -86,7 +86,7 @@ fn write_header(
         DataValidation::new().allow_list_formula("=Sprachversionen!$B$1:$B$5".into());
     ws.add_data_validation(1, 4, 1, 4, &lang_validation)?;
 
-    let currency_count = CURRENCIES.len();
+    let currency_count = Currency::all().len();
     let currency_formula = format!("=Sprachversionen!$A$1:$A${}", currency_count);
     let currency_validation =
         DataValidation::new().allow_list_formula(currency_formula.as_str().into());

@@ -237,9 +237,9 @@ impl ReportValues {
     /// use fb_rust::report::types::Currency;
     ///
     /// let values = ReportValues::new()
-    ///     .with_curr(Currency::eur());
-    /// // Oder mit Validierung:
-    ///     .with_curr(Currency::new("USD").unwrap());
+    ///     .with_curr(Currency::EUR);
+    /// // Oder mit Parsing:
+    ///     .with_curr("USD".parse().unwrap());
     /// ```
     pub fn with_curr(mut self, currency: Currency) -> Self {
         self.set(ApiKey::Currency, currency.as_str());

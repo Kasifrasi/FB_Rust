@@ -11,7 +11,7 @@
 //! use fb_rust::*;
 //!
 //! let config = ReportConfigBuilder::default()
-//!     .header(ReportHeaderBuilder::default().language(Language::Deutsch).currency(Currency::eur()).build()?)
+//!     .header(ReportHeaderBuilder::default().language(Language::Deutsch).currency(Currency::EUR).build()?)
 //!     .options(ReportOptionsBuilder::default().sheet_password("geheim").build()?)
 //!     .build()?;
 //! config.write_to("report.xlsx")?;

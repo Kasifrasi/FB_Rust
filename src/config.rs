@@ -186,7 +186,7 @@ impl Default for ReportHeader {
     fn default() -> Self {
         Self {
             language: Language::Deutsch,
-            currency: Currency::eur(),
+            currency: Currency::EUR,
             project_number: None,
             project_title: None,
             project_start: None,
@@ -335,7 +335,7 @@ pub struct ReportOptions {
 ///     .header(
 ///         ReportHeaderBuilder::default()
 ///             .language(Language::Deutsch)
-///             .currency(Currency::eur())
+///             .currency(Currency::EUR)
 ///             .project_number("PROJ-001")
 ///             .build()?
 ///     )
@@ -572,7 +572,7 @@ impl ReportConfig {
         let h = &self.header;
         let mut v = ReportValues::new()
             .with_lang(h.language)
-            .with_curr(h.currency.clone());
+            .with_curr(h.currency);
 
         if let Some(ref s) = h.project_number {
             v = v.with_project_number(s);
@@ -901,7 +901,7 @@ mod tests {
     fn test_typed_currency_in_header() {
         let config = ReportConfig {
             header: ReportHeader {
-                currency: Currency::usd(),
+                currency: Currency::USD,
                 ..ReportHeader::default()
             },
             ..ReportConfig::default()

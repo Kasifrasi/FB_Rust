@@ -3,7 +3,7 @@
 //! Dieses Modul stellt sicher, dass nur gültige Werte an die API übergeben werden können.
 //! Ungültige Werte werden zur Compile-Zeit (Enums) oder zur Laufzeit mit klaren Fehlern abgefangen.
 
-use crate::lang::data::{CURRENCIES, TEXT_MATRIX};
+use crate::lang::data::TEXT_MATRIX;
 use std::fmt;
 use std::str::FromStr;
 
@@ -115,121 +115,10 @@ impl FromStr for Language {
 }
 
 // ============================================================================
-// Currency - Validierte Währung
+// Currency - ISO 4217 Enum (defined in lang::data, re-exported here)
 // ============================================================================
 
-/// Validated currency (ISO 4217 code).
-///
-/// Validated at runtime against the internal currency list (164 codes).
-/// Changes to the currency list are automatically reflected.
-///
-/// # Example
-/// ```ignore
-/// use fb_rust::Currency;
-///
-/// let eur = Currency::new("EUR").unwrap();
-/// let invalid = Currency::new("INVALID"); // None
-/// ```
-///
-/// ## Serde (requires `serde` feature)
-///
-/// Deserialized via `try_from = "String"` — the JSON string is validated
-/// against the currency list. Invalid codes produce a serde error.
-///
-/// ```json
-/// "EUR"
-/// "USD"
-/// "GBP"
-/// ```
-///
-/// Case-insensitive on input (`"eur"` is accepted), always stored as uppercase.
-///
-/// Common codes: EUR, USD, GBP, CHF, JPY, CNY, BRL, INR, CAD, AUD.
-/// Use [`Currency::all()`] for the complete list.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(try_from = "String", into = "String"))]
-pub struct Currency(String);
-
-impl Currency {
-    /// Erstellt eine neue validierte Währung
-    ///
-    /// Gibt `None` zurück wenn der Code nicht in CURRENCIES existiert.
-    /// Case-insensitive Suche, speichert aber immer in Uppercase.
-    pub fn new(code: &str) -> Option<Self> {
-        let upper = code.to_uppercase();
-        if CURRENCIES.iter().any(|c| c.eq_ignore_ascii_case(&upper)) {
-            Some(Currency(upper))
-        } else {
-            None
-        }
-    }
-
-    /// Erstellt eine Währung ohne Validierung (für interne Nutzung)
-    ///
-    /// # Safety
-    /// Nur verwenden wenn sicher ist, dass der Code gültig ist.
-    pub fn new_unchecked(code: &str) -> Self {
-        Currency(code.to_uppercase())
-    }
-
-    /// Gibt den Währungscode zurück
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// Alle verfügbaren Währungen
-    pub fn all() -> &'static [&'static str] {
-        &CURRENCIES
-    }
-
-    /// Prüft ob ein Währungscode gültig ist
-    pub fn is_valid(code: &str) -> bool {
-        CURRENCIES.iter().any(|c| c.eq_ignore_ascii_case(code))
-    }
-
-    // Häufig verwendete Währungen als Konstanten-artige Methoden
-    pub fn eur() -> Self {
-        Currency("EUR".to_string())
-    }
-    pub fn usd() -> Self {
-        Currency("USD".to_string())
-    }
-    pub fn gbp() -> Self {
-        Currency("GBP".to_string())
-    }
-    pub fn chf() -> Self {
-        Currency("CHF".to_string())
-    }
-}
-
-impl fmt::Display for Currency {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Default for Currency {
-    fn default() -> Self {
-        Currency::eur()
-    }
-}
-
-#[cfg(feature = "serde")]
-impl TryFrom<String> for Currency {
-    type Error = String;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        Currency::new(&s).ok_or_else(|| format!("Unknown currency: {}", s))
-    }
-}
-
-#[cfg(feature = "serde")]
-impl From<Currency> for String {
-    fn from(c: Currency) -> Self {
-        c.0
-    }
-}
+pub use crate::lang::data::Currency;
 
 // ============================================================================
 // Category - Kostenkategorien
@@ -625,19 +514,27 @@ mod tests {
     }
 
     #[test]
-    fn test_currency_new() {
-        assert!(Currency::new("EUR").is_some());
-        assert!(Currency::new("eur").is_some()); // Case-insensitive
-        assert!(Currency::new("USD").is_some());
-        assert!(Currency::new("INVALID").is_none());
-        assert!(Currency::new("").is_none());
+    fn test_currency_parse() {
+        assert_eq!("EUR".parse::<Currency>(), Ok(Currency::EUR));
+        assert_eq!("eur".parse::<Currency>(), Ok(Currency::EUR)); // case-insensitive
+        assert_eq!("USD".parse::<Currency>(), Ok(Currency::USD));
+        assert!("INVALID".parse::<Currency>().is_err());
+        assert!("".parse::<Currency>().is_err());
     }
 
     #[test]
-    fn test_currency_is_valid() {
-        assert!(Currency::is_valid("EUR"));
-        assert!(Currency::is_valid("usd"));
-        assert!(!Currency::is_valid("INVALID"));
+    fn test_currency_as_str() {
+        assert_eq!(Currency::EUR.as_str(), "EUR");
+        assert_eq!(Currency::USD.as_str(), "USD");
+        assert_eq!(Currency::GBP.as_str(), "GBP");
+    }
+
+    #[test]
+    fn test_currency_all() {
+        let all = Currency::all();
+        assert_eq!(all.len(), 153);
+        assert!(all.contains(&Currency::EUR));
+        assert!(all.contains(&Currency::USD));
     }
 
     #[test]

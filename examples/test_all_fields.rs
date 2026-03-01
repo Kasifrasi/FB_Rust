@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .header(
             ReportHeaderBuilder::default()
                 .language(Language::Deutsch)
-                .currency(Currency::eur())
+                .currency(Currency::EUR)
                 .project_number("PROJ-2024-001")
                 .project_title("Bildungsprojekt Ostafrika")
                 .project_start("01.01.2024")

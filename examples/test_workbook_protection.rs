@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .header(
                 ReportHeaderBuilder::default()
                     .language(Language::Deutsch)
-                    .currency(Currency::eur())
+                    .currency(Currency::EUR)
                     .project_number("TEST-001")
                     .project_title("Test Project")
                     .project_start("01.01.2024")
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .header(
                 ReportHeaderBuilder::default()
                     .language(Language::Deutsch)
-                    .currency(Currency::eur())
+                    .currency(Currency::EUR)
                     .project_number("TEST-002")
                     .project_title("Protected Project")
                     .project_start("01.01.2024")
@@ -67,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .header(
                 ReportHeaderBuilder::default()
                     .language(Language::Deutsch)
-                    .currency(Currency::eur())
+                    .currency(Currency::EUR)
                     .project_number("TEST-003")
                     .project_title("Fully Protected Project")
                     .project_start("01.01.2024")

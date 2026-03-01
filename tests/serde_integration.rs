@@ -22,7 +22,7 @@ fn test_report_config_full_roundtrip() {
     let config = ReportConfig {
         header: ReportHeader {
             language: Language::English,
-            currency: Currency::usd(),
+            currency: Currency::USD,
             project_number: Some("PROJ-2025-001".to_string()),
             project_title: Some("Bildungsprojekt".to_string()),
             project_start: Some("01.01.2025".to_string()),
@@ -96,7 +96,7 @@ fn test_report_config_full_roundtrip() {
 
     // Header
     assert_eq!(deserialized.header.language, Language::English);
-    assert_eq!(deserialized.header.currency, Currency::usd());
+    assert_eq!(deserialized.header.currency, Currency::USD);
     assert_eq!(
         deserialized.header.project_number.as_deref(),
         Some("PROJ-2025-001")
@@ -184,7 +184,7 @@ fn test_report_config_minimal_roundtrip() {
     let deserialized: ReportConfig = serde_json::from_str(&json).expect("deserialize");
 
     assert_eq!(deserialized.header.language, Language::Deutsch);
-    assert_eq!(deserialized.header.currency, Currency::eur());
+    assert_eq!(deserialized.header.currency, Currency::EUR);
     assert!(deserialized.options.sheet_password.is_none());
     assert!(deserialized.body.table.is_empty());
     assert!(deserialized.body.left_panel.is_empty());
@@ -202,7 +202,7 @@ fn test_report_config_empty_json() {
     let config: ReportConfig = serde_json::from_str(json).expect("deserialize empty");
 
     assert_eq!(config.header.language, Language::Deutsch);
-    assert_eq!(config.header.currency, Currency::eur());
+    assert_eq!(config.header.currency, Currency::EUR);
     assert!(config.options.sheet_password.is_none());
     assert!(config.body.table.is_empty());
 }
@@ -220,7 +220,7 @@ fn test_report_config_partial_json() {
     let config: ReportConfig = serde_json::from_str(json).expect("deserialize partial");
 
     assert_eq!(config.header.language, Language::English);
-    assert_eq!(config.header.currency, Currency::gbp());
+    assert_eq!(config.header.currency, Currency::GBP);
     assert!(config.header.project_number.is_none());
     assert!(config.body.table.is_empty());
     assert!(config.footer.bank.is_none());
@@ -283,14 +283,14 @@ fn test_language_deserialize_invalid() {
 
 #[test]
 fn test_currency_serde_roundtrip() {
-    let eur = Currency::eur();
+    let eur = Currency::EUR;
     let json = serde_json::to_string(&eur).expect("serialize");
     assert_eq!(json, r#""EUR""#);
 
     let usd: Currency = serde_json::from_str(r#""USD""#).expect("deserialize");
-    assert_eq!(usd, Currency::usd());
+    assert_eq!(usd, Currency::USD);
 
-    let chf = Currency::chf();
+    let chf = Currency::CHF;
     let json = serde_json::to_string(&chf).expect("serialize");
     let back: Currency = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(back, chf);
@@ -591,7 +591,7 @@ fn test_report_config_from_typescript_json() {
     let config: ReportConfig = serde_json::from_str(json).expect("deserialize TypeScript JSON");
 
     assert_eq!(config.header.language, Language::Deutsch);
-    assert_eq!(config.header.currency, Currency::eur());
+    assert_eq!(config.header.currency, Currency::EUR);
     assert_eq!(config.header.project_number.as_deref(), Some("2025-001"));
     assert_eq!(
         config.header.project_title.as_deref(),
@@ -684,7 +684,7 @@ fn test_report_config_all_null_optionals() {
     let config: ReportConfig = serde_json::from_str(json).expect("all-null optionals");
 
     assert_eq!(config.header.language, Language::English);
-    assert_eq!(config.header.currency, Currency::gbp());
+    assert_eq!(config.header.currency, Currency::GBP);
     assert!(config.header.project_number.is_none());
     assert!(config.header.project_title.is_none());
     assert!(config.footer.bank.is_none());
