@@ -26,6 +26,7 @@ base64 = "0.22"
 getrandom = "0.4.1"
 byteorder = "1.5"
 tempfile = "3"
+derive_builder = "0.20"
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }

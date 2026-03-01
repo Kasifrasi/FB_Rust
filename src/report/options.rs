@@ -914,12 +914,12 @@ impl HiddenRanges {
 }
 
 // ============================================================================
-// Report Options (combines Protection + Validation + other settings)
+// Sheet Options (combines Protection + Validation + other settings)
 // ============================================================================
 
-/// Combined report options for protection, validation, and display settings
+/// Combined sheet-level options for protection, validation, and display settings
 #[derive(Debug, Clone, Default)]
-pub struct ReportOptions {
+pub struct SheetOptions {
     /// Sheet protection settings
     pub protection: Option<SheetProtection>,
 
@@ -936,7 +936,7 @@ pub struct ReportOptions {
     pub language: Option<String>,
 }
 
-impl ReportOptions {
+impl SheetOptions {
     pub fn new() -> Self {
         Self::default()
     }
@@ -1092,7 +1092,7 @@ mod tests {
 
     #[test]
     fn test_report_options() {
-        let opts = ReportOptions::with_default_protection()
+        let opts = SheetOptions::with_default_protection()
             .with_hidden_columns_qv()
             .with_language("Englisch");
 
@@ -1133,7 +1133,7 @@ mod tests {
 
     #[test]
     fn test_report_options_row_grouping() {
-        let opts = ReportOptions::new()
+        let opts = SheetOptions::new()
             .add_row_group(10, 20)
             .add_collapsed_row_group(25, 30);
 

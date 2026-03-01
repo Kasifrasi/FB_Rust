@@ -8,14 +8,12 @@
 //! [`ReportConfig`] is the main entry point. Construct it, then call [`write_to`](ReportConfig::write_to):
 //!
 //! ```ignore
-//! use fb_rust::ReportConfig;
+//! use fb_rust::*;
 //!
-//! let config = ReportConfig {
-//!     language: "deutsch".into(),
-//!     currency: "EUR".into(),
-//!     locked: true,
-//!     ..ReportConfig::default()
-//! };
+//! let config = ReportConfigBuilder::default()
+//!     .header(ReportHeaderBuilder::default().language("deutsch").currency("EUR").build()?)
+//!     .options(ReportOptionsBuilder::default().locked(true).build()?)
+//!     .build()?;
 //! config.write_to("report.xlsx")?;
 //! ```
 //!
@@ -40,19 +38,18 @@
 //!
 //! ```json
 //! {
-//!   "language": "deutsch",
-//!   "currency": "EUR",
-//!   "project_number": "2025-001",
-//!   "project_title": "Klimaschutzprojekt",
-//!   "locked": true,
-//!   "body_positions": { "1": 20, "2": 20, "3": 30, "4": 30, "5": 20, "6": 0, "7": 0, "8": 0 },
-//!   "hide_columns_qv": false,
-//!   "hide_language_sheet": false
+//!   "header": {
+//!     "language": "deutsch",
+//!     "currency": "EUR",
+//!     "project_number": "2025-001",
+//!     "project_title": "Klimaschutzprojekt"
+//!   },
+//!   "options": { "locked": true }
 //! }
 //! ```
 //!
-//! All `Vec` fields (`table`, `left_panel`, `right_panel`, `positions`) default to
-//! empty when omitted. `deny_unknown_fields` is active — misspelled keys produce a
+//! All sub-structs (`header`, `body`, `footer`, `options`) default when omitted.
+//! `deny_unknown_fields` is active on each sub-struct — misspelled keys produce a
 //! serde error.
 //!
 //! ## Feature Flags
@@ -86,7 +83,12 @@ pub use workbook_protection::{
 };
 
 // Public API re-exports
-pub use config::{PanelEntry, PositionEntry, ReportConfig, TableEntry};
+pub use config::{
+    PanelEntry, PanelEntryBuilder, PositionEntry, PositionEntryBuilder,
+    ReportBody, ReportBodyBuilder, ReportConfig, ReportConfigBuilder,
+    ReportFooter, ReportFooterBuilder, ReportHeader, ReportHeaderBuilder,
+    ReportOptions, ReportOptionsBuilder, TableEntry, TableEntryBuilder,
+};
 pub use lang::{
     build_sheet as build_language_sheet,
     build_sheet_with_visibility as build_language_sheet_with_visibility,
@@ -95,7 +97,7 @@ pub use report::{
     api::{ApiKey, Category, Currency, DateError, Language, ReportDate, ReportValues},
     body::BodyConfig,
     options::{
-        FieldValidation, HiddenRanges, ReportOptions, RowGroup, RowGrouping,
+        FieldValidation, HiddenRanges, SheetOptions, RowGroup, RowGrouping,
         SheetProtection, ValidationError, ValidationErrorStyle, ValidationRule, ValidationRuleType,
         ValidationTarget,
     },

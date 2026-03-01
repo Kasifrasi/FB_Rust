@@ -6,7 +6,7 @@ use fb_rust::lang::build_sheet as build_sprachversionen;
 use fb_rust::lang::{LANG_CONFIG, LANG_SUFFIXES};
 use fb_rust::report::writer::setup_sheet;
 use fb_rust::report::ApiKey;
-use fb_rust::{write_report_with_options, BodyConfig, ReportOptions, ReportValues};
+use fb_rust::{write_report_with_options, BodyConfig, SheetOptions, ReportValues};
 use rust_xlsxwriter::{Format, Workbook};
 use std::time::Instant;
 
@@ -118,7 +118,7 @@ fn main() {
         t_values += t.elapsed();
 
         let t = Instant::now();
-        let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
+        let options = SheetOptions::with_default_protection().with_hidden_columns_qv();
         write_report_with_options(ws, suffix, &values, &body_config, &options).unwrap();
         t_write_report += t.elapsed();
 
@@ -173,7 +173,7 @@ fn main() {
 
         let t = Instant::now();
         let (values, body_config) = build_test_values(i);
-        let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
+        let options = SheetOptions::with_default_protection().with_hidden_columns_qv();
         write_report_with_options(ws, suffix, &values, &body_config, &options).unwrap();
         t_wb_write_report += t.elapsed();
 
@@ -240,7 +240,7 @@ fn main() {
         }
         setup_sheet(ws).unwrap();
         let (values, body_config) = build_test_values(i);
-        let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
+        let options = SheetOptions::with_default_protection().with_hidden_columns_qv();
         write_report_with_options(ws, suffix, &values, &body_config, &options).unwrap();
         let temp_file = temp_dir.join(format!("report_{:05}_tmp.xlsx", i));
         workbook.save(&temp_file).unwrap();
@@ -287,7 +287,7 @@ fn main() {
         }
         setup_sheet(ws).unwrap();
         let (values, body_config) = build_test_values(i);
-        let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
+        let options = SheetOptions::with_default_protection().with_hidden_columns_qv();
         write_report_with_options(ws, suffix, &values, &body_config, &options).unwrap();
 
         let t = Instant::now();

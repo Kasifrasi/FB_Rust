@@ -2,7 +2,7 @@
 //!
 //! Demonstriert die `ReportConfig` API mit verschiedenen Schutz-Stufen
 
-use fb_rust::ReportConfig;
+use fb_rust::{ReportConfig, ReportHeader, ReportOptions};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing Workbook-Protection Integration...\n");
@@ -11,14 +11,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         println!("1. Creating report WITHOUT workbook protection...");
         let config = ReportConfig {
-            language: "deutsch".to_string(),
-            currency: "EUR".to_string(),
-            project_number: Some("TEST-001".to_string()),
-            project_title: Some("Test Project".to_string()),
-            project_start: Some("01.01.2024".to_string()),
-            project_end: Some("31.12.2024".to_string()),
-            report_start: Some("01.01.2024".to_string()),
-            report_end: Some("31.03.2024".to_string()),
+            header: ReportHeader {
+                language: "deutsch".to_string(),
+                currency: "EUR".to_string(),
+                project_number: Some("TEST-001".to_string()),
+                project_title: Some("Test Project".to_string()),
+                project_start: Some("01.01.2024".to_string()),
+                project_end: Some("31.12.2024".to_string()),
+                report_start: Some("01.01.2024".to_string()),
+                report_end: Some("31.03.2024".to_string()),
+            },
             ..ReportConfig::default()
         };
         config.write_to("examples/output/test_no_wb_protection.xlsx")?;
@@ -29,15 +31,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         println!("\n2. Creating report WITH workbook protection...");
         let config = ReportConfig {
-            language: "deutsch".to_string(),
-            currency: "EUR".to_string(),
-            project_number: Some("TEST-002".to_string()),
-            project_title: Some("Protected Project".to_string()),
-            project_start: Some("01.01.2024".to_string()),
-            project_end: Some("31.12.2024".to_string()),
-            report_start: Some("01.01.2024".to_string()),
-            report_end: Some("31.03.2024".to_string()),
-            workbook_password: Some("secret123".to_string()),
+            header: ReportHeader {
+                language: "deutsch".to_string(),
+                currency: "EUR".to_string(),
+                project_number: Some("TEST-002".to_string()),
+                project_title: Some("Protected Project".to_string()),
+                project_start: Some("01.01.2024".to_string()),
+                project_end: Some("31.12.2024".to_string()),
+                report_start: Some("01.01.2024".to_string()),
+                report_end: Some("31.03.2024".to_string()),
+            },
+            options: ReportOptions {
+                workbook_password: Some("secret123".to_string()),
+                ..ReportOptions::default()
+            },
             ..ReportConfig::default()
         };
         config.write_to("examples/output/test_with_wb_protection.xlsx")?;
@@ -49,18 +56,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         println!("\n3. Creating report WITH sheet AND workbook protection...");
         let config = ReportConfig {
-            language: "deutsch".to_string(),
-            currency: "EUR".to_string(),
-            project_number: Some("TEST-003".to_string()),
-            project_title: Some("Fully Protected Project".to_string()),
-            project_start: Some("01.01.2024".to_string()),
-            project_end: Some("31.12.2024".to_string()),
-            report_start: Some("01.01.2024".to_string()),
-            report_end: Some("31.03.2024".to_string()),
-            locked: true,
-            workbook_password: Some("test456".to_string()),
-            hide_columns_qv: true,
-            hide_language_sheet: true,
+            header: ReportHeader {
+                language: "deutsch".to_string(),
+                currency: "EUR".to_string(),
+                project_number: Some("TEST-003".to_string()),
+                project_title: Some("Fully Protected Project".to_string()),
+                project_start: Some("01.01.2024".to_string()),
+                project_end: Some("31.12.2024".to_string()),
+                report_start: Some("01.01.2024".to_string()),
+                report_end: Some("31.03.2024".to_string()),
+            },
+            options: ReportOptions {
+                locked: true,
+                workbook_password: Some("test456".to_string()),
+                hide_columns_qv: true,
+                hide_language_sheet: true,
+                ..ReportOptions::default()
+            },
             ..ReportConfig::default()
         };
         config.write_to("examples/output/test_full_protection.xlsx")?;

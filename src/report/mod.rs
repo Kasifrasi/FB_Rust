@@ -4,7 +4,7 @@
 //!
 //! - `api`: Public API types (ApiKey, Language, Currency, ReportValues, etc.)
 //! - `core`: Formula engine (CellRegistry, CellAddr, topological evaluation)
-//! - `options`: Report options (ReportOptions, SheetProtection, Validation, etc.)
+//! - `options`: Report options (SheetOptions, SheetProtection, Validation, etc.)
 //! - `styles`: Internal styles and format matrix (ReportStyles, FormatMatrix)
 //! - `writer`: Excel writer (write_report_with_options, create_protected_report)
 //! - `body`: Dynamic cost position sections
@@ -23,10 +23,10 @@ pub use api::{
 };
 pub use body::{BodyConfig, BodyLayout, CategoryMode};
 pub use options::{
-    FieldValidation, HiddenRanges, ReportOptions, RowGroup, RowGrouping, SheetProtection,
+    FieldValidation, HiddenRanges, SheetOptions, RowGroup, RowGrouping, SheetProtection,
     ValidationError, ValidationErrorStyle, ValidationRule, ValidationRuleType, ValidationTarget,
 };
 pub use writer::{
-    apply_report_options, setup_freeze_panes, setup_sheet, write_report_with_options, BodyResult,
+    apply_sheet_options, setup_freeze_panes, setup_sheet, write_report_with_options, BodyResult,
     MergeRange,
 };

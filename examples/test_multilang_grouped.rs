@@ -10,7 +10,7 @@
 //! - Audit: 0 Positionen (nur Header)
 //! - Reserve: 0 Positionen (nur Header)
 
-use fb_rust::{ReportConfig, RowGrouping};
+use fb_rust::{ReportConfig, ReportHeader, ReportOptions, RowGrouping};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let languages = ["deutsch", "english", "francais", "espanol", "portugues"];
@@ -43,9 +43,15 @@ fn create_report(language: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     // body_positions entspricht dem Default (1:20, 2:20, 3:30, 4:30, 5:20, 6-8:0)
     let config = ReportConfig {
-        language: language.to_string(),
-        hide_language_sheet: true,
-        row_grouping: Some(row_grouping),
+        header: ReportHeader {
+            language: language.to_string(),
+            ..ReportHeader::default()
+        },
+        options: ReportOptions {
+            hide_language_sheet: true,
+            row_grouping: Some(row_grouping),
+            ..ReportOptions::default()
+        },
         ..ReportConfig::default()
     };
 

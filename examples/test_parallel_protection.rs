@@ -5,7 +5,7 @@
 //! Usage:
 //!   cargo run --example test_parallel_protection --release
 
-use fb_rust::{protect_workbook, ReportConfig};
+use fb_rust::{protect_workbook, ReportConfig, ReportHeader, ReportOptions};
 use rayon::prelude::*;
 use std::fs;
 use std::path::PathBuf;
@@ -22,11 +22,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Basis-Datei generieren
     let base_file = dir.path().join("base.xlsx");
     let config = ReportConfig {
-        language: "deutsch".to_string(),
-        currency: "EUR".to_string(),
-        project_number: Some("BENCH-001".to_string()),
-        project_title: Some("Protection Benchmark".to_string()),
-        locked: true,
+        header: ReportHeader {
+            language: "deutsch".to_string(),
+            currency: "EUR".to_string(),
+            project_number: Some("BENCH-001".to_string()),
+            project_title: Some("Protection Benchmark".to_string()),
+            ..ReportHeader::default()
+        },
+        options: ReportOptions {
+            locked: true,
+            ..ReportOptions::default()
+        },
         ..ReportConfig::default()
     };
     config.write_to(&base_file)?;

@@ -10,8 +10,8 @@
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use fb_rust::{
-    precompute_hash_with_spin_count, PanelEntry, PositionEntry, ReportConfig, RowGrouping,
-    TableEntry,
+    precompute_hash_with_spin_count, PanelEntry, PositionEntry, ReportBody, ReportConfig,
+    ReportFooter, ReportHeader, ReportOptions, RowGrouping, TableEntry,
 };
 use std::fs;
 use std::sync::Arc;
@@ -121,32 +121,40 @@ fn build_config(index: usize) -> ReportConfig {
     }
 
     ReportConfig {
-        language: LANGUAGES[lang_idx].to_string(),
-        currency: CURRENCIES[lang_idx].to_string(),
-        project_number: Some(format!("PROJ-{:05}", index)),
-        project_title: Some(format!("Projekt {} ({})", index, LANGUAGES[lang_idx])),
-        project_start: Some(format!("01.{:02}.2024", (index % 12) + 1)),
-        project_end: Some("31.12.2026".to_string()),
-        report_start: Some(format!("01.{:02}.2024", (index % 12) + 1)),
-        report_end: Some("30.06.2024".to_string()),
-        table,
-        left_panel,
-        right_panel,
-        positions,
-        body_positions: cat_counts.into_iter().collect(),
-        footer_bank: Some(base * 8.0),
-        footer_kasse: Some(base * 1.5),
-        footer_sonstiges: Some(base * 0.3),
-        locked: true,
-        hide_columns_qv: true,
-        hide_language_sheet: true,
-        row_grouping: Some(
-            RowGrouping::new()
-                .add_collapsed_group(30, 40)
-                .add_collapsed_group(42, 52),
-        ),
-        // workbook_password NOT set — using precompute_hash + write_to_precomputed
-        ..ReportConfig::default()
+        header: ReportHeader {
+            language: LANGUAGES[lang_idx].to_string(),
+            currency: CURRENCIES[lang_idx].to_string(),
+            project_number: Some(format!("PROJ-{:05}", index)),
+            project_title: Some(format!("Projekt {} ({})", index, LANGUAGES[lang_idx])),
+            project_start: Some(format!("01.{:02}.2024", (index % 12) + 1)),
+            project_end: Some("31.12.2026".to_string()),
+            report_start: Some(format!("01.{:02}.2024", (index % 12) + 1)),
+            report_end: Some("30.06.2024".to_string()),
+        },
+        body: ReportBody {
+            table,
+            left_panel,
+            right_panel,
+            positions,
+            body_positions: cat_counts.into_iter().collect(),
+        },
+        footer: ReportFooter {
+            bank: Some(base * 8.0),
+            kasse: Some(base * 1.5),
+            sonstiges: Some(base * 0.3),
+        },
+        options: ReportOptions {
+            locked: true,
+            hide_columns_qv: true,
+            hide_language_sheet: true,
+            row_grouping: Some(
+                RowGrouping::new()
+                    .add_collapsed_group(30, 40)
+                    .add_collapsed_group(42, 52),
+            ),
+            // workbook_password NOT set — using precompute_hash + write_to_precomputed
+            ..ReportOptions::default()
+        },
     }
 }
 

@@ -1,155 +1,173 @@
 //! Serde Integration Tests
 //!
-//! Testet JSON-Serialisierung/Deserialisierung aller Public-API-Typen
-//! aus externer Nutzerperspektive (via lib.rs Re-Exports).
+//! Tests JSON serialization/deserialization of all public API types
+//! from an external user perspective (via lib.rs re-exports).
 //!
-//! Ausführen: cargo test --features serde --test serde_integration
+//! Run: cargo test --features serde --test serde_integration
 
 #![cfg(feature = "serde")]
 
 use fb_rust::{
-    BodyConfig, Category, Currency, Language, PanelEntry, PositionEntry, ReportConfig, ReportDate,
-    RowGroup, RowGrouping, TableEntry,
+    BodyConfig, Category, Currency, Language, PanelEntry, PositionEntry, ReportBody, ReportConfig,
+    ReportDate, ReportFooter, ReportHeader, ReportOptions, RowGroup, RowGrouping, TableEntry,
 };
 use std::collections::HashMap;
 
 // ============================================================================
-// Gruppe 1: ReportConfig — Vollständiger Roundtrip
+// Group 1: ReportConfig — Full Roundtrip
 // ============================================================================
 
 #[test]
 fn test_report_config_full_roundtrip() {
     let config = ReportConfig {
-        language: "english".to_string(),
-        currency: "USD".to_string(),
-        project_number: Some("PROJ-2025-001".to_string()),
-        project_title: Some("Bildungsprojekt".to_string()),
-        project_start: Some("01.01.2025".to_string()),
-        project_end: Some("31.12.2025".to_string()),
-        report_start: Some("01.01.2025".to_string()),
-        report_end: Some("30.06.2025".to_string()),
-        table: vec![TableEntry {
-            index: 0,
-            approved_budget: Some(50000.0),
-            income_report: Some(25000.0),
-            income_total: Some(25000.0),
-            reason: Some("Spende".to_string()),
-        }],
-        left_panel: vec![PanelEntry {
-            index: 0,
-            date: Some("15.01.2025".to_string()),
-            amount_euro: Some(1000.0),
-            amount_local: Some(1100.0),
-        }],
-        right_panel: vec![PanelEntry {
-            index: 0,
-            date: Some("20.02.2025".to_string()),
-            amount_euro: Some(500.0),
-            amount_local: None,
-        }],
-        positions: vec![
-            PositionEntry {
-                category: 1,
-                position: 1,
-                description: Some("Personalkosten".to_string()),
-                approved: Some(18000.0),
-                income_report: Some(9000.0),
-                income_total: Some(9000.0),
-                remark: None,
-            },
-            PositionEntry {
-                category: 6,
-                position: 0,
-                description: None,
-                approved: Some(3000.0),
-                income_report: Some(1500.0),
-                income_total: Some(1500.0),
-                remark: Some("Verwaltung".to_string()),
-            },
-        ],
-        body_positions: [(1u8, 10u16), (2, 5), (6, 0)]
-            .into_iter()
-            .collect(),
-        footer_bank: Some(8500.0),
-        footer_kasse: Some(250.50),
-        footer_sonstiges: None,
-        locked: true,
-        workbook_password: Some("geheim".to_string()),
-        hide_columns_qv: true,
-        hide_language_sheet: true,
-        row_grouping: Some(
-            RowGrouping::new()
-                .add_group(10, 20)
-                .add_collapsed_group(25, 30)
-                .with_symbols_above(true),
-        ),
+        header: ReportHeader {
+            language: "english".to_string(),
+            currency: "USD".to_string(),
+            project_number: Some("PROJ-2025-001".to_string()),
+            project_title: Some("Bildungsprojekt".to_string()),
+            project_start: Some("01.01.2025".to_string()),
+            project_end: Some("31.12.2025".to_string()),
+            report_start: Some("01.01.2025".to_string()),
+            report_end: Some("30.06.2025".to_string()),
+        },
+        body: ReportBody {
+            table: vec![TableEntry {
+                index: 0,
+                approved_budget: Some(50000.0),
+                income_report: Some(25000.0),
+                income_total: Some(25000.0),
+                reason: Some("Spende".to_string()),
+            }],
+            left_panel: vec![PanelEntry {
+                index: 0,
+                date: Some("15.01.2025".to_string()),
+                amount_euro: Some(1000.0),
+                amount_local: Some(1100.0),
+            }],
+            right_panel: vec![PanelEntry {
+                index: 0,
+                date: Some("20.02.2025".to_string()),
+                amount_euro: Some(500.0),
+                amount_local: None,
+            }],
+            positions: vec![
+                PositionEntry {
+                    category: 1,
+                    position: 1,
+                    description: Some("Personalkosten".to_string()),
+                    approved: Some(18000.0),
+                    income_report: Some(9000.0),
+                    income_total: Some(9000.0),
+                    remark: None,
+                },
+                PositionEntry {
+                    category: 6,
+                    position: 0,
+                    description: None,
+                    approved: Some(3000.0),
+                    income_report: Some(1500.0),
+                    income_total: Some(1500.0),
+                    remark: Some("Verwaltung".to_string()),
+                },
+            ],
+            body_positions: [(1u8, 10u16), (2, 5), (6, 0)].into_iter().collect(),
+        },
+        footer: ReportFooter {
+            bank: Some(8500.0),
+            kasse: Some(250.50),
+            sonstiges: None,
+        },
+        options: ReportOptions {
+            locked: true,
+            workbook_password: Some("geheim".to_string()),
+            hide_columns_qv: true,
+            hide_language_sheet: true,
+            row_grouping: Some(
+                RowGrouping::new()
+                    .add_group(10, 20)
+                    .add_collapsed_group(25, 30)
+                    .with_symbols_above(true),
+            ),
+        },
     };
 
     let json = serde_json::to_string(&config).expect("serialize");
     let deserialized: ReportConfig = serde_json::from_str(&json).expect("deserialize");
 
     // Header
-    assert_eq!(deserialized.language, "english");
-    assert_eq!(deserialized.currency, "USD");
+    assert_eq!(deserialized.header.language, "english");
+    assert_eq!(deserialized.header.currency, "USD");
     assert_eq!(
-        deserialized.project_number.as_deref(),
+        deserialized.header.project_number.as_deref(),
         Some("PROJ-2025-001")
     );
     assert_eq!(
-        deserialized.project_title.as_deref(),
+        deserialized.header.project_title.as_deref(),
         Some("Bildungsprojekt")
     );
     assert_eq!(
-        deserialized.project_start.as_deref(),
+        deserialized.header.project_start.as_deref(),
         Some("01.01.2025")
     );
-    assert_eq!(deserialized.project_end.as_deref(), Some("31.12.2025"));
     assert_eq!(
-        deserialized.report_start.as_deref(),
+        deserialized.header.project_end.as_deref(),
+        Some("31.12.2025")
+    );
+    assert_eq!(
+        deserialized.header.report_start.as_deref(),
         Some("01.01.2025")
     );
-    assert_eq!(deserialized.report_end.as_deref(), Some("30.06.2025"));
+    assert_eq!(
+        deserialized.header.report_end.as_deref(),
+        Some("30.06.2025")
+    );
 
     // Table
-    assert_eq!(deserialized.table.len(), 1);
-    assert_eq!(deserialized.table[0].index, 0);
-    assert_eq!(deserialized.table[0].approved_budget, Some(50000.0));
-    assert_eq!(deserialized.table[0].reason.as_deref(), Some("Spende"));
+    assert_eq!(deserialized.body.table.len(), 1);
+    assert_eq!(deserialized.body.table[0].index, 0);
+    assert_eq!(deserialized.body.table[0].approved_budget, Some(50000.0));
+    assert_eq!(
+        deserialized.body.table[0].reason.as_deref(),
+        Some("Spende")
+    );
 
     // Panels
-    assert_eq!(deserialized.left_panel.len(), 1);
-    assert_eq!(deserialized.left_panel[0].amount_euro, Some(1000.0));
-    assert_eq!(deserialized.right_panel.len(), 1);
-    assert_eq!(deserialized.right_panel[0].amount_local, None);
+    assert_eq!(deserialized.body.left_panel.len(), 1);
+    assert_eq!(deserialized.body.left_panel[0].amount_euro, Some(1000.0));
+    assert_eq!(deserialized.body.right_panel.len(), 1);
+    assert_eq!(deserialized.body.right_panel[0].amount_local, None);
 
     // Positions
-    assert_eq!(deserialized.positions.len(), 2);
-    assert_eq!(deserialized.positions[0].category, 1);
-    assert_eq!(deserialized.positions[0].position, 1);
+    assert_eq!(deserialized.body.positions.len(), 2);
+    assert_eq!(deserialized.body.positions[0].category, 1);
+    assert_eq!(deserialized.body.positions[0].position, 1);
     assert_eq!(
-        deserialized.positions[0].description.as_deref(),
+        deserialized.body.positions[0].description.as_deref(),
         Some("Personalkosten")
     );
-    assert_eq!(deserialized.positions[1].position, 0); // Header-Eingabe
+    assert_eq!(deserialized.body.positions[1].position, 0);
 
     // Body positions
-    assert_eq!(deserialized.body_positions[&1], 10);
-    assert_eq!(deserialized.body_positions[&2], 5);
-    assert_eq!(deserialized.body_positions[&6], 0);
+    assert_eq!(deserialized.body.body_positions[&1], 10);
+    assert_eq!(deserialized.body.body_positions[&2], 5);
+    assert_eq!(deserialized.body.body_positions[&6], 0);
 
     // Footer
-    assert_eq!(deserialized.footer_bank, Some(8500.0));
-    assert_eq!(deserialized.footer_kasse, Some(250.50));
-    assert_eq!(deserialized.footer_sonstiges, None);
+    assert_eq!(deserialized.footer.bank, Some(8500.0));
+    assert_eq!(deserialized.footer.kasse, Some(250.50));
+    assert_eq!(deserialized.footer.sonstiges, None);
 
-    // Optionen
-    assert!(deserialized.locked);
-    assert_eq!(deserialized.workbook_password.as_deref(), Some("geheim"));
-    assert!(deserialized.hide_columns_qv);
-    assert!(deserialized.hide_language_sheet);
+    // Options
+    assert!(deserialized.options.locked);
+    assert_eq!(
+        deserialized.options.workbook_password.as_deref(),
+        Some("geheim")
+    );
+    assert!(deserialized.options.hide_columns_qv);
+    assert!(deserialized.options.hide_language_sheet);
 
     // Row Grouping
-    let rg = deserialized.row_grouping.as_ref().unwrap();
+    let rg = deserialized.options.row_grouping.as_ref().unwrap();
     assert!(rg.symbols_above);
     assert_eq!(rg.groups().len(), 2);
     assert_eq!(rg.groups()[0].start_row, 10);
@@ -166,47 +184,52 @@ fn test_report_config_minimal_roundtrip() {
     let json = serde_json::to_string(&config).expect("serialize");
     let deserialized: ReportConfig = serde_json::from_str(&json).expect("deserialize");
 
-    assert_eq!(deserialized.language, "deutsch");
-    assert_eq!(deserialized.currency, "EUR");
-    assert!(!deserialized.locked);
-    assert!(deserialized.table.is_empty());
-    assert!(deserialized.left_panel.is_empty());
-    assert!(deserialized.right_panel.is_empty());
-    assert!(deserialized.positions.is_empty());
-    assert!(deserialized.project_number.is_none());
-    assert!(deserialized.footer_bank.is_none());
-    assert!(deserialized.row_grouping.is_none());
+    assert_eq!(deserialized.header.language, "deutsch");
+    assert_eq!(deserialized.header.currency, "EUR");
+    assert!(!deserialized.options.locked);
+    assert!(deserialized.body.table.is_empty());
+    assert!(deserialized.body.left_panel.is_empty());
+    assert!(deserialized.body.right_panel.is_empty());
+    assert!(deserialized.body.positions.is_empty());
+    assert!(deserialized.header.project_number.is_none());
+    assert!(deserialized.footer.bank.is_none());
+    assert!(deserialized.options.row_grouping.is_none());
 }
 
 #[test]
-fn test_report_config_missing_optional_fields() {
-    // Minimales JSON — nur Pflichtfelder, alle serde(default)-Felder fehlen
+fn test_report_config_empty_json() {
+    // All sub-structs have serde(default), so {} should work
+    let json = r#"{}"#;
+    let config: ReportConfig = serde_json::from_str(json).expect("deserialize empty");
+
+    assert_eq!(config.header.language, "deutsch");
+    assert_eq!(config.header.currency, "EUR");
+    assert!(!config.options.locked);
+    assert!(config.body.table.is_empty());
+}
+
+#[test]
+fn test_report_config_partial_json() {
+    // Only header provided, everything else defaults
     let json = r#"{
-        "language": "deutsch",
-        "currency": "EUR",
-        "body_positions": {},
-        "locked": false,
-        "hide_columns_qv": false,
-        "hide_language_sheet": false
+        "header": {
+            "language": "english",
+            "currency": "GBP"
+        }
     }"#;
 
-    let config: ReportConfig = serde_json::from_str(json).expect("deserialize minimal");
+    let config: ReportConfig = serde_json::from_str(json).expect("deserialize partial");
 
-    assert_eq!(config.language, "deutsch");
-    assert_eq!(config.currency, "EUR");
-    assert!(config.table.is_empty());
-    assert!(config.left_panel.is_empty());
-    assert!(config.right_panel.is_empty());
-    assert!(config.positions.is_empty());
-    assert!(config.row_grouping.is_none());
-    assert!(config.project_number.is_none());
-    assert!(config.project_title.is_none());
-    assert!(config.footer_bank.is_none());
-    assert!(config.workbook_password.is_none());
+    assert_eq!(config.header.language, "english");
+    assert_eq!(config.header.currency, "GBP");
+    assert!(config.header.project_number.is_none());
+    assert!(config.body.table.is_empty());
+    assert!(config.footer.bank.is_none());
+    assert!(!config.options.locked);
 }
 
 // ============================================================================
-// Gruppe 2: Language — rename_all="lowercase"
+// Group 2: Language — rename_all="lowercase"
 // ============================================================================
 
 #[test]
@@ -221,7 +244,11 @@ fn test_language_serialize() {
 
     for (lang, expected) in cases {
         let json = serde_json::to_string(lang).expect("serialize language");
-        assert_eq!(&json, expected, "Language::{:?} should serialize to {}", lang, expected);
+        assert_eq!(
+            &json, expected,
+            "Language::{:?} should serialize to {}",
+            lang, expected
+        );
     }
 }
 
@@ -243,7 +270,6 @@ fn test_language_deserialize() {
 
 #[test]
 fn test_language_deserialize_invalid() {
-    // rename_all="lowercase" akzeptiert nur exakte Varianten-Namen in lowercase
     let invalid = [r#""german""#, r#""Deutsch""#, r#""de""#, r#""ENGLISH""#];
 
     for json in &invalid {
@@ -253,21 +279,18 @@ fn test_language_deserialize_invalid() {
 }
 
 // ============================================================================
-// Gruppe 3: Currency — transparent
+// Group 3: Currency — try_from validated
 // ============================================================================
 
 #[test]
 fn test_currency_serde_roundtrip() {
-    // Serialisiert als nackter String
     let eur = Currency::eur();
     let json = serde_json::to_string(&eur).expect("serialize");
     assert_eq!(json, r#""EUR""#);
 
-    // Deserialisiert vom String — mit Validierung
     let usd: Currency = serde_json::from_str(r#""USD""#).expect("deserialize");
     assert_eq!(usd, Currency::usd());
 
-    // Roundtrip
     let chf = Currency::chf();
     let json = serde_json::to_string(&chf).expect("serialize");
     let back: Currency = serde_json::from_str(&json).expect("deserialize");
@@ -276,7 +299,6 @@ fn test_currency_serde_roundtrip() {
 
 #[test]
 fn test_currency_deserialize_invalid() {
-    // Ungültige Währungscodes werden beim Deserialisieren abgelehnt
     let invalid = [r#""INVALID""#, r#""XYZ""#, r#"""#];
 
     for json in &invalid {
@@ -287,13 +309,12 @@ fn test_currency_deserialize_invalid() {
 
 #[test]
 fn test_currency_deserialize_case_insensitive() {
-    // Currency::new() akzeptiert case-insensitive, also auch serde
     let lower: Currency = serde_json::from_str(r#""eur""#).expect("lowercase");
-    assert_eq!(lower.as_str(), "EUR"); // Gespeichert in Uppercase
+    assert_eq!(lower.as_str(), "EUR");
 }
 
 // ============================================================================
-// Gruppe 4: Category — Standard Enum
+// Group 4: Category — Standard Enum
 // ============================================================================
 
 #[test]
@@ -321,18 +342,16 @@ fn test_category_serde_roundtrip() {
 }
 
 // ============================================================================
-// Gruppe 5: ReportDate — try_from/into String
+// Group 5: ReportDate — try_from/into String
 // ============================================================================
 
 #[test]
 fn test_report_date_serde_iso_roundtrip() {
     let date = ReportDate::new(2024, 6, 15).unwrap();
 
-    // Serialisiert als ISO-String
     let json = serde_json::to_string(&date).expect("serialize");
     assert_eq!(json, r#""2024-06-15""#);
 
-    // Deserialisiert zurück
     let back: ReportDate = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(back.year(), 2024);
     assert_eq!(back.month(), 6);
@@ -341,19 +360,16 @@ fn test_report_date_serde_iso_roundtrip() {
 
 #[test]
 fn test_report_date_deserialize_formats() {
-    // ISO
     let iso: ReportDate = serde_json::from_str(r#""2024-06-15""#).expect("ISO");
     assert_eq!(iso.year(), 2024);
     assert_eq!(iso.month(), 6);
     assert_eq!(iso.day(), 15);
 
-    // Deutsch (DD.MM.YYYY)
     let de: ReportDate = serde_json::from_str(r#""15.06.2024""#).expect("DE");
     assert_eq!(de.day(), 15);
     assert_eq!(de.month(), 6);
     assert_eq!(de.year(), 2024);
 
-    // Slash-Format (DD/MM/YYYY)
     let slash: ReportDate = serde_json::from_str(r#""15/06/2024""#).expect("slash");
     assert_eq!(slash.day(), 15);
     assert_eq!(slash.month(), 6);
@@ -367,7 +383,7 @@ fn test_report_date_deserialize_invalid() {
 }
 
 // ============================================================================
-// Gruppe 6: BodyConfig — from/into HashMap
+// Group 6: BodyConfig — from/into HashMap
 // ============================================================================
 
 #[test]
@@ -377,10 +393,8 @@ fn test_body_config_serializes_as_hashmap() {
     let json = serde_json::to_string(&config).expect("serialize");
     let map: HashMap<String, u16> = serde_json::from_str(&json).expect("as raw map");
 
-    // BodyConfig serialisiert als HashMap, nicht als Struct mit "positions"-Feld
     assert_eq!(map["1"], 10);
     assert_eq!(map["6"], 0);
-    // Keine Kategorien die nicht gesetzt wurden
     assert!(!map.contains_key("positions"));
 }
 
@@ -392,7 +406,7 @@ fn test_body_config_deserializes_from_hashmap() {
     assert_eq!(config.position_count(1), 20);
     assert_eq!(config.position_count(2), 20);
     assert_eq!(config.position_count(3), 30);
-    assert_eq!(config.position_count(4), 0); // Nicht gesetzt
+    assert_eq!(config.position_count(4), 0);
 }
 
 #[test]
@@ -413,12 +427,11 @@ fn test_body_config_roundtrip() {
 }
 
 // ============================================================================
-// Gruppe 7: Hilfstypen
+// Group 7: Helper types
 // ============================================================================
 
 #[test]
 fn test_table_entry_roundtrip() {
-    // Alle Felder gesetzt
     let entry = TableEntry {
         index: 2,
         approved_budget: Some(100000.0),
@@ -434,7 +447,6 @@ fn test_table_entry_roundtrip() {
     assert_eq!(back.approved_budget, Some(100000.0));
     assert_eq!(back.reason.as_deref(), Some("Spenden"));
 
-    // Mit null-Feldern
     let entry_null = TableEntry {
         index: 0,
         approved_budget: None,
@@ -470,7 +482,6 @@ fn test_panel_entry_roundtrip() {
 
 #[test]
 fn test_position_entry_roundtrip() {
-    // Normale Position (position >= 1)
     let pos = PositionEntry {
         category: 1,
         position: 3,
@@ -487,7 +498,6 @@ fn test_position_entry_roundtrip() {
     assert_eq!(back.position, 3);
     assert_eq!(back.description.as_deref(), Some("Reisekosten"));
 
-    // Header-Eingabe (position == 0, keine Description)
     let header = PositionEntry {
         category: 6,
         position: 0,
@@ -506,7 +516,7 @@ fn test_position_entry_roundtrip() {
 }
 
 // ============================================================================
-// Gruppe 8: RowGrouping / RowGroup
+// Group 8: RowGrouping / RowGroup
 // ============================================================================
 
 #[test]
@@ -542,95 +552,99 @@ fn test_row_group_from_json() {
 }
 
 // ============================================================================
-// Gruppe 9: ReportConfig aus Tauri-typischem JSON
+// Group 9: ReportConfig from Tauri-typical JSON (nested format)
 // ============================================================================
 
 #[test]
 fn test_report_config_from_typescript_json() {
-    // Exakt das JSON-Format wie im TypeScript-Beispiel in config.rs Doku
     let json = r#"{
-        "language": "deutsch",
-        "currency": "EUR",
-        "project_number": "2025-001",
-        "project_title": "Klimaschutzprojekt",
-        "locked": true,
-        "body_positions": { "1": 10, "2": 5 },
-        "positions": [
-            {
-                "category": 1,
-                "position": 1,
-                "description": "Baukosten",
-                "approved": 50000.0,
-                "income_report": null,
-                "income_total": null,
-                "remark": null
-            }
-        ],
-        "footer_bank": 12000.0,
-        "footer_kasse": 500.0,
-        "hide_columns_qv": false,
-        "hide_language_sheet": false
+        "header": {
+            "language": "deutsch",
+            "currency": "EUR",
+            "project_number": "2025-001",
+            "project_title": "Klimaschutzprojekt"
+        },
+        "body": {
+            "body_positions": { "1": 10, "2": 5 },
+            "positions": [
+                {
+                    "category": 1,
+                    "position": 1,
+                    "description": "Baukosten",
+                    "approved": 50000.0,
+                    "income_report": null,
+                    "income_total": null,
+                    "remark": null
+                }
+            ]
+        },
+        "footer": {
+            "bank": 12000.0,
+            "kasse": 500.0
+        },
+        "options": {
+            "locked": true,
+            "hide_columns_qv": false,
+            "hide_language_sheet": false
+        }
     }"#;
 
     let config: ReportConfig = serde_json::from_str(json).expect("deserialize TypeScript JSON");
 
-    assert_eq!(config.language, "deutsch");
-    assert_eq!(config.currency, "EUR");
-    assert_eq!(config.project_number.as_deref(), Some("2025-001"));
-    assert_eq!(config.project_title.as_deref(), Some("Klimaschutzprojekt"));
-    assert!(config.locked);
-    assert_eq!(config.body_positions[&1], 10);
-    assert_eq!(config.body_positions[&2], 5);
-    assert_eq!(config.positions.len(), 1);
-    assert_eq!(config.positions[0].approved, Some(50000.0));
+    assert_eq!(config.header.language, "deutsch");
+    assert_eq!(config.header.currency, "EUR");
+    assert_eq!(config.header.project_number.as_deref(), Some("2025-001"));
     assert_eq!(
-        config.positions[0].description.as_deref(),
+        config.header.project_title.as_deref(),
+        Some("Klimaschutzprojekt")
+    );
+    assert!(config.options.locked);
+    assert_eq!(config.body.body_positions[&1], 10);
+    assert_eq!(config.body.body_positions[&2], 5);
+    assert_eq!(config.body.positions.len(), 1);
+    assert_eq!(config.body.positions[0].approved, Some(50000.0));
+    assert_eq!(
+        config.body.positions[0].description.as_deref(),
         Some("Baukosten")
     );
-    assert_eq!(config.footer_bank, Some(12000.0));
-    assert_eq!(config.footer_kasse, Some(500.0));
-    assert!(config.footer_sonstiges.is_none());
-    // serde(default) Felder die fehlen → leer
-    assert!(config.table.is_empty());
-    assert!(config.left_panel.is_empty());
-    assert!(config.right_panel.is_empty());
-    assert!(config.row_grouping.is_none());
+    assert_eq!(config.footer.bank, Some(12000.0));
+    assert_eq!(config.footer.kasse, Some(500.0));
+    assert!(config.footer.sonstiges.is_none());
+    // serde(default) fields that are missing → empty
+    assert!(config.body.table.is_empty());
+    assert!(config.body.left_panel.is_empty());
+    assert!(config.body.right_panel.is_empty());
+    assert!(config.options.row_grouping.is_none());
 }
 
 // ============================================================================
-// Gruppe 10: Edge Cases
+// Group 10: Edge Cases
 // ============================================================================
 
 #[test]
 fn test_report_config_unknown_fields_rejected() {
-    // deny_unknown_fields: unbekannte Felder erzeugen einen Fehler
-    let json = r#"{
-        "language": "deutsch",
-        "currency": "EUR",
-        "body_positions": {},
-        "locked": false,
-        "hide_columns_qv": false,
-        "hide_language_sheet": false,
-        "unknown_extra_field": true
-    }"#;
-
+    // deny_unknown_fields on top level
+    let json = r#"{ "unknown_field": true }"#;
     let result = serde_json::from_str::<ReportConfig>(json);
-    assert!(result.is_err(), "unknown fields should be rejected");
+    assert!(result.is_err(), "unknown top-level fields should be rejected");
+
+    // deny_unknown_fields on sub-structs
+    let json = r#"{ "header": { "language": "deutsch", "currency": "EUR", "unknown": true } }"#;
+    let result = serde_json::from_str::<ReportConfig>(json);
+    assert!(
+        result.is_err(),
+        "unknown header fields should be rejected"
+    );
 }
 
 #[test]
 fn test_body_positions_empty_map() {
     let json = r#"{
-        "language": "deutsch",
-        "currency": "EUR",
-        "body_positions": {},
-        "locked": false,
-        "hide_columns_qv": false,
-        "hide_language_sheet": false
+        "body": { "body_positions": {} }
     }"#;
 
     let config: ReportConfig = serde_json::from_str(json).expect("empty body_positions");
-    assert!(config.body_positions.is_empty());
+    assert!(config.body.body_positions.is_empty());
 }
 
 #[test]
@@ -643,31 +657,39 @@ fn test_body_config_empty_hashmap() {
 #[test]
 fn test_report_config_all_null_optionals() {
     let json = r#"{
-        "language": "english",
-        "currency": "GBP",
-        "project_number": null,
-        "project_title": null,
-        "project_start": null,
-        "project_end": null,
-        "report_start": null,
-        "report_end": null,
-        "body_positions": {"1": 5},
-        "footer_bank": null,
-        "footer_kasse": null,
-        "footer_sonstiges": null,
-        "locked": false,
-        "workbook_password": null,
-        "hide_columns_qv": false,
-        "hide_language_sheet": false
+        "header": {
+            "language": "english",
+            "currency": "GBP",
+            "project_number": null,
+            "project_title": null,
+            "project_start": null,
+            "project_end": null,
+            "report_start": null,
+            "report_end": null
+        },
+        "body": {
+            "body_positions": {"1": 5}
+        },
+        "footer": {
+            "bank": null,
+            "kasse": null,
+            "sonstiges": null
+        },
+        "options": {
+            "locked": false,
+            "workbook_password": null,
+            "hide_columns_qv": false,
+            "hide_language_sheet": false
+        }
     }"#;
 
     let config: ReportConfig = serde_json::from_str(json).expect("all-null optionals");
 
-    assert_eq!(config.language, "english");
-    assert_eq!(config.currency, "GBP");
-    assert!(config.project_number.is_none());
-    assert!(config.project_title.is_none());
-    assert!(config.footer_bank.is_none());
-    assert!(config.workbook_password.is_none());
-    assert_eq!(config.body_positions[&1], 5);
+    assert_eq!(config.header.language, "english");
+    assert_eq!(config.header.currency, "GBP");
+    assert!(config.header.project_number.is_none());
+    assert!(config.header.project_title.is_none());
+    assert!(config.footer.bank.is_none());
+    assert!(config.options.workbook_password.is_none());
+    assert_eq!(config.body.body_positions[&1], 5);
 }

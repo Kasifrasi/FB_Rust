@@ -35,64 +35,92 @@ cargo bench
 
 ### Simple API (recommended)
 
-`ReportConfig` is the main entry point — it bundles all parameters in one serializable struct:
+`ReportConfig` is the main entry point — composed of four domain sub-structs:
+`ReportHeader`, `ReportBody`, `ReportFooter`, and `ReportOptions`.
+
+All structs support the Builder pattern via `derive_builder`:
 
 ```rust
-use fb_rust::{PanelEntry, PositionEntry, ReportConfig, TableEntry};
+use fb_rust::*;
 
-let config = ReportConfig {
-    // Header
-    language: "deutsch".to_string(),
-    currency: "EUR".to_string(),
-    project_number: Some("PROJ-2025-001".to_string()),
-    project_title: Some("Bildungsprojekt Ostafrika".to_string()),
-    project_start: Some("01.01.2025".to_string()),
-    project_end: Some("31.12.2027".to_string()),
-    report_start: Some("01.01.2025".to_string()),
-    report_end: Some("30.06.2025".to_string()),
-
-    // Income table (max 5 rows, index 0–4)
-    table: vec![
-        TableEntry {
-            index: 0,
-            approved_budget: Some(80000.0),
-            income_report: Some(50000.0),
-            income_total: Some(50000.0),
-            reason: Some("1. Rate".to_string()),
-        },
-    ],
-
-    // Cash book panels (max 18 rows each, index 0–17)
-    left_panel: vec![
-        PanelEntry { index: 0, date: Some("15.01.2025".to_string()), amount_euro: Some(9000.0), amount_local: None },
-    ],
-    right_panel: vec![],
-
-    // Cost positions (category 1–8, position 0 = header-input, 1..N = row)
-    positions: vec![
-        PositionEntry { category: 1, position: 1, description: Some("Projektleitung".to_string()), approved: Some(18000.0), income_report: Some(9000.0), income_total: Some(9000.0), remark: None },
-        PositionEntry { category: 6, position: 0, description: None, approved: Some(3000.0), income_report: Some(1500.0), income_total: Some(1500.0), remark: Some("Verwaltung".to_string()) },
-    ],
-
-    // Categories 1–8: value = number of position rows (0 = header-input mode)
-    body_positions: [(1u8, 5u16), (2, 3), (3, 4), (4, 3), (5, 2), (6, 0), (7, 0), (8, 0)]
-        .into_iter()
-        .collect(),
-
-    // Footer balances
-    footer_bank: Some(8500.0),
-    footer_kasse: Some(1200.0),
-    footer_sonstiges: Some(300.0),
-
-    // Options
-    locked: true,
-    workbook_password: Some("secret".to_string()),
-    hide_columns_qv: true,
-    hide_language_sheet: true,
-    row_grouping: None,
-};
+let config = ReportConfigBuilder::default()
+    .header(
+        ReportHeaderBuilder::default()
+            .language("deutsch")
+            .currency("EUR")
+            .project_number("PROJ-2025-001")
+            .project_title("Bildungsprojekt Ostafrika")
+            .project_start("01.01.2025")
+            .project_end("31.12.2027")
+            .report_start("01.01.2025")
+            .report_end("30.06.2025")
+            .build()?
+    )
+    .body(
+        ReportBodyBuilder::default()
+            .add_table_entry(
+                TableEntryBuilder::default()
+                    .index(0u8)
+                    .approved_budget(80000.0)
+                    .income_report(50000.0)
+                    .income_total(50000.0)
+                    .reason("1. Rate")
+                    .build()?
+            )
+            .add_position(
+                PositionEntryBuilder::default()
+                    .category(1u8)
+                    .position(1u16)
+                    .description("Projektleitung")
+                    .approved(18000.0)
+                    .income_report(9000.0)
+                    .income_total(9000.0)
+                    .build()?
+            )
+            .body_positions(
+                [(1u8, 5u16), (2, 3), (3, 4), (4, 3), (5, 2), (6, 0), (7, 0), (8, 0)]
+                    .into_iter().collect::<std::collections::HashMap<_, _>>()
+            )
+            .build()?
+    )
+    .footer(
+        ReportFooterBuilder::default()
+            .bank(8500.0)
+            .kasse(1200.0)
+            .sonstiges(300.0)
+            .build()?
+    )
+    .options(
+        ReportOptionsBuilder::default()
+            .locked(true)
+            .workbook_password("secret")
+            .hide_columns_qv(true)
+            .hide_language_sheet(true)
+            .build()?
+    )
+    .build()?;
 
 config.write_to("report.xlsx")?;
+```
+
+Or using struct literals directly:
+
+```rust
+use fb_rust::{ReportConfig, ReportHeader, ReportOptions};
+
+let config = ReportConfig {
+    header: ReportHeader {
+        language: "deutsch".to_string(),
+        currency: "EUR".to_string(),
+        project_number: Some("PROJ-2025-001".to_string()),
+        ..ReportHeader::default()
+    },
+    options: ReportOptions {
+        locked: true,
+        ..ReportOptions::default()
+    },
+    ..ReportConfig::default()
+};
 ```
 
 > See [`examples/test_all_fields.rs`](examples/test_all_fields.rs) for a complete reference with all fields populated.
@@ -109,7 +137,7 @@ src/
 └── report/
     ├── api/                ApiKey, ReportValues, Language, Currency, ReportDate, …
     ├── core/               Formula engine (CellRegistry, CellAddr, topological eval)
-    ├── options.rs          ReportOptions, SheetProtection, validation rules
+    ├── options.rs          SheetOptions, SheetProtection, validation rules
     ├── styles.rs           ReportStyles, FormatMatrix (internal)
     ├── body/               BodyConfig, BodyLayout, FooterLayout, formulas
     └── writer/             Excel writing (engine.rs, layout.rs, structure.rs)

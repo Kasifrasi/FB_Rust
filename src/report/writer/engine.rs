@@ -9,7 +9,7 @@ use crate::report::body::{
     register_body_formulas, register_footer_formulas, BodyConfig, BodyLayout, FooterLayout,
 };
 use crate::report::core::{build_registry, CellAddr, CellKind, DynRegistry, EvalContext};
-use crate::report::options::ReportOptions;
+use crate::report::options::SheetOptions;
 use crate::report::styles::{
     build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,
     extend_format_matrix_with_prebody, FormatMatrix, ReportStyles, SectionStyles,
@@ -113,23 +113,23 @@ pub fn write_report_with_options(
     suffix: &str,
     values: &ReportValues,
     body_config: &BodyConfig,
-    options: &ReportOptions,
+    options: &SheetOptions,
 ) -> Result<BodyResult, XlsxError> {
     // Basis-Report schreiben
     let body_result = write_report_with_body(ws, suffix, values, body_config)?;
 
     // Optionen anwenden
-    apply_report_options(ws, options, &body_result)?;
+    apply_sheet_options(ws, options, &body_result)?;
 
     Ok(body_result)
 }
 
-/// Wendet ReportOptions auf ein Worksheet an
+/// Wendet SheetOptions auf ein Worksheet an
 ///
 /// Kann nach dem Schreiben des Reports aufgerufen werden.
-pub fn apply_report_options(
+pub fn apply_sheet_options(
     ws: &mut Worksheet,
-    options: &ReportOptions,
+    options: &SheetOptions,
     _body_result: &BodyResult,
 ) -> Result<(), XlsxError> {
     // 1. Spalten und Zeilen verstecken
@@ -172,12 +172,12 @@ fn extract_suffix_from_values(values: &ReportValues) -> String {
 /// Erstellt einen kompletten Finanzbericht mit optionalem Workbook-Schutz.
 ///
 /// Styles werden intern erzeugt. Workbook-Protection und Language-Sheet-Sichtbarkeit
-/// werden als separate Parameter übergeben (nicht Teil von ReportOptions).
+/// werden als separate Parameter übergeben (nicht Teil von SheetOptions).
 pub(crate) fn create_protected_report(
     output_path: impl AsRef<Path>,
     values: &ReportValues,
     body_config: &BodyConfig,
-    options: &ReportOptions,
+    options: &SheetOptions,
     wb_protection: Option<&crate::workbook_protection::WorkbookProtection>,
     hide_language_sheet: bool,
 ) -> Result<(), crate::error::ReportError> {
@@ -237,7 +237,7 @@ pub(crate) fn create_protected_report_precomputed(
     output_path: impl AsRef<Path>,
     values: &ReportValues,
     body_config: &BodyConfig,
-    options: &ReportOptions,
+    options: &SheetOptions,
     hide_language_sheet: bool,
     hash: &crate::workbook_protection::PrecomputedHash,
 ) -> Result<(), crate::error::ReportError> {
