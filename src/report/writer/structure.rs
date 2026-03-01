@@ -6,7 +6,7 @@
 use super::layout::MergeRange;
 use crate::lang::data::CURRENCIES;
 use crate::report::body::{BodyLayout, CategoryLayout, CategoryMode, FooterLayout};
-use crate::report::format::FormatMatrix;
+use crate::report::styles::FormatMatrix;
 use rust_xlsxwriter::{DataValidation, Worksheet, XlsxError};
 
 /// Schreibt die komplette Report-Struktur (Merges, Blanks, statische Strings)

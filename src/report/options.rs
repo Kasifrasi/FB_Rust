@@ -238,83 +238,6 @@ impl SheetProtection {
 }
 
 // ============================================================================
-// Workbook Protection
-// ============================================================================
-
-/// Workbook-level protection settings
-///
-/// Protects the workbook structure (prevents adding, deleting, moving, or renaming sheets).
-/// Uses SHA-512 based password hashing according to ECMA-376 standard.
-///
-/// # Example
-/// ```ignore
-/// use kmw_fb_rust::WorkbookProtection;
-///
-/// // Standard (100.000 Iterationen, ~25ms pro Report)
-/// let protection = WorkbookProtection::new("secret123");
-///
-/// // Schnell (1.000 Iterationen, ~0.3ms pro Report)
-/// let fast = WorkbookProtection::fast("secret123");
-///
-/// // Benutzerdefiniert
-/// let custom = WorkbookProtection::new("secret123").with_spin_count(10_000);
-/// ```
-#[derive(Debug, Clone)]
-pub struct WorkbookProtection {
-    /// Password for workbook protection
-    pub password: String,
-    /// Lock structure (prevent sheet add/delete/move/rename)
-    pub lock_structure: bool,
-    /// SHA-512 Iteration count (higher = slower but more secure)
-    ///
-    /// - `100_000` (Standard): ECMA-376 konform, ~25ms pro Report
-    /// - `1_000` (Fast): Hält Gelegenheitsnutzer ab, ~0.3ms pro Report
-    pub spin_count: u32,
-}
-
-/// Standard spin count (ECMA-376 konform)
-const DEFAULT_SPIN_COUNT: u32 = 100_000;
-/// Schneller spin count (ausreichend gegen Gelegenheitsnutzer)
-const FAST_SPIN_COUNT: u32 = 1_000;
-
-impl WorkbookProtection {
-    /// Creates new workbook protection with the given password
-    ///
-    /// Uses the standard ECMA-376 spin count of 100.000 iterations.
-    pub fn new(password: impl Into<String>) -> Self {
-        Self {
-            password: password.into(),
-            lock_structure: true,
-            spin_count: DEFAULT_SPIN_COUNT,
-        }
-    }
-
-    /// Creates fast workbook protection (1.000 iterations instead of 100.000)
-    ///
-    /// ~80x schneller als `new()`. Ausreichend um Gelegenheitsnutzer abzuhalten,
-    /// aber nicht sicher gegen gezielte Brute-Force-Angriffe.
-    pub fn fast(password: impl Into<String>) -> Self {
-        Self {
-            password: password.into(),
-            lock_structure: true,
-            spin_count: FAST_SPIN_COUNT,
-        }
-    }
-
-    /// Sets a custom spin count for SHA-512 hashing
-    pub fn with_spin_count(mut self, count: u32) -> Self {
-        self.spin_count = count;
-        self
-    }
-
-    /// Sets whether to lock workbook structure
-    pub fn lock_structure(mut self, lock: bool) -> Self {
-        self.lock_structure = lock;
-        self
-    }
-}
-
-// ============================================================================
 // Validation Target
 // ============================================================================
 
@@ -978,9 +901,6 @@ pub struct ReportOptions {
     /// Sheet protection settings
     pub protection: Option<SheetProtection>,
 
-    /// Workbook protection settings (structure lock)
-    pub workbook_protection: Option<WorkbookProtection>,
-
     /// Field validations
     pub validation: Option<FieldValidation>,
 
@@ -989,9 +909,6 @@ pub struct ReportOptions {
 
     /// Row grouping/outlining
     pub row_grouping: RowGrouping,
-
-    /// Hide the "Sprachversionen" sheet (default: false)
-    pub hide_language_sheet: bool,
 
     /// Language for error messages (uses LANG_CONFIG)
     pub language: Option<String>,
@@ -1013,18 +930,6 @@ impl ReportOptions {
     /// Sets custom protection
     pub fn with_protection(mut self, protection: SheetProtection) -> Self {
         self.protection = Some(protection);
-        self
-    }
-
-    /// Sets workbook protection (structure lock, standard 100.000 Iterationen)
-    pub fn with_workbook_protection(mut self, password: impl Into<String>) -> Self {
-        self.workbook_protection = Some(WorkbookProtection::new(password));
-        self
-    }
-
-    /// Sets fast workbook protection (1.000 statt 100.000 Iterationen, ~80x schneller)
-    pub fn with_workbook_protection_fast(mut self, password: impl Into<String>) -> Self {
-        self.workbook_protection = Some(WorkbookProtection::fast(password));
         self
     }
 
@@ -1087,17 +992,6 @@ impl ReportOptions {
         self
     }
 
-    /// Hides the "Sprachversionen" sheet
-    pub fn with_hidden_language_sheet(mut self) -> Self {
-        self.hide_language_sheet = true;
-        self
-    }
-
-    /// Sets whether to hide the "Sprachversionen" sheet
-    pub fn hide_language_sheet(mut self, hide: bool) -> Self {
-        self.hide_language_sheet = hide;
-        self
-    }
 }
 
 // ============================================================================
@@ -1107,27 +1001,6 @@ impl ReportOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_workbook_protection_new() {
-        let prot = WorkbookProtection::new("test123");
-        assert_eq!(prot.password, "test123");
-        assert!(prot.lock_structure);
-    }
-
-    #[test]
-    fn test_workbook_protection_builder() {
-        let prot = WorkbookProtection::new("secret").lock_structure(false);
-        assert_eq!(prot.password, "secret");
-        assert!(!prot.lock_structure);
-    }
-
-    #[test]
-    fn test_report_options_with_workbook_protection() {
-        let opts = ReportOptions::new().with_workbook_protection("test123");
-        assert!(opts.workbook_protection.is_some());
-        assert_eq!(opts.workbook_protection.unwrap().password, "test123");
-    }
 
     #[test]
     fn test_sheet_protection_defaults() {
@@ -1246,15 +1119,4 @@ mod tests {
         assert_eq!(opts.row_grouping.groups().len(), 2);
     }
 
-    #[test]
-    fn test_report_options_hidden_language_sheet() {
-        let opts = ReportOptions::new().with_hidden_language_sheet();
-        assert!(opts.hide_language_sheet);
-
-        let opts2 = ReportOptions::new().hide_language_sheet(true);
-        assert!(opts2.hide_language_sheet);
-
-        let opts3 = ReportOptions::new().hide_language_sheet(false);
-        assert!(!opts3.hide_language_sheet);
-    }
 }

@@ -13,9 +13,7 @@ use kmw_fb_rust::lang::build_sheet as build_sprachversionen;
 use kmw_fb_rust::lang::{LANG_CONFIG, LANG_SUFFIXES};
 use kmw_fb_rust::report::writer::setup_sheet;
 use kmw_fb_rust::report::ApiKey;
-use kmw_fb_rust::{
-    write_report_with_options, BodyConfig, ReportOptions, ReportStyles, ReportValues,
-};
+use kmw_fb_rust::{write_report_with_options, BodyConfig, ReportOptions, ReportValues};
 use rust_xlsxwriter::{Format, Workbook};
 use std::fs;
 use std::path::Path;
@@ -35,13 +33,11 @@ const LANGUAGES: [&str; 5] = [
 /// Anzahl tatsächlich genutzter Spalten (A-V = 0-21)
 const USED_COLUMNS: u16 = 22;
 
-/// Generiert einen einzelnen Finanzbericht mit variablen Parametern
+/// Generiert einen einzelnen Finanzbericht mit variablen Parametern.
 ///
-/// `styles` wird von außen übergeben (einmal erstellt, wiederverwendet).
 /// Gibt den Excel-Buffer zurück statt direkt auf Disk zu schreiben.
 fn generate_report_to_buffer(
     index: usize,
-    styles: &ReportStyles,
 ) -> Result<(String, Vec<u8>), Box<dyn std::error::Error + Send + Sync>> {
     // Sprache basierend auf Index rotieren
     let lang_key = LANGUAGES[index % LANGUAGES.len()];
@@ -155,7 +151,7 @@ fn generate_report_to_buffer(
 
     // Report schreiben mit Optionen (Protection + versteckte Spalten)
     let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
-    write_report_with_options(ws, styles, suffix, &values, &body_config, &options)?;
+    write_report_with_options(ws, suffix, &values, &body_config, &options)?;
 
     // In-Memory Buffer statt direkt auf Disk
     let filename = format!("report_{:05}.xlsx", index);
@@ -166,11 +162,10 @@ fn generate_report_to_buffer(
 
 /// Benchmark single-threaded
 fn benchmark_single_threaded(count: usize, output_dir: &Path) -> std::time::Duration {
-    let styles = ReportStyles::new();
     let start = Instant::now();
 
     for i in 0..count {
-        match generate_report_to_buffer(i, &styles) {
+        match generate_report_to_buffer(i) {
             Ok((filename, buffer)) => {
                 fs::write(output_dir.join(filename), buffer).ok();
             }
@@ -187,7 +182,6 @@ fn benchmark_multi_threaded(
     output_dir: &Path,
     num_threads: usize,
 ) -> std::time::Duration {
-    let styles = Arc::new(ReportStyles::new());
     let start = Instant::now();
     let output_dir = Arc::new(output_dir.to_path_buf());
 
@@ -195,14 +189,13 @@ fn benchmark_multi_threaded(
     let mut handles = Vec::new();
 
     for thread_id in 0..num_threads {
-        let styles = Arc::clone(&styles);
         let output_dir = Arc::clone(&output_dir);
         let start_idx = thread_id * chunk_size;
         let end_idx = std::cmp::min(start_idx + chunk_size, count);
 
         let handle = thread::spawn(move || {
             for i in start_idx..end_idx {
-                match generate_report_to_buffer(i, &styles) {
+                match generate_report_to_buffer(i) {
                     Ok((filename, buffer)) => {
                         fs::write(output_dir.join(filename), buffer).ok();
                     }
@@ -280,14 +273,17 @@ fn run_benchmark(count: usize, output_dir: &Path, multi_only: bool) {
     fs::remove_dir_all(output_dir).ok();
 }
 
-/// Benchmark multi-threaded mit Workbook-Protection
+/// Benchmark multi-threaded mit Workbook-Protection (precomputed hash)
 fn benchmark_multi_threaded_protected(
     count: usize,
     output_dir: &Path,
     num_threads: usize,
     spin_count: u32,
 ) -> std::time::Duration {
-    let styles = Arc::new(ReportStyles::new());
+    let hash = Arc::new(kmw_fb_rust::precompute_hash_with_spin_count(
+        "benchmark_password",
+        spin_count,
+    ));
     let start = Instant::now();
     let output_dir = Arc::new(output_dir.to_path_buf());
 
@@ -295,23 +291,22 @@ fn benchmark_multi_threaded_protected(
     let mut handles = Vec::new();
 
     for thread_id in 0..num_threads {
-        let styles = Arc::clone(&styles);
+        let hash = Arc::clone(&hash);
         let output_dir = Arc::clone(&output_dir);
         let start_idx = thread_id * chunk_size;
         let end_idx = std::cmp::min(start_idx + chunk_size, count);
 
         let handle = thread::spawn(move || {
             for i in start_idx..end_idx {
-                match generate_report_to_buffer(i, &styles) {
+                match generate_report_to_buffer(i) {
                     Ok((filename, buffer)) => {
                         let temp_file = output_dir.join(format!("{}.tmp", filename));
                         let final_file = output_dir.join(&filename);
                         fs::write(&temp_file, buffer).ok();
-                        kmw_fb_rust::workbook_protection::protect_workbook_with_spin_count(
+                        kmw_fb_rust::protect_workbook_precomputed(
                             temp_file.to_str().unwrap(),
                             final_file.to_str().unwrap(),
-                            "benchmark_password",
-                            spin_count,
+                            &hash,
                         )
                         .ok();
                         fs::remove_file(&temp_file).ok();

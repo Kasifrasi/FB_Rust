@@ -38,8 +38,9 @@ use std::path::Path;
 
 use crate::report::api::{ApiKey, CellValue, ReportValues};
 use crate::report::body::BodyConfig;
-use crate::report::format::{ReportOptions, ReportStyles, RowGrouping};
-use crate::report::writer::create_protected_report;
+use crate::report::options::{ReportOptions, RowGrouping};
+use crate::report::writer::{create_protected_report, create_protected_report_precomputed};
+use crate::workbook_protection::WorkbookProtection;
 
 // ============================================================================
 // Hilfstypen
@@ -105,9 +106,7 @@ pub struct PositionEntry {
 ///
 /// Bündelt alle Parameter in einem einzigen, serialisierbaren Struct.
 /// Primär für die Tauri-Integration gedacht, aber auch direkt in Rust verwendbar.
-///
-/// `ReportStyles` ist absichtlich nicht Teil dieses Structs — Styles sind
-/// stabil und werden immer mit den Standard-Einstellungen erzeugt.
+/// Styles werden intern mit festen Standard-Einstellungen erzeugt.
 ///
 /// ## Beispiel
 ///
@@ -232,14 +231,43 @@ impl Default for ReportConfig {
 
 impl ReportConfig {
     /// Schreibt den Finanzbericht in die angegebene Datei.
-    ///
-    /// Styles werden intern mit Standard-Einstellungen erzeugt.
     pub fn write_to(&self, output_path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
         let values = self.build_values();
         let body_config = self.build_body_config();
         let options = self.build_options();
-        let styles = ReportStyles::new();
-        create_protected_report(output_path, &styles, &values, &body_config, &options)?;
+        let wb_prot = self.workbook_password.as_ref().map(|pw| WorkbookProtection::new(pw));
+        create_protected_report(
+            output_path, &values, &body_config, &options,
+            wb_prot.as_ref(), self.hide_language_sheet,
+        )?;
+        Ok(())
+    }
+
+    /// Batch-optimiert: Hash einmalig vorberechnen, für N Dateien wiederverwenden.
+    ///
+    /// Spart ~25ms SHA-512-Aufwand pro Datei bei gleichem Passwort.
+    /// `workbook_password` wird ignoriert — der übergebene Hash wird direkt verwendet.
+    ///
+    /// ```ignore
+    /// use kmw_fb_rust::{precompute_hash, ReportConfig};
+    ///
+    /// let hash = precompute_hash("passwort");
+    /// for config in &configs {
+    ///     config.write_to_precomputed("output.xlsx", &hash).unwrap();
+    /// }
+    /// ```
+    pub fn write_to_precomputed(
+        &self,
+        output_path: impl AsRef<Path>,
+        hash: &crate::workbook_protection::PrecomputedHash,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let values = self.build_values();
+        let body_config = self.build_body_config();
+        let options = self.build_options();
+        create_protected_report_precomputed(
+            output_path, &values, &body_config, &options,
+            self.hide_language_sheet, hash,
+        )?;
         Ok(())
     }
 
@@ -361,14 +389,8 @@ impl ReportConfig {
         } else {
             ReportOptions::new()
         };
-        if let Some(ref pw) = self.workbook_password {
-            opts = opts.with_workbook_protection(pw);
-        }
         if self.hide_columns_qv {
             opts = opts.with_hidden_columns_qv();
-        }
-        if self.hide_language_sheet {
-            opts = opts.with_hidden_language_sheet();
         }
         if let Some(ref rg) = self.row_grouping {
             opts = opts.with_row_grouping(rg.clone());

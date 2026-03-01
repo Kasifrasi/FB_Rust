@@ -9,9 +9,10 @@ use crate::report::body::{
     register_body_formulas, register_footer_formulas, BodyConfig, BodyLayout, FooterLayout,
 };
 use crate::report::core::{build_registry, CellAddr, CellKind, DynRegistry, EvalContext};
-use crate::report::format::{
+use crate::report::options::ReportOptions;
+use crate::report::styles::{
     build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,
-    extend_format_matrix_with_prebody, FormatMatrix, ReportOptions, ReportStyles, SectionStyles,
+    extend_format_matrix_with_prebody, FormatMatrix, ReportStyles, SectionStyles,
 };
 use rust_xlsxwriter::{Format, Formula, Workbook, Worksheet, XlsxError};
 use std::collections::HashMap;
@@ -35,11 +36,11 @@ pub struct BodyResult {
 /// Interne Funktion: Schreibt den Report mit Body-Bereich
 fn write_report_with_body(
     ws: &mut Worksheet,
-    styles: &ReportStyles,
     suffix: &str,
     values: &ReportValues,
     body_config: &BodyConfig,
 ) -> Result<BodyResult, XlsxError> {
+    let styles = ReportStyles::new();
     // Standardwert für Formel-Ergebnisse auf "" setzen (statt 0)
     ws.set_formula_result_default("");
 
@@ -62,10 +63,10 @@ fn write_report_with_body(
     let computed = evaluate_all_cells(&registry, values)?;
 
     // 5. FormatMatrix vollständig aufbauen (statisch + body + footer)
-    let sec = SectionStyles::new(styles);
-    let mut fmt = build_format_matrix(styles, &sec);
-    extend_format_matrix_with_body(&mut fmt, styles, &body_layout);
-    extend_format_matrix_with_footer(&mut fmt, styles, &sec, footer_layout.start_row);
+    let sec = SectionStyles::new(&styles);
+    let mut fmt = build_format_matrix(&styles, &sec);
+    extend_format_matrix_with_body(&mut fmt, &styles, &body_layout);
+    extend_format_matrix_with_footer(&mut fmt, &styles, &sec, footer_layout.start_row);
     extend_format_matrix_with_prebody(&mut fmt, &sec);
 
     // 6. Komplette Struktur schreiben (Merges, Blanks, statische Strings)
@@ -99,28 +100,23 @@ fn write_report_with_body(
 
 /// Schreibt den kompletten Finanzbericht MIT dynamischem Body-Bereich UND Optionen
 ///
-/// Diese Funktion unterstützt:
-/// - Sheet Protection mit konfigurierbaren Einstellungen
-/// - Data Validation für Input-Felder
-/// - Column Hiding (Q:V)
+/// Styles werden intern mit Standard-Einstellungen erzeugt.
 ///
 /// # Arguments
 /// * `ws` - Worksheet
-/// * `styles` - Report styles
 /// * `suffix` - Dateiname-Suffix
 /// * `values` - Eingabewerte
 /// * `body_config` - Body-Konfiguration
 /// * `options` - Protection, Validation und Display-Optionen
 pub fn write_report_with_options(
     ws: &mut Worksheet,
-    styles: &ReportStyles,
     suffix: &str,
     values: &ReportValues,
     body_config: &BodyConfig,
     options: &ReportOptions,
 ) -> Result<BodyResult, XlsxError> {
     // Basis-Report schreiben
-    let body_result = write_report_with_body(ws, styles, suffix, values, body_config)?;
+    let body_result = write_report_with_body(ws, suffix, values, body_config)?;
 
     // Optionen anwenden
     apply_report_options(ws, options, &body_result)?;
@@ -173,103 +169,45 @@ fn extract_suffix_from_values(values: &ReportValues) -> String {
     String::new()
 }
 
-/// Creates a complete financial report with optional workbook protection
+/// Erstellt einen kompletten Finanzbericht mit optionalem Workbook-Schutz.
 ///
-/// This high-level function orchestrates the entire report creation workflow:
-/// 1. Creates Workbook and adds language sheet (unless hidden)
-/// 2. Sets up worksheet with correct formatting
-/// 3. Writes report content via `write_report_with_options()`
-/// 4. Optionally applies workbook-level protection (structure lock)
-/// 5. Saves to specified output path
-///
-/// # Arguments
-/// * `output_path` - Path where the final Excel file will be saved
-/// * `styles` - Report styling configuration
-/// * `values` - Report data (all input cells)
-/// * `body_config` - Body layout configuration (categories, positions)
-/// * `options` - Report options (protection, validation, hidden ranges, etc.)
-///
-/// # Returns
-/// * `Ok(())` on success
-/// * `Err` if any step fails (workbook creation, writing, protection, saving)
-///
-/// # Example
-/// ```ignore
-/// use kmw_fb_rust::{
-///     create_protected_report, ReportStyles, ReportValues,
-///     BodyConfig, ReportOptions,
-/// };
-///
-/// let styles = ReportStyles::new();
-/// let mut values = ReportValues::new();
-/// values.set_language("deutsch");
-/// values.set_currency("EUR");
-///
-/// let body_config = BodyConfig::default();
-/// let options = ReportOptions::with_default_protection()
-///     .with_workbook_protection("secret123")
-///     .with_hidden_columns_qv();
-///
-/// create_protected_report(
-///     "output/report.xlsx",
-///     &styles,
-///     &values,
-///     &body_config,
-///     &options,
-/// )?;
-/// ```
-pub fn create_protected_report(
+/// Styles werden intern erzeugt. Workbook-Protection und Language-Sheet-Sichtbarkeit
+/// werden als separate Parameter übergeben (nicht Teil von ReportOptions).
+pub(crate) fn create_protected_report(
     output_path: impl AsRef<Path>,
-    styles: &ReportStyles,
     values: &ReportValues,
     body_config: &BodyConfig,
     options: &ReportOptions,
+    wb_protection: Option<&crate::workbook_protection::WorkbookProtection>,
+    hide_language_sheet: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let output_path = output_path.as_ref();
 
-    // 1. Create workbook
     let mut workbook = Workbook::new();
-
-    // 2. Create main report worksheet FIRST (so it's the leftmost sheet)
     let ws = workbook.add_worksheet();
 
-    // Set worksheet name based on language
-    // LANG_CONFIG uses capitalized keys (e.g., "Deutsch"), but values might be lowercase (e.g., "deutsch")
     if let Some(lang_text) = values.get(crate::report::api::ApiKey::Language).as_text() {
-        // Try exact match first
         let config = crate::lang::LANG_CONFIG
             .get(lang_text)
-            // If not found, try to find by lang_val (case-insensitive)
             .or_else(|| {
                 crate::lang::LANG_CONFIG
                     .values()
                     .find(|c| c.lang_val.eq_ignore_ascii_case(lang_text))
             });
-
         if let Some(config) = config {
             ws.set_name(config.fb_sheet)?;
         }
     }
 
     setup_sheet(ws)?;
-
-    // 3. Extract suffix for sheet naming
     let suffix = extract_suffix_from_values(values);
+    write_report_with_options(ws, &suffix, values, body_config, options)?;
+    crate::lang::build_sheet_with_visibility(&mut workbook, hide_language_sheet)?;
 
-    // 4. Write report content
-    write_report_with_options(ws, styles, &suffix, values, body_config, options)?;
-
-    // 5. Add language sheet AFTER main report (rightmost position)
-    // Hidden by default if hide_language_sheet is true
-    crate::lang::build_sheet_with_visibility(&mut workbook, options.hide_language_sheet)?;
-
-    // 6. Apply workbook protection if configured
-    if let Some(wb_prot) = &options.workbook_protection {
-        // NamedTempFile is deleted automatically on Drop (even on error or panic)
+    if let Some(wb_prot) = wb_protection {
         let tmp = tempfile::NamedTempFile::new_in(
             output_path.parent().unwrap_or(Path::new(".")),
         )?;
-
         workbook.save(tmp.path())?;
 
         crate::workbook_protection::protect_workbook_with_spin_count(
@@ -279,20 +217,68 @@ pub fn create_protected_report(
             wb_prot.spin_count,
         )?;
 
-        // Atomically rename temp → final path (no Drop → no deletion)
         tmp.persist(output_path)?;
     } else {
-        // Save directly without protection
         workbook.save(output_path)?;
     }
 
     Ok(())
 }
 
+/// Wie `create_protected_report`, aber mit vorberechnetem Hash (kein SHA-512-Aufwand).
+///
+/// Für Batch-Operationen: Hash einmal mit `precompute_hash()` berechnen,
+/// dann für N Dateien wiederverwenden.
+pub(crate) fn create_protected_report_precomputed(
+    output_path: impl AsRef<Path>,
+    values: &ReportValues,
+    body_config: &BodyConfig,
+    options: &ReportOptions,
+    hide_language_sheet: bool,
+    hash: &crate::workbook_protection::PrecomputedHash,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let output_path = output_path.as_ref();
+
+    let mut workbook = Workbook::new();
+    let ws = workbook.add_worksheet();
+
+    if let Some(lang_text) = values.get(crate::report::api::ApiKey::Language).as_text() {
+        let config = crate::lang::LANG_CONFIG
+            .get(lang_text)
+            .or_else(|| {
+                crate::lang::LANG_CONFIG
+                    .values()
+                    .find(|c| c.lang_val.eq_ignore_ascii_case(lang_text))
+            });
+        if let Some(config) = config {
+            ws.set_name(config.fb_sheet)?;
+        }
+    }
+
+    setup_sheet(ws)?;
+    let suffix = extract_suffix_from_values(values);
+    write_report_with_options(ws, &suffix, values, body_config, options)?;
+    crate::lang::build_sheet_with_visibility(&mut workbook, hide_language_sheet)?;
+
+    let tmp = tempfile::NamedTempFile::new_in(
+        output_path.parent().unwrap_or(Path::new(".")),
+    )?;
+    workbook.save(tmp.path())?;
+
+    crate::workbook_protection::protect_workbook_precomputed(
+        tmp.path().to_str().ok_or("Invalid temp path")?,
+        output_path.to_str().ok_or("Invalid output path")?,
+        hash,
+    )?;
+
+    tmp.persist(output_path)?;
+    Ok(())
+}
+
 /// Wendet HiddenRanges auf ein Worksheet an
 fn apply_hidden_ranges(
     ws: &mut Worksheet,
-    hidden: &crate::report::format::HiddenRanges,
+    hidden: &crate::report::options::HiddenRanges,
 ) -> Result<(), XlsxError> {
     // Spalten verstecken
     for range in hidden.column_ranges() {
@@ -314,7 +300,7 @@ fn apply_hidden_ranges(
 /// Wendet Row Grouping auf ein Worksheet an
 fn apply_row_grouping(
     ws: &mut Worksheet,
-    grouping: &crate::report::format::RowGrouping,
+    grouping: &crate::report::options::RowGrouping,
 ) -> Result<(), XlsxError> {
     if grouping.is_empty() {
         return Ok(());

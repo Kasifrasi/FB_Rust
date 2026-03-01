@@ -6,9 +6,7 @@ use kmw_fb_rust::lang::build_sheet as build_sprachversionen;
 use kmw_fb_rust::lang::{LANG_CONFIG, LANG_SUFFIXES};
 use kmw_fb_rust::report::writer::setup_sheet;
 use kmw_fb_rust::report::ApiKey;
-use kmw_fb_rust::{
-    write_report_with_options, BodyConfig, ReportOptions, ReportStyles, ReportValues,
-};
+use kmw_fb_rust::{write_report_with_options, BodyConfig, ReportOptions, ReportValues};
 use rust_xlsxwriter::{Format, Workbook};
 use std::time::Instant;
 
@@ -77,7 +75,6 @@ fn build_test_values(index: usize) -> (ReportValues, BodyConfig) {
 fn main() {
     println!("\nPROFILING: {} Reports, Zeitmessung pro Phase\n", ITERATIONS);
 
-    let mut t_styles = std::time::Duration::ZERO;
     let mut t_workbook_setup = std::time::Duration::ZERO;
     let mut t_lang_sheet = std::time::Duration::ZERO;
     let mut t_ws_setup = std::time::Duration::ZERO;
@@ -90,87 +87,7 @@ fn main() {
     let temp_dir = std::env::temp_dir().join("finanzbericht_profile");
     std::fs::create_dir_all(&temp_dir).unwrap();
 
-    // Variante A: Styles pro Report (alter Weg)
-    let total_start = Instant::now();
-    for i in 0..ITERATIONS {
-        let t = Instant::now();
-        let styles = ReportStyles::new();
-        t_styles += t.elapsed();
-
-        let t = Instant::now();
-        let mut workbook = Workbook::new();
-        t_workbook_setup += t.elapsed();
-
-        let t = Instant::now();
-        build_sprachversionen(&mut workbook).unwrap();
-        t_lang_sheet += t.elapsed();
-
-        let t = Instant::now();
-        let config = LANG_CONFIG.get("Deutsch").unwrap();
-        let suffix = LANG_SUFFIXES.get("Deutsch").unwrap();
-        let ws = workbook.add_worksheet();
-        ws.set_name(config.fb_sheet).unwrap();
-        let unlocked = Format::new().set_font_name("Arial").set_font_size(10.0).set_unlocked();
-        t_ws_setup += t.elapsed();
-
-        let t = Instant::now();
-        for col in 0..USED_COLUMNS {
-            ws.set_column_format(col, &unlocked).ok();
-        }
-        t_col_format += t.elapsed();
-
-        let t = Instant::now();
-        setup_sheet(ws).unwrap();
-        // (ws_setup includes setup_sheet)
-        t_ws_setup += t.elapsed();
-
-        let t = Instant::now();
-        let (values, body_config) = build_test_values(i);
-        t_values += t.elapsed();
-
-        let t = Instant::now();
-        let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
-        write_report_with_options(ws, &styles, suffix, &values, &body_config, &options).unwrap();
-        t_write_report += t.elapsed();
-
-        let t = Instant::now();
-        let buffer = workbook.save_to_buffer().unwrap();
-        t_save_buffer += t.elapsed();
-
-        let t = Instant::now();
-        let filename = temp_dir.join(format!("report_{:05}.xlsx", i));
-        std::fs::write(filename, buffer).ok();
-        t_write_disk += t.elapsed();
-    }
-    let total_a = total_start.elapsed();
-
-    println!("=== Variante A: Styles pro Report (altes Verhalten) ===");
-    println!("  Gesamt:           {:>8.2?}  ({:.1} Reports/s)", total_a, ITERATIONS as f64 / total_a.as_secs_f64());
-    print_phase("ReportStyles::new()", t_styles, total_a);
-    print_phase("Workbook::new()", t_workbook_setup, total_a);
-    print_phase("build_sprachversionen()", t_lang_sheet, total_a);
-    print_phase("Worksheet Setup", t_ws_setup, total_a);
-    print_phase("Column Formats", t_col_format, total_a);
-    print_phase("Build Values", t_values, total_a);
-    print_phase("write_report_with_options()", t_write_report, total_a);
-    print_phase("save_to_buffer()", t_save_buffer, total_a);
-    print_phase("fs::write() to disk", t_write_disk, total_a);
-
-    // Cleanup
-    std::fs::remove_dir_all(&temp_dir).ok();
-    std::fs::create_dir_all(&temp_dir).unwrap();
-
-    // Variante B: Styles einmal, wiederverwendet
-    let shared_styles = ReportStyles::new();
-    t_workbook_setup = std::time::Duration::ZERO;
-    t_lang_sheet = std::time::Duration::ZERO;
-    t_ws_setup = std::time::Duration::ZERO;
-    t_col_format = std::time::Duration::ZERO;
-    t_values = std::time::Duration::ZERO;
-    t_write_report = std::time::Duration::ZERO;
-    t_save_buffer = std::time::Duration::ZERO;
-    t_write_disk = std::time::Duration::ZERO;
-
+    // Baseline: Report-Generierung ohne Protection
     let total_start = Instant::now();
     for i in 0..ITERATIONS {
         let t = Instant::now();
@@ -202,7 +119,7 @@ fn main() {
 
         let t = Instant::now();
         let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
-        write_report_with_options(ws, &shared_styles, suffix, &values, &body_config, &options).unwrap();
+        write_report_with_options(ws, suffix, &values, &body_config, &options).unwrap();
         t_write_report += t.elapsed();
 
         let t = Instant::now();
@@ -214,21 +131,18 @@ fn main() {
         std::fs::write(filename, buffer).ok();
         t_write_disk += t.elapsed();
     }
-    let total_b = total_start.elapsed();
+    let total_baseline = total_start.elapsed();
 
-    println!("\n=== Variante B: Styles wiederverwendet (optimiert) ===");
-    println!("  Gesamt:           {:>8.2?}  ({:.1} Reports/s)", total_b, ITERATIONS as f64 / total_b.as_secs_f64());
-    print_phase("Workbook::new()", t_workbook_setup, total_b);
-    print_phase("build_sprachversionen()", t_lang_sheet, total_b);
-    print_phase("Worksheet Setup", t_ws_setup, total_b);
-    print_phase("Column Formats", t_col_format, total_b);
-    print_phase("Build Values", t_values, total_b);
-    print_phase("write_report_with_options()", t_write_report, total_b);
-    print_phase("save_to_buffer()", t_save_buffer, total_b);
-    print_phase("fs::write() to disk", t_write_disk, total_b);
-
-    println!("\n=== Vergleich A vs B ===");
-    println!("  Speedup: {:.1}%", (1.0 - total_b.as_secs_f64() / total_a.as_secs_f64()) * 100.0);
+    println!("=== Baseline: Report ohne Protection ===");
+    println!("  Gesamt:           {:>8.2?}  ({:.1} Reports/s)", total_baseline, ITERATIONS as f64 / total_baseline.as_secs_f64());
+    print_phase("Workbook::new()", t_workbook_setup, total_baseline);
+    print_phase("build_sprachversionen()", t_lang_sheet, total_baseline);
+    print_phase("Worksheet Setup", t_ws_setup, total_baseline);
+    print_phase("Column Formats", t_col_format, total_baseline);
+    print_phase("Build Values", t_values, total_baseline);
+    print_phase("write_report_with_options()", t_write_report, total_baseline);
+    print_phase("save_to_buffer()", t_save_buffer, total_baseline);
+    print_phase("fs::write() to disk", t_write_disk, total_baseline);
 
     // Cleanup
     std::fs::remove_dir_all(&temp_dir).ok();
@@ -260,7 +174,7 @@ fn main() {
         let t = Instant::now();
         let (values, body_config) = build_test_values(i);
         let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
-        write_report_with_options(ws, &shared_styles, suffix, &values, &body_config, &options).unwrap();
+        write_report_with_options(ws, suffix, &values, &body_config, &options).unwrap();
         t_wb_write_report += t.elapsed();
 
         // Save to temp file (unprotected)
@@ -295,11 +209,11 @@ fn main() {
     print_phase("protect_workbook() SHA-512", t_wb_protect, total_c);
     print_phase("Temp-File Cleanup", t_wb_cleanup, total_c);
 
-    println!("\n=== Vergleich B vs C (Overhead durch Protection) ===");
-    println!("  Ohne Protection:  {:>8.2?}  ({:.1} Reports/s)", total_b, ITERATIONS as f64 / total_b.as_secs_f64());
+    println!("\n=== Vergleich Baseline vs C (Overhead durch Protection) ===");
+    println!("  Ohne Protection:  {:>8.2?}  ({:.1} Reports/s)", total_baseline, ITERATIONS as f64 / total_baseline.as_secs_f64());
     println!("  Mit Protection:   {:>8.2?}  ({:.1} Reports/s)", total_c, ITERATIONS as f64 / total_c.as_secs_f64());
-    println!("  Overhead:         {:.1}x langsamer", total_c.as_secs_f64() / total_b.as_secs_f64());
-    println!("  protect_workbook() pro Report: {:.0}µs ({:.2?})",
+    println!("  Overhead:         {:.1}x langsamer", total_c.as_secs_f64() / total_baseline.as_secs_f64());
+    println!("  protect_workbook() pro Report: {:.0}us ({:.2?})",
         t_wb_protect.as_micros() as f64 / ITERATIONS as f64,
         t_wb_protect / ITERATIONS as u32);
 
@@ -327,7 +241,7 @@ fn main() {
         setup_sheet(ws).unwrap();
         let (values, body_config) = build_test_values(i);
         let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
-        write_report_with_options(ws, &shared_styles, suffix, &values, &body_config, &options).unwrap();
+        write_report_with_options(ws, suffix, &values, &body_config, &options).unwrap();
         let temp_file = temp_dir.join(format!("report_{:05}_tmp.xlsx", i));
         workbook.save(&temp_file).unwrap();
         t_fast_rest += t.elapsed();
@@ -355,7 +269,7 @@ fn main() {
     std::fs::remove_dir_all(&temp_dir).ok();
     std::fs::create_dir_all(&temp_dir).unwrap();
 
-    // Variante E: Nur ZIP-Overhead messen (spin_count=1, SHA-512 vernachlässigbar)
+    // Variante E: Nur ZIP-Overhead messen (spin_count=1, SHA-512 vernachlassigbar)
     let mut t_zip_only = std::time::Duration::ZERO;
     let mut t_hash_only = std::time::Duration::ZERO;
     let mut t_save_only = std::time::Duration::ZERO;
@@ -374,9 +288,8 @@ fn main() {
         setup_sheet(ws).unwrap();
         let (values, body_config) = build_test_values(i);
         let options = ReportOptions::with_default_protection().with_hidden_columns_qv();
-        write_report_with_options(ws, &shared_styles, suffix, &values, &body_config, &options).unwrap();
+        write_report_with_options(ws, suffix, &values, &body_config, &options).unwrap();
 
-        // save() statt save_to_buffer() — Overhead durch Disk-Roundtrip
         let t = Instant::now();
         let temp_file = temp_dir.join(format!("report_{:05}_tmp.xlsx", i));
         workbook.save(&temp_file).unwrap();
@@ -410,25 +323,19 @@ fn main() {
     let zip_overhead = t_zip_only;
     let hash_time = t_hash_only - t_zip_only;
 
-    println!("\n=== Variante E: Aufschlüsselung protect_workbook() ===");
-    println!("  (Gemessen über {} Reports)\n", ITERATIONS);
-    println!("  workbook.save() to disk:        {:>8.2?}  ({:.0}µs/report)",
+    println!("\n=== Variante E: Aufschluesselung protect_workbook() ===");
+    println!("  (Gemessen ueber {} Reports)\n", ITERATIONS);
+    println!("  workbook.save() to disk:        {:>8.2?}  ({:.0}us/report)",
         t_save_only, t_save_only.as_micros() as f64 / ITERATIONS as f64);
-    println!("  ZIP Roundtrip (read+modify+write): {:>8.2?}  ({:.0}µs/report)",
+    println!("  ZIP Roundtrip (read+modify+write): {:>8.2?}  ({:.0}us/report)",
         zip_overhead, zip_overhead.as_micros() as f64 / ITERATIONS as f64);
-    println!("  SHA-512 Hashing (100k Iter.):    {:>8.2?}  ({:.0}µs/report)",
+    println!("  SHA-512 Hashing (100k Iter.):    {:>8.2?}  ({:.0}us/report)",
         hash_time, hash_time.as_micros() as f64 / ITERATIONS as f64);
 
-    println!("\n  => Bei Integration in rust_xlsxwriter würde der");
-    println!("     ZIP-Roundtrip + save()-Dopplung entfallen.");
-    println!("     Einsparung pro Report: ~{:.0}µs (ZIP) + ~{:.0}µs (save→buffer)",
-        zip_overhead.as_micros() as f64 / ITERATIONS as f64,
-        (t_save_only.as_micros() as f64 / ITERATIONS as f64) - (t_save_buffer.as_micros() as f64 / ITERATIONS as f64));
-
     println!("\n=== Gesamtvergleich ===");
-    println!("  B) Ohne Protection:       {:>8.2?}  ({:.1} Reports/s)", total_b, ITERATIONS as f64 / total_b.as_secs_f64());
-    println!("  C) Standard Protection:   {:>8.2?}  ({:.1} Reports/s)", total_c, ITERATIONS as f64 / total_c.as_secs_f64());
-    println!("  D) Fast Protection:       {:>8.2?}  ({:.1} Reports/s)", total_d, ITERATIONS as f64 / total_d.as_secs_f64());
+    println!("  Baseline (ohne Protection):  {:>8.2?}  ({:.1} Reports/s)", total_baseline, ITERATIONS as f64 / total_baseline.as_secs_f64());
+    println!("  C) Standard Protection:      {:>8.2?}  ({:.1} Reports/s)", total_c, ITERATIONS as f64 / total_c.as_secs_f64());
+    println!("  D) Fast Protection:          {:>8.2?}  ({:.1} Reports/s)", total_d, ITERATIONS as f64 / total_d.as_secs_f64());
     println!("  Speedup Fast vs Standard: {:.1}x", total_c.as_secs_f64() / total_d.as_secs_f64());
 
     std::fs::remove_dir_all(&temp_dir).ok();
@@ -438,7 +345,7 @@ fn print_phase(name: &str, duration: std::time::Duration, total: std::time::Dura
     let pct = duration.as_secs_f64() / total.as_secs_f64() * 100.0;
     let per_report = duration.as_micros() as f64 / ITERATIONS as f64;
     println!(
-        "  {:<30} {:>8.2?}  ({:>5.1}%)  {:.0}µs/report",
+        "  {:<30} {:>8.2?}  ({:>5.1}%)  {:.0}us/report",
         name, duration, pct, per_report
     );
 }
