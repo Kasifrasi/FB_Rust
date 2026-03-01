@@ -2,9 +2,9 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.3",
   "version": 1,
-  "serialNumber": "urn:uuid:03ee5fea-db8e-4143-b43b-a75ad480e7da",
+  "serialNumber": "urn:uuid:d4ce14f2-1bb7-47b1-8170-ad31de4a43a1",
   "metadata": {
-    "timestamp": "2026-03-01T16:07:43.789134556Z",
+    "timestamp": "2026-03-01T16:35:28.019523426Z",
     "tools": [
       {
         "vendor": "CycloneDX",
@@ -17,7 +17,7 @@
       "bom-ref": "path+file:///home/ardit/repos/Arbeit/KMW-FB_Rust/src_rust#kmw-fb-rust@0.1.0",
       "name": "kmw-fb-rust",
       "version": "0.1.0",
-      "description": "Rust rewrite of the KMW Finanzbericht exporter using rust_xlsxwriter",
+      "description": "High-performance Excel financial report generator (XLSX) with formulas, formatting, and workbook protection",
       "scope": "required",
       "licenses": [
         {
@@ -1738,64 +1738,6 @@
     },
     {
       "type": "library",
-      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#thiserror-impl@2.0.18",
-      "author": "David Tolnay <dtolnay@gmail.com>",
-      "name": "thiserror-impl",
-      "version": "2.0.18",
-      "description": "Implementation detail of the `thiserror` crate",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-256",
-          "content": "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "purl": "pkg:cargo/thiserror-impl@2.0.18",
-      "externalReferences": [
-        {
-          "type": "vcs",
-          "url": "https://github.com/dtolnay/thiserror"
-        }
-      ]
-    },
-    {
-      "type": "library",
-      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#thiserror@2.0.18",
-      "author": "David Tolnay <dtolnay@gmail.com>",
-      "name": "thiserror",
-      "version": "2.0.18",
-      "description": "derive(Error)",
-      "scope": "required",
-      "hashes": [
-        {
-          "alg": "SHA-256",
-          "content": "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "MIT OR Apache-2.0"
-        }
-      ],
-      "purl": "pkg:cargo/thiserror@2.0.18",
-      "externalReferences": [
-        {
-          "type": "documentation",
-          "url": "https://docs.rs/thiserror"
-        },
-        {
-          "type": "vcs",
-          "url": "https://github.com/dtolnay/thiserror"
-        }
-      ]
-    },
-    {
-      "type": "library",
       "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#time-core@0.1.8",
       "author": "Jacob Pratt <open-source@jhpratt.dev>, Time contributors",
       "name": "time-core",
@@ -2246,12 +2188,10 @@
         "registry+https://github.com/rust-lang/crates.io-index#base64@0.22.1",
         "registry+https://github.com/rust-lang/crates.io-index#byteorder@1.5.0",
         "registry+https://github.com/rust-lang/crates.io-index#getrandom@0.4.1",
-        "registry+https://github.com/rust-lang/crates.io-index#once_cell@1.21.3",
         "registry+https://github.com/rust-lang/crates.io-index#quick-xml@0.39.2",
         "registry+https://github.com/rust-lang/crates.io-index#rust_xlsxwriter@0.94.0",
         "registry+https://github.com/rust-lang/crates.io-index#sha2@0.10.9",
         "registry+https://github.com/rust-lang/crates.io-index#tempfile@3.26.0",
-        "registry+https://github.com/rust-lang/crates.io-index#thiserror@2.0.18",
         "registry+https://github.com/rust-lang/crates.io-index#zip@8.1.0"
       ]
     },
@@ -2555,20 +2495,6 @@
         "registry+https://github.com/rust-lang/crates.io-index#getrandom@0.4.1",
         "registry+https://github.com/rust-lang/crates.io-index#once_cell@1.21.3",
         "registry+https://github.com/rust-lang/crates.io-index#rustix@1.1.4"
-      ]
-    },
-    {
-      "ref": "registry+https://github.com/rust-lang/crates.io-index#thiserror-impl@2.0.18",
-      "dependsOn": [
-        "registry+https://github.com/rust-lang/crates.io-index#proc-macro2@1.0.106",
-        "registry+https://github.com/rust-lang/crates.io-index#quote@1.0.44",
-        "registry+https://github.com/rust-lang/crates.io-index#syn@2.0.117"
-      ]
-    },
-    {
-      "ref": "registry+https://github.com/rust-lang/crates.io-index#thiserror@2.0.18",
-      "dependsOn": [
-        "registry+https://github.com/rust-lang/crates.io-index#thiserror-impl@2.0.18"
       ]
     },
     {

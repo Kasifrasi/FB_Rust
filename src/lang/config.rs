@@ -3,8 +3,8 @@
 //! Definiert [`LanguageConfig`] mit den sprachspezifischen Sheet-Namen und
 //! Fehlermeldungen sowie die statischen Maps [`LANG_CONFIG`] und [`LANG_SUFFIXES`].
 
-use once_cell::sync::Lazy;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 /// Sprachspezifische Konfiguration für Sheet-Namen und Fehlermeldungen
 #[derive(Debug, Clone)]
@@ -20,7 +20,7 @@ pub struct LanguageConfig {
 }
 
 /// Sprachkonfiguration, indiziert nach deutschem Sprachnamen (z.B. `"Deutsch"`, `"Englisch"`)
-pub static LANG_CONFIG: Lazy<HashMap<&'static str, LanguageConfig>> = Lazy::new(|| {
+pub static LANG_CONFIG: LazyLock<HashMap<&'static str, LanguageConfig>> = LazyLock::new(|| {
     HashMap::from([
         (
             "Deutsch",
@@ -71,7 +71,7 @@ pub static LANG_CONFIG: Lazy<HashMap<&'static str, LanguageConfig>> = Lazy::new(
 });
 
 /// Dateiname-Suffixe pro Sprache (z.B. `"Deutsch"` → `"_de"`)
-pub static LANG_SUFFIXES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
+pub static LANG_SUFFIXES: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     HashMap::from([
         ("Deutsch", "_de"),
         ("Englisch", "_en"),

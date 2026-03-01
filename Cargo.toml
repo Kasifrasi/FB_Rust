@@ -2,8 +2,12 @@
 name = "kmw-fb-rust"
 version = "0.1.0"
 edition = "2021"
-description = "Rust rewrite of the KMW Finanzbericht exporter using rust_xlsxwriter"
+rust-version = "1.87"
+description = "High-performance Excel financial report generator (XLSX) with formulas, formatting, and workbook protection"
 license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["excel", "xlsx", "financial-report", "rust-xlsxwriter"]
+categories = ["finance", "template-engine"]
 
 [lib]
 crate-type = ["rlib"]
@@ -15,9 +19,7 @@ serde = ["dep:serde"]
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
 anyhow = "1.0"
-once_cell = "1.21"
 rust_xlsxwriter = "0.94.0"
-thiserror = "2.0.18"
 zip = "8.1.0"
 quick-xml = "0.39"
 sha2 = "0.10"

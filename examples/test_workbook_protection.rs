@@ -21,8 +21,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             report_end: Some("31.03.2024".to_string()),
             ..ReportConfig::default()
         };
-        config.write_to("tests/output/test_no_wb_protection.xlsx")?;
-        println!("   ✓ Created: tests/output/test_no_wb_protection.xlsx");
+        config.write_to("output/test_no_wb_protection.xlsx")?;
+        println!("   ✓ Created: output/test_no_wb_protection.xlsx");
     }
 
     // Test 2: Report mit Workbook-Protection (kein Sheet-Schutz)
@@ -40,8 +40,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             workbook_password: Some("secret123".to_string()),
             ..ReportConfig::default()
         };
-        config.write_to("tests/output/test_with_wb_protection.xlsx")?;
-        println!("   ✓ Created: tests/output/test_with_wb_protection.xlsx");
+        config.write_to("output/test_with_wb_protection.xlsx")?;
+        println!("   ✓ Created: output/test_with_wb_protection.xlsx");
         println!("   ℹ Password: secret123");
     }
 
@@ -63,8 +63,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             hide_language_sheet: true,
             ..ReportConfig::default()
         };
-        config.write_to("tests/output/test_full_protection.xlsx")?;
-        println!("   ✓ Created: tests/output/test_full_protection.xlsx");
+        config.write_to("output/test_full_protection.xlsx")?;
+        println!("   ✓ Created: output/test_full_protection.xlsx");
         println!("   ℹ Sheet Password: (default) - see PROTECTION_DEFAULTS");
         println!("   ℹ Workbook Password: test456");
     }

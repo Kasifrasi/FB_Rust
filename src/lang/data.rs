@@ -5,9 +5,9 @@
 //!   Portugiesisch)
 //! - [`CURRENCIES`]: 164 ISO-4217-Währungscodes für das Währungs-Dropdown
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
-pub static TEXT_MATRIX: Lazy<Vec<Vec<&'static str>>> = Lazy::new(|| {
+pub static TEXT_MATRIX: LazyLock<Vec<Vec<&'static str>>> = LazyLock::new(|| {
     vec![
         vec![
             "deutsch",
@@ -337,7 +337,7 @@ pub static TEXT_MATRIX: Lazy<Vec<Vec<&'static str>>> = Lazy::new(|| {
     ]
 });
 
-pub static CURRENCIES: Lazy<Vec<&'static str>> = Lazy::new(|| {
+pub static CURRENCIES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
     vec![
         "AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT",
         "BGN", "BHD", "BIF", "BMD", "BND", "BOB", "BRL", "BSD", "BTN", "BWP", "BYN", "BZD", "CAD",

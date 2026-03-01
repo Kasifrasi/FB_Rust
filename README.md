@@ -7,7 +7,7 @@ High-performance Excel financial report generator written in Rust.
 - Excel generation (XLSX) with formulas and formatting
 - Dynamic cost positions per budget category
 - Multi-language support (German, English, French, Spanish, Portuguese)
-- High performance (~1400 reports/second multi-threaded)
+- High performance (~1200 reports/second multi-threaded)
 - Sheet and workbook protection with locked formulas
 
 ## Quick Start
@@ -84,6 +84,7 @@ examples/
 ├── test_multilang.rs          5 languages
 ├── test_multilang_grouped.rs  Row grouping / collapsed sections
 ├── test_workbook_protection.rs  3 protection levels
+├── test_parallel_protection.rs  Parallel protection benchmark (Rayon)
 ├── profile.rs                 Phase-level profiling
 └── verify_password.rs         Password hash verification
 ```

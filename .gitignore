@@ -21,9 +21,7 @@ target/
 Thumbs.db
 .env
 
-# Test outputs
+# Test/example outputs
 *.xlsx
 /tmp/
-benchmark_test/
-benchmark_with_data/
-tests/
+output/

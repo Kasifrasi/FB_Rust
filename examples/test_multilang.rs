@@ -13,11 +13,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Erstelle mehrsprachige Finanzberichte...\n");
 
     let reports: &[(&str, &str, &str)] = &[
-        ("deutsch",   "PROJ-2024-DE", "tests/output/D_Finanzbericht.xlsx"),
-        ("english",   "PROJ-2024-EN", "tests/output/E_Financial_report.xlsx"),
-        ("francais",  "PROJ-2024-FR", "tests/output/F_Rapport_financier.xlsx"),
-        ("espanol",   "PROJ-2024-ES", "tests/output/S_Informe_financiero.xlsx"),
-        ("portugues", "PROJ-2024-PT", "tests/output/P_Relatorio_financeiro.xlsx"),
+        ("deutsch",   "PROJ-2024-DE", "output/D_Finanzbericht.xlsx"),
+        ("english",   "PROJ-2024-EN", "output/E_Financial_report.xlsx"),
+        ("francais",  "PROJ-2024-FR", "output/F_Rapport_financier.xlsx"),
+        ("espanol",   "PROJ-2024-ES", "output/S_Informe_financiero.xlsx"),
+        ("portugues", "PROJ-2024-PT", "output/P_Relatorio_financeiro.xlsx"),
     ];
 
     for (language, proj_nr, filename) in reports {
