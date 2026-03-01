@@ -99,22 +99,29 @@ pub struct PrecomputedHash {
 /// Schneller spin count (ausreichend gegen Gelegenheitsnutzer)
 const FAST_SPIN_COUNT: u32 = 1_000;
 
-/// Workbook-level protection settings
+/// Workbook-level protection settings.
 ///
 /// Protects the workbook structure (prevents adding, deleting, moving, or renaming sheets).
 /// Uses SHA-512 based password hashing according to ECMA-376 standard.
+///
+/// # Security
+///
+/// Workbook protection is a **UI-level deterrent**, not cryptographic security.
+/// The password prevents casual users from modifying the sheet structure in Excel,
+/// but the underlying XML in the .xlsx file can be edited by determined users.
+/// Do not rely on this for sensitive data protection.
 ///
 /// # Example
 /// ```ignore
 /// use fb_rust::WorkbookProtection;
 ///
-/// // Standard (100.000 Iterationen, ~25ms pro Report)
+/// // Standard (100,000 iterations, ~25ms per report)
 /// let protection = WorkbookProtection::new("secret123");
 ///
-/// // Schnell (1.000 Iterationen, ~0.3ms pro Report)
+/// // Fast (1,000 iterations, ~0.3ms per report)
 /// let fast = WorkbookProtection::fast("secret123");
 ///
-/// // Benutzerdefiniert
+/// // Custom
 /// let custom = WorkbookProtection::new("secret123").with_spin_count(10_000);
 /// ```
 #[derive(Debug, Clone)]

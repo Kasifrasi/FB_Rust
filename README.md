@@ -9,7 +9,7 @@ High-performance Excel financial report generator written in Rust.
 - Multi-language support (German, English, French, Spanish, Portuguese)
 - High performance (~1200 reports/second multi-threaded)
 - Sheet and workbook protection with locked formulas
-- Typed error handling (`ReportError`, `ProtectionError`) — no `anyhow` or `Box<dyn Error>`
+- Typed error handling (`ReportError`, `ProtectionError`)
 - Optional serde support (`--features serde`) with validated deserialization
 
 ## Quick Start
@@ -21,10 +21,13 @@ cargo run --example test_all_fields --release
 cargo run --example test_multilang --release
 
 # Criterion-Benchmarks (Statistik + HTML-Report + README-Update)
+# Run the benchmarks
 cargo bench
-# HTML-Report: target/criterion/report/index.html
 
-# Für maximale Reproduzierbarkeit: System-Tuning vorher
+# HTML Report location:
+# target/criterion/report/index.html
+
+# For maximum reproducibility: Tune the system beforehand
 # sudo pyperf system tune && cargo bench && sudo pyperf system reset
 ```
 
@@ -55,6 +58,7 @@ let config = ReportConfig {
             remark: None,
         },
     ],
+    // Categories 1–8: value = number of position rows (0 = header-input mode)
     body_positions: [(1u8, 5u16), (2, 3), (6, 0), (7, 0), (8, 0)]
         .into_iter()
         .collect(),
@@ -93,16 +97,6 @@ examples/
 ├── test_parallel_protection.rs  Parallel protection benchmark (Rayon)
 ├── profile.rs                 Phase-level profiling
 └── verify_password.rs         Password hash verification
-```
-
-## BodyConfig
-
-Categories 1–8 can each be configured independently:
-
-```rust
-let config = BodyConfig::new()
-    .with_positions(1, 10)  // Category 1: 10 position rows under header
-    .with_positions(6, 0);  // Category 6: header-input mode (no sub-rows)
 ```
 
 ## Performance

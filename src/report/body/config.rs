@@ -26,16 +26,32 @@ pub const BODY_START_ROW: u32 = 26;
 /// Alle Kategorien (1-8)
 pub const ALL_CATEGORIES: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
 
-/// Konfiguration für den dynamischen Body
+/// Configuration for the dynamic body area.
 ///
-/// ## Beispiel
+/// ## Example
 /// ```ignore
 /// let config = BodyConfig::new()
-///     .with_positions(1, 10)   // Kategorie 1: 10 Positionen unter Header
-///     .with_positions(2, 5)    // Kategorie 2: 5 Positionen
-///     .with_positions(6, 0)    // Kategorie 6: Header-Eingabe (0 Positionen)
-///     .with_positions(7, 1);   // Kategorie 7: 1 Position unter Header
+///     .with_positions(1, 10)   // Category 1: 10 position rows under header
+///     .with_positions(2, 5)    // Category 2: 5 positions
+///     .with_positions(6, 0)    // Category 6: header-input (0 positions)
+///     .with_positions(7, 1);   // Category 7: 1 position under header
 /// ```
+///
+/// ## Serde (requires `serde` feature)
+///
+/// Serialized as a flat JSON object via `from`/`into` `HashMap<u8, u16>`:
+///
+/// ```json
+/// { "1": 20, "2": 20, "3": 30, "4": 30, "5": 20, "6": 0, "7": 0, "8": 0 }
+/// ```
+///
+/// Keys are category numbers (1–8) as strings, values are the number of position
+/// rows. `0` means header-input mode (single-row, no footer).
+///
+/// **Note:** In [`ReportConfig`](crate::ReportConfig), this is the `body_positions`
+/// field (`HashMap<u8, u16>`), which uses the same JSON format.
+///
+/// Defaults: see [`BodyConfig::default_positions`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(from = "HashMap<u8, u16>", into = "HashMap<u8, u16>"))]

@@ -7,7 +7,7 @@
 //! ## Usage
 //!
 //! ```ignore
-//! use fb_rust::report::protection::{SheetProtection, ValidationRule, FieldValidation};
+//! use fb_rust::report::options::{SheetProtection, ValidationRule, FieldValidation};
 //! use fb_rust::report::api::ApiKey;
 //!
 //! // Protection with custom options
@@ -684,10 +684,24 @@ impl std::error::Error for ValidationError {}
 // Row Grouping (Outlining)
 // ============================================================================
 
-/// Configuration for row grouping/outlining
+/// Configuration for row grouping/outlining.
 ///
 /// Allows grouping rows together with expand/collapse functionality.
-/// Groups can be nested up to 7 levels deep.
+/// Groups can be nested up to 7 levels deep (Excel limitation).
+///
+/// ## Serde (requires `serde` feature)
+///
+/// ```json
+/// {
+///   "groups": [
+///     { "start_row": 10, "end_row": 20, "collapsed": false },
+///     { "start_row": 25, "end_row": 30, "collapsed": true }
+///   ],
+///   "symbols_above": false
+/// }
+/// ```
+///
+/// Row indices are 0-based.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RowGrouping {
@@ -697,7 +711,13 @@ pub struct RowGrouping {
     pub symbols_above: bool,
 }
 
-/// A single row group definition
+/// A single row group definition.
+///
+/// ## JSON
+///
+/// ```json
+/// { "start_row": 10, "end_row": 20, "collapsed": false }
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RowGroup {

@@ -1,9 +1,11 @@
-//! FB-Rust - Financial Report Generator
+//! # FB-Rust — Financial Report Generator
 //!
 //! High-performance Excel financial report generator with dynamic cost positions,
 //! formulas, formatting, and multi-language support.
 //!
-//! ## Usage
+//! ## Quick Start (Rust)
+//!
+//! [`ReportConfig`] is the main entry point. Construct it, then call [`write_to`](ReportConfig::write_to):
 //!
 //! ```ignore
 //! use fb_rust::ReportConfig;
@@ -17,16 +19,58 @@
 //! config.write_to("report.xlsx")?;
 //! ```
 //!
-//! ### Batch mit vorberechnetem Hash
+//! ### Batch with precomputed hash
+//!
+//! When generating multiple reports with the same workbook password, precompute the
+//! SHA-512 hash once and reuse it (~25ms saved per file):
 //!
 //! ```ignore
 //! use fb_rust::{precompute_hash, ReportConfig};
 //!
-//! let hash = precompute_hash("passwort");
+//! let hash = precompute_hash("password");
 //! for config in &configs {
 //!     config.write_to_precomputed("output.xlsx", &hash)?;
 //! }
 //! ```
+//!
+//! ## Quick Start (Tauri / JSON)
+//!
+//! With the `serde` feature enabled, [`ReportConfig`] can be deserialized directly
+//! from a Tauri command payload:
+//!
+//! ```json
+//! {
+//!   "language": "deutsch",
+//!   "currency": "EUR",
+//!   "project_number": "2025-001",
+//!   "project_title": "Klimaschutzprojekt",
+//!   "locked": true,
+//!   "body_positions": { "1": 20, "2": 20, "3": 30, "4": 30, "5": 20, "6": 0, "7": 0, "8": 0 },
+//!   "hide_columns_qv": false,
+//!   "hide_language_sheet": false
+//! }
+//! ```
+//!
+//! All `Vec` fields (`table`, `left_panel`, `right_panel`, `positions`) default to
+//! empty when omitted. `deny_unknown_fields` is active — misspelled keys produce a
+//! serde error.
+//!
+//! ## Feature Flags
+//!
+//! | Flag    | Effect |
+//! |---------|--------|
+//! | `serde` | Enables `Serialize`/`Deserialize` on all public API types. Required for Tauri integration. Activates `deny_unknown_fields` on [`ReportConfig`], `try_from` validation on [`Currency`] and [`ReportDate`]. |
+//!
+//! ## Module Overview
+//!
+//! | Module | Purpose |
+//! |--------|---------|
+//! | [`config`] | [`ReportConfig`] — main entry point for report generation |
+//! | [`report::api`] | Validated types: [`Language`], [`Currency`], [`Category`], [`ReportDate`] |
+//! | [`report::body`] | [`BodyConfig`] — category layout (positions per category) |
+//! | [`report::options`] | Sheet protection, data validation, row grouping |
+//! | [`workbook_protection`] | Workbook-level password protection (ECMA-376 SHA-512) |
+//! | [`error`] | [`ReportError`] — all error variants from report generation |
 
 pub mod config;
 pub mod error;

@@ -11,18 +11,35 @@ use std::str::FromStr;
 // Language - Typsichere Sprachauswahl
 // ============================================================================
 
-/// Unterstützte Sprachen für den Finanzbericht
+/// Supported languages for the financial report.
 ///
-/// Diese Enum wird aus der TEXT_MATRIX generiert und stellt sicher,
-/// dass nur gültige Sprachen verwendet werden können.
+/// This enum ensures only valid languages can be used. The available
+/// languages are derived from the internal text matrix.
 ///
-/// # Beispiel
+/// # Example
 /// ```ignore
-/// use fb_rust::report::types::Language;
+/// use fb_rust::Language;
 ///
 /// let lang = Language::Deutsch;
 /// assert_eq!(lang.as_str(), "deutsch");
 /// ```
+///
+/// ## Serde (requires `serde` feature)
+///
+/// Serialized with `rename_all = "lowercase"`:
+///
+/// ```json
+/// "deutsch"
+/// "english"
+/// "francais"
+/// "espanol"
+/// "portugues"
+/// ```
+///
+/// [`FromStr`] accepts additional aliases (`"german"`, `"de"`, `"fr"`, etc.),
+/// but serde only accepts the exact lowercase variant names above.
+///
+/// Default: `Deutsch`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
@@ -101,18 +118,34 @@ impl FromStr for Language {
 // Currency - Validierte Währung
 // ============================================================================
 
-/// Validierte Währung (ISO 4217 Code)
+/// Validated currency (ISO 4217 code).
 ///
-/// Wird zur Laufzeit gegen CURRENCIES validiert, sodass Änderungen
-/// an der Währungsliste automatisch berücksichtigt werden.
+/// Validated at runtime against the internal currency list (164 codes).
+/// Changes to the currency list are automatically reflected.
 ///
-/// # Beispiel
+/// # Example
 /// ```ignore
-/// use fb_rust::report::types::Currency;
+/// use fb_rust::Currency;
 ///
 /// let eur = Currency::new("EUR").unwrap();
 /// let invalid = Currency::new("INVALID"); // None
 /// ```
+///
+/// ## Serde (requires `serde` feature)
+///
+/// Deserialized via `try_from = "String"` — the JSON string is validated
+/// against the currency list. Invalid codes produce a serde error.
+///
+/// ```json
+/// "EUR"
+/// "USD"
+/// "GBP"
+/// ```
+///
+/// Case-insensitive on input (`"eur"` is accepted), always stored as uppercase.
+///
+/// Common codes: EUR, USD, GBP, CHF, JPY, CNY, BRL, INR, CAD, AUD.
+/// Use [`Currency::all()`] for the complete list.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "String", into = "String"))]
@@ -202,18 +235,39 @@ impl From<Currency> for String {
 // Category - Kostenkategorien
 // ============================================================================
 
-/// Kostenkategorien des Finanzberichts
+/// Cost categories of the financial report.
 ///
-/// Diese Enum repräsentiert die 8 Hauptkategorien des Finanzberichts.
+/// Represents the 8 main categories. Used with [`BodyConfig::with_cat_positions`](crate::BodyConfig::with_cat_positions)
+/// for the typed Rust API.
 ///
-/// # Beispiel
+/// # Example
 /// ```ignore
-/// use fb_rust::report::types::Category;
+/// use fb_rust::{BodyConfig, Category};
 ///
 /// let config = BodyConfig::new()
-///     .with_positions(Category::Personal, 10)
-///     .with_positions(Category::Sachkosten, 15);
+///     .with_cat_positions(Category::Bauausgaben, 10)
+///     .with_cat_positions(Category::Evaluierung, 0);
 /// ```
+///
+/// ## Serde (requires `serde` feature)
+///
+/// Serialized using PascalCase variant names:
+///
+/// | JSON value | Index | Description |
+/// |---|---|---|
+/// | `"Bauausgaben"` | 1 | Personnel costs |
+/// | `"Investitionen"` | 2 | Material costs |
+/// | `"Personalausgaben"` | 3 | Travel costs |
+/// | `"Projektaktivitaeten"` | 4 | Investments |
+/// | `"Projektverwaltung"` | 5 | Other costs |
+/// | `"Evaluierung"` | 6 | Project administration |
+/// | `"Audit"` | 7 | Evaluation/Audit |
+/// | `"Reserve"` | 8 | Reserve |
+///
+/// **Note:** In [`ReportConfig`](crate::ReportConfig) JSON, categories are referenced
+/// by numeric keys (`"1"` – `"8"` in `body_positions`) and `u8` values
+/// (`category` field in [`PositionEntry`](crate::PositionEntry)). The `Category` enum
+/// is for the typed Rust API only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Category {
@@ -311,19 +365,36 @@ impl fmt::Display for Category {
 // ReportDate - Validiertes Datum
 // ============================================================================
 
-/// Validiertes Datum für Finanzberichte
+/// Validated date for financial reports.
 ///
-/// Stellt sicher, dass nur gültige Datumsangaben verwendet werden.
-/// Unterstützt verschiedene Eingabeformate.
+/// Ensures only valid dates are used. Supports multiple input formats.
+/// Valid year range: 1900–2100.
 ///
-/// # Beispiel
+/// # Example
 /// ```ignore
-/// use fb_rust::report::types::ReportDate;
+/// use fb_rust::ReportDate;
 ///
 /// let date = ReportDate::new(2024, 1, 15).unwrap();
 /// assert_eq!(date.format_de(), "15.01.2024");
 /// assert_eq!(date.format_iso(), "2024-01-15");
 /// ```
+///
+/// ## Serde (requires `serde` feature)
+///
+/// Deserialized via `try_from = "String"` using [`ReportDate::parse`], which accepts:
+/// - `"2024-06-15"` — ISO 8601
+/// - `"15.06.2024"` — German (DD.MM.YYYY)
+/// - `"15/06/2024"` — EU (DD/MM/YYYY)
+/// - `"06/15/2024"` — US (MM/DD/YYYY, tried as fallback)
+///
+/// Always serialized to ISO format:
+/// ```json
+/// "2024-06-15"
+/// ```
+///
+/// **Note:** In [`ReportConfig`](crate::ReportConfig), date fields (`project_start`,
+/// `report_end`, etc.) are plain `Option<String>`, not `ReportDate`. The `ReportDate`
+/// type is for the typed Rust API via [`ReportValues`](crate::ReportValues).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "String", into = "String"))]
@@ -333,7 +404,9 @@ pub struct ReportDate {
     day: u8,
 }
 
-/// Fehler bei der Datumserstellung
+/// Error from date construction.
+///
+/// Returned by [`ReportDate::new`] and [`ReportDate::parse`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DateError {
     /// Ungültiger Monat (muss 1-12 sein)

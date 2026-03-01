@@ -1,9 +1,10 @@
-//! Einheitliche Report-Konfiguration für Tauri-Integration
+//! Unified report configuration for Tauri integration.
 //!
-//! Dieser Modul stellt einen einfachen, serialisierbaren Wrapper bereit,
-//! der alle Parameter für einen Finanzbericht in einem einzigen Struct bündelt.
+//! This module provides a single, serializable struct ([`ReportConfig`]) that bundles
+//! all parameters for a financial report. It is the recommended entry point for both
+//! Rust and Tauri/JSON usage.
 //!
-//! ## Tauri-Beispiel
+//! ## Tauri Example
 //!
 //! ```ignore
 //! #[tauri::command]
@@ -12,7 +13,7 @@
 //! }
 //! ```
 //!
-//! ## TypeScript-Beispiel
+//! ## TypeScript Example
 //!
 //! ```typescript
 //! await invoke("generate_report", {
@@ -46,9 +47,15 @@ use crate::workbook_protection::WorkbookProtection;
 // Hilfstypen
 // ============================================================================
 
-/// Einzelne Zeile des oberen Tabellen-Bereichs (Zeilen 15-19, Index 0-4)
+/// A single row in the upper table area (Excel rows 15-19, index 0-4).
 ///
-/// Enthält bewilligtes Budget und Einnahmen-Felder für eine der 5 Tabellenzeilen.
+/// Contains approved budget and income fields for one of the 5 table rows.
+///
+/// ## JSON
+///
+/// ```json
+/// { "index": 0, "approved_budget": 50000.0, "income_report": null, "income_total": null, "reason": "Spende" }
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TableEntry {
@@ -64,7 +71,13 @@ pub struct TableEntry {
     pub reason: Option<String>,
 }
 
-/// Einzelne Zeile eines Kassenbuch-Panels (links oder rechts, Index 0-17)
+/// A single row in a cash book panel (left or right, index 0-17).
+///
+/// ## JSON
+///
+/// ```json
+/// { "index": 0, "date": "2025-01-15", "amount_euro": 1200.50, "amount_local": null }
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PanelEntry {
@@ -78,7 +91,19 @@ pub struct PanelEntry {
     pub amount_local: Option<f64>,
 }
 
-/// Einzelne Kostenpositions-Zeile im Body-Bereich
+/// A single cost position row in the body area.
+///
+/// ## JSON
+///
+/// Normal position (`position >= 1`):
+/// ```json
+/// { "category": 1, "position": 1, "description": "Personalkosten", "approved": 50000.0, "income_report": null, "income_total": null, "remark": null }
+/// ```
+///
+/// Header-input mode (`position == 0`, category has 0 rows in `body_positions`):
+/// ```json
+/// { "category": 6, "position": 0, "description": null, "approved": 3000.0, "income_report": 1500.0, "income_total": 1500.0, "remark": "Sonstiges" }
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PositionEntry {
@@ -102,13 +127,13 @@ pub struct PositionEntry {
 // ReportConfig — Haupt-Wrapper
 // ============================================================================
 
-/// Einheitliche Konfiguration für einen Finanzbericht
+/// Unified configuration for a financial report.
 ///
-/// Bündelt alle Parameter in einem einzigen, serialisierbaren Struct.
-/// Primär für die Tauri-Integration gedacht, aber auch direkt in Rust verwendbar.
-/// Styles werden intern mit festen Standard-Einstellungen erzeugt.
+/// Bundles all parameters in a single, serializable struct. Primary entry point
+/// for both Tauri/JSON integration and direct Rust usage. Styles are generated
+/// internally with fixed defaults.
 ///
-/// ## Beispiel
+/// ## Rust Example
 ///
 /// ```ignore
 /// use fb_rust::ReportConfig;
@@ -120,8 +145,74 @@ pub struct PositionEntry {
 ///     body_positions: [(1, 10), (2, 5)].into(),
 ///     ..ReportConfig::default()
 /// };
-/// config.write_to("examples/output/report.xlsx").unwrap();
+/// config.write_to("report.xlsx").unwrap();
 /// ```
+///
+/// ## JSON (minimal)
+///
+/// ```json
+/// {
+///   "language": "deutsch",
+///   "currency": "EUR",
+///   "body_positions": { "1": 20, "2": 20, "3": 30, "4": 30, "5": 20, "6": 0, "7": 0, "8": 0 },
+///   "locked": false,
+///   "hide_columns_qv": false,
+///   "hide_language_sheet": false
+/// }
+/// ```
+///
+/// ## JSON (full)
+///
+/// ```json
+/// {
+///   "language": "english",
+///   "currency": "USD",
+///   "project_number": "PROJ-2025-001",
+///   "project_title": "Education Project",
+///   "project_start": "01.01.2025",
+///   "project_end": "31.12.2025",
+///   "report_start": "01.01.2025",
+///   "report_end": "30.06.2025",
+///   "table": [
+///     { "index": 0, "approved_budget": 50000.0, "income_report": 25000.0, "income_total": 25000.0, "reason": "Donation" }
+///   ],
+///   "left_panel": [
+///     { "index": 0, "date": "15.01.2025", "amount_euro": 1000.0, "amount_local": 1100.0 }
+///   ],
+///   "right_panel": [],
+///   "positions": [
+///     { "category": 1, "position": 1, "description": "Personnel", "approved": 18000.0, "income_report": 9000.0, "income_total": 9000.0, "remark": null }
+///   ],
+///   "body_positions": { "1": 10, "2": 5, "6": 0 },
+///   "footer_bank": 8500.0,
+///   "footer_kasse": 250.50,
+///   "footer_sonstiges": null,
+///   "locked": true,
+///   "workbook_password": "secret",
+///   "hide_columns_qv": true,
+///   "hide_language_sheet": true,
+///   "row_grouping": {
+///     "groups": [{ "start_row": 10, "end_row": 20, "collapsed": false }],
+///     "symbols_above": false
+///   }
+/// }
+/// ```
+///
+/// ## Field Constraints
+///
+/// | Field | Constraint |
+/// |-------|-----------|
+/// | `language` | `"deutsch"`, `"english"`, `"francais"`, `"espanol"`, `"portugues"` |
+/// | `currency` | ISO 4217 code (e.g. `"EUR"`, `"USD"`), validated at report write time |
+/// | `table` | Max 5 entries, `index` 0–4 |
+/// | `left_panel` / `right_panel` | Max 18 entries each, `index` 0–17 |
+/// | `positions` | `category` 1–8, `position` 0 = header-input, 1..N = row |
+/// | `body_positions` | Keys `"1"` – `"8"`, values = row count (0 = header-input) |
+///
+/// ## Errors
+///
+/// See [`ReportError`](crate::ReportError) for error variants returned by
+/// [`write_to`](Self::write_to) and [`write_to_precomputed`](Self::write_to_precomputed).
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
@@ -231,7 +322,15 @@ impl Default for ReportConfig {
 }
 
 impl ReportConfig {
-    /// Schreibt den Finanzbericht in die angegebene Datei.
+    /// Writes the financial report to the given file path.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ReportError`](crate::ReportError):
+    /// - [`Xlsx`](crate::ReportError::Xlsx) — Excel write failure
+    /// - [`Protection`](crate::ReportError::Protection) — workbook password injection failed (only with `workbook_password`)
+    /// - [`Io`](crate::ReportError::Io) — file system error
+    /// - [`InvalidPath`](crate::ReportError::InvalidPath) — path contains non-UTF-8
     pub fn write_to(&self, output_path: impl AsRef<Path>) -> Result<(), crate::error::ReportError> {
         let values = self.build_values();
         let body_config = self.build_body_config();
@@ -244,19 +343,23 @@ impl ReportConfig {
         Ok(())
     }
 
-    /// Batch-optimiert: Hash einmalig vorberechnen, für N Dateien wiederverwenden.
+    /// Batch-optimized: precompute the hash once, reuse for N files.
     ///
-    /// Spart ~25ms SHA-512-Aufwand pro Datei bei gleichem Passwort.
-    /// `workbook_password` wird ignoriert — der übergebene Hash wird direkt verwendet.
+    /// Saves ~25ms SHA-512 overhead per file when using the same password.
+    /// The `workbook_password` field is ignored — the precomputed hash is used directly.
     ///
     /// ```ignore
     /// use fb_rust::{precompute_hash, ReportConfig};
     ///
-    /// let hash = precompute_hash("passwort");
+    /// let hash = precompute_hash("password");
     /// for config in &configs {
     ///     config.write_to_precomputed("output.xlsx", &hash).unwrap();
     /// }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Same as [`write_to`](Self::write_to). See [`ReportError`](crate::ReportError).
     pub fn write_to_precomputed(
         &self,
         output_path: impl AsRef<Path>,

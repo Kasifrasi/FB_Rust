@@ -4,20 +4,37 @@ use crate::workbook_protection::ProtectionError;
 use rust_xlsxwriter::XlsxError;
 use std::fmt;
 
-/// Top-Level-Fehler für die Report-Erstellung.
+/// Top-level error for report generation.
 ///
-/// Wird von [`ReportConfig::write_to`](crate::config::ReportConfig::write_to),
-/// [`ReportConfig::write_to_precomputed`](crate::config::ReportConfig::write_to_precomputed)
-/// und den internen Engine-Funktionen zurückgegeben.
+/// Returned by [`ReportConfig::write_to`](crate::config::ReportConfig::write_to),
+/// [`ReportConfig::write_to_precomputed`](crate::config::ReportConfig::write_to_precomputed),
+/// and the internal engine functions.
+///
+/// # Example
+///
+/// ```ignore
+/// use fb_rust::ReportConfig;
+///
+/// let config = ReportConfig::default();
+/// match config.write_to("report.xlsx") {
+///     Ok(()) => println!("Report written"),
+///     Err(e) => {
+///         eprintln!("Failed: {e}");
+///         if let Some(source) = std::error::Error::source(&e) {
+///             eprintln!("Caused by: {source}");
+///         }
+///     }
+/// }
+/// ```
 #[derive(Debug)]
 pub enum ReportError {
-    /// Fehler beim Excel-Schreiben (rust_xlsxwriter)
+    /// Excel write failure (from `rust_xlsxwriter`)
     Xlsx(XlsxError),
-    /// Fehler bei Workbook-Protection (ZIP/XML-Manipulation)
+    /// Workbook protection failure (ZIP/XML manipulation)
     Protection(ProtectionError),
-    /// I/O-Fehler (Temp-Datei, Persistierung etc.)
+    /// I/O error (temp file, persist, etc.)
     Io(std::io::Error),
-    /// Pfad enthält ungültige UTF-8-Zeichen
+    /// Output path contains non-UTF-8 characters
     InvalidPath(String),
 }
 
