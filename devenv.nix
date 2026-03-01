@@ -1,28 +1,39 @@
 { pkgs, ... }:
 {
-  # Hier werden alle Module aus dem nix-Ordner geladen
-  imports = [
-    ./nix/gui-support.nix
-    ./nix/toolchain.nix
-    ./nix/dagger.nix # Falls du dagger.nix auch dorthin schiebst
-  ];
+  languages.rust = {
+    enable = true;
+    channel = "stable";
+    mold.enable = false; # Wir machen es manuell
+    components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" ];
+  };
+
+  env = {
+    CC = "clang";
+    CXX = "clang++";
+    RUSTC_WRAPPER = "sccache";
+    CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "clang";
+    CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-arg=-fuse-ld=mold";
+  };
 
   # Projekt-Tools im Root
-  packages = [
-      pkgs.python3Packages.pyperf
-      pkgs.prek
-      pkgs.xdg-utils
-      pkgs.flatpak
-      pkgs.flatpak-builder
-      pkgs.cargo-expand
-      pkgs.cargo-license
-      pkgs.cargo-about
-      pkgs.cargo-llvm-cov
-      pkgs.cargo-audit
-      pkgs.cargo-nextest
-      pkgs.cargo-deny
-      pkgs.cargo-cyclonedx
-      pkgs.cargo-edit
+  packages = with pkgs; [
+      prek
+      cargo-expand
+      cargo-license
+      cargo-about
+      cargo-llvm-cov
+      cargo-audit
+      cargo-nextest
+      cargo-deny
+      cargo-cyclonedx
+      cargo-edit
+      
+      pkg-config 
+      mold
+      clang 
+      sccache 
+      bacon 
+      cargo-nextest
     ];
     
   # Einfacher Start-Check
@@ -35,7 +46,6 @@
         prek install
       fi
       
-      echo "🐍 Python Dev | 🦀 Rust Dev | 🎨 GUI Support | 🛡️ prek Hooks"
-      echo "Status GSettings: $([ -f "$GSETTINGS_SCHEMA_DIR/gschemas.compiled" ] && echo "OK ✅" || echo "Fehler ❌")"
+      echo "🦀 Rust Dev | 🛡️ prek Hooks"
     '';
 }
