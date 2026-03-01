@@ -18,12 +18,9 @@ cargo test
 cargo run --example test_all_fields --release
 cargo run --example test_multilang --release
 
-# Criterion-Benchmarks (Statistik + HTML-Report)
+# Criterion-Benchmarks (Statistik + HTML-Report + README-Update)
 cargo bench
-# Report öffnen: target/criterion/report/index.html
-
-# Throughput-Benchmark + README-Update
-cargo run --example benchmark --release
+# HTML-Report: target/criterion/report/index.html
 
 # Für maximale Reproduzierbarkeit: System-Tuning vorher
 # sudo pyperf system tune && cargo bench && sudo pyperf system reset
@@ -87,7 +84,6 @@ examples/
 ├── test_multilang.rs          5 languages
 ├── test_multilang_grouped.rs  Row grouping / collapsed sections
 ├── test_workbook_protection.rs  3 protection levels
-├── benchmark.rs               Performance benchmark (single- vs multi-threaded)
 ├── profile.rs                 Phase-level profiling
 └── verify_password.rs         Password hash verification
 ```
@@ -104,38 +100,28 @@ let config = BodyConfig::new()
 
 ## Performance
 
-> **Methodology:** Throughput (files/sec) measured across multiple samples after warmup.
+> **Methodology:** Measured with [criterion.rs](https://github.com/bheisler/criterion.rs) (bootstrap CI, outlier detection).
 > CV = coefficient of variation (σ/μ) — lower means more stable results.
-> Run `cargo run --example benchmark --release` to reproduce on your hardware.
+> Run `cargo bench` to reproduce on your hardware.
+>
+> **Benchmark config:** Each report uses all API features: 5 table rows, 2×18 panel entries,
+> 50 cost positions (categories 1–5 with 10 each) + 3 header-input categories (6–8),
+> sheet protection, workbook protection (SHA-512, spin count 1,000 per batch),
+> hidden columns, hidden language sheet, row grouping, and all footer fields.
 
 <!-- PERF_START -->
 **Environment:** AMD Ryzen 5 Pro 7535U with Radeon Graphics · 6 cores (12 logical) · 30 GB RAM · Linux (NixOS 26.05)
 
 | Files | Threads | Mean | Std Dev | CV | Throughput |
-|-------|---------|------|---------|----|------------|
-|    100 |       1 |    344ms |    ±17ms |  5.1% |      291/sec |
-|    100 |       2 |    162ms |     ±3ms |  1.9% |      616/sec |
-|    100 |       4 |     89ms |     ±6ms |  6.7% |     1129/sec |
-|    100 |       8 |     70ms |     ±2ms |  2.7% |     1426/sec |
-|    100 |      16 |     66ms |     ±2ms |  2.8% |     1523/sec |
-|  1,000 |       1 |    3.41s |    ±73ms |  2.1% |      293/sec |
-|  1,000 |       2 |    1.66s |    ±14ms |  0.8% |      604/sec |
-|  1,000 |       4 |    961ms |    ±60ms |  6.3% |     1040/sec |
-|  1,000 |       8 |    716ms |    ±14ms |  2.0% |     1397/sec |
-|  1,000 |      16 |    678ms |    ±10ms |  1.5% |     1474/sec |
-| 10,000 |       2 |   17.81s |   ±796ms |  4.5% |      561/sec |
-| 10,000 |       4 |   10.31s |   ±117ms |  1.1% |      970/sec |
-| 10,000 |       8 |    7.50s |   ±117ms |  1.6% |     1334/sec |
-| 10,000 |      16 |    7.60s |   ±138ms |  1.8% |     1315/sec |
+|------:|--------:|-----:|--------:|---:|-----------:|
+|   100 |       1 |    377ms |      ±4ms |  1.0% |        265/sec |
+|   100 |       8 |     87ms |      ±1ms |  1.4% |       1154/sec |
+|   100 |      16 |     80ms |      ±2ms |  2.9% |       1246/sec |
+| 1,000 |       1 |    3.88s |     ±31ms |  0.8% |        258/sec |
+| 1,000 |       8 |    867ms |     ±38ms |  4.4% |       1153/sec |
+| 1,000 |      16 |    838ms |     ±37ms |  4.4% |       1193/sec |
 
-**With workbook protection (precomputed hash, 1,000 files, 8 threads):**
-
-| Spin Count | Mean | CV | Throughput |
-|------------|------|----|------------|
-|      1,000 |    925ms |  2.8% |     1081/sec |
-|      1,000 |    923ms |  0.9% |     1084/sec |
-
-*Last updated: 2026-03-14*
+*Last updated: 2026-03-01*
 <!-- PERF_END -->
 
 

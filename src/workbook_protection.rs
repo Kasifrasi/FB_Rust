@@ -258,7 +258,6 @@ fn hash_password(password: &str, spin_count: u32) -> (String, String) {
 /// Das Element muss VOR <bookViews> oder <sheets> eingefügt werden.
 fn inject_protection(xml_content: &[u8], salt: &str, hash: &str, spin_count: u32) -> Result<Vec<u8>> {
     let mut reader = Reader::from_reader(xml_content);
-    reader.trim_text(false);
 
     let mut writer = Writer::new(Cursor::new(Vec::new()));
     let mut buf = Vec::new();
@@ -347,7 +346,8 @@ fn inject_protection(xml_content: &[u8], salt: &str, hash: &str, spin_count: u32
 /// Hilfsfunktion zum Schreiben des XML-Tags
 fn write_protection_tag<W: std::io::Write>(writer: &mut Writer<W>, tag: &str) -> Result<()> {
     let mut temp_reader = Reader::from_str(tag);
-    temp_reader.trim_text(true);
+    temp_reader.config_mut().trim_text_start = true;
+    temp_reader.config_mut().trim_text_end = true;
     loop {
         match temp_reader.read_event() {
             Ok(Event::Eof) => break,

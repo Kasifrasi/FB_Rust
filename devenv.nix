@@ -9,6 +9,7 @@
 
   # Projekt-Tools im Root
   packages = [
+      pkgs.python3Packages.pyperf
       pkgs.prek
       pkgs.xdg-utils
       pkgs.flatpak
@@ -21,7 +22,7 @@
       pkgs.cargo-nextest
       pkgs.cargo-deny
       pkgs.cargo-cyclonedx
-      pkgs.python3Packages.pyperf   # System-Tuning für reproduzierbare Benchmarks
+      pkgs.cargo-edit
     ];
     
   # Einfacher Start-Check
