@@ -49,14 +49,6 @@
                 ./devenv.nix
               ];
             };
-  
-            testing = devenv.lib.mkShell {
-              inherit pkgs inputs;
-              modules = [
-                ({ ... }: { _module.args.self = self; })
-                ./nix/gui-test.nix
-              ];
-            };
           };
         });
 }
