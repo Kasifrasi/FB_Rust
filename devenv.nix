@@ -10,6 +10,11 @@
   env = {
     CC = "clang";
     CXX = "clang++";
+    # -fno-lto: NixOS clang wrapper injects -flto=thin into C compilations.
+    # This makes alloca (criterion dep) emit LLVM bitcode objects that mold
+    # cannot link without the LTO plugin. -fno-lto overrides that injection.
+    CFLAGS = "-fno-lto";
+    CXXFLAGS = "-fno-lto";
     RUSTC_WRAPPER = "sccache";
     CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "clang";
     CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-arg=-fuse-ld=mold";
