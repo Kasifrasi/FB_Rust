@@ -120,7 +120,7 @@ pub struct PositionEntry {
 ///     body_positions: [(1, 10), (2, 5)].into(),
 ///     ..ReportConfig::default()
 /// };
-/// config.write_to("output/report.xlsx").unwrap();
+/// config.write_to("examples/output/report.xlsx").unwrap();
 /// ```
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

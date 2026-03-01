@@ -159,7 +159,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..ReportConfig::default()
     };
 
-    let output_path = "output/test_all_fields.xlsx";
+    let output_path = "examples/output/test_all_fields.xlsx";
     config.write_to(output_path)?;
 
     println!("Finanzbericht erstellt: {}", output_path);

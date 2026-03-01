@@ -58,7 +58,7 @@ fn main() {
 
     // -----------------------------------------------------------------------
     // Test 1: Bekannter OnlyOffice-Hash
-    // Quelle: output/xl/workbook.xml (von OnlyOffice 9.1.0.173 gesperrt)
+    // Quelle: examples/output/xl/workbook.xml (von OnlyOffice 9.1.0.173 gesperrt)
     // Passwort: "thetool"
     // -----------------------------------------------------------------------
     verify_against_known(
@@ -84,7 +84,7 @@ fn main() {
     // -----------------------------------------------------------------------
     // Test 3: Rust-generierte Datei aus Filesystem (falls vorhanden)
     // -----------------------------------------------------------------------
-    let output_file = "output/gesperrt/LOCKED_bench_000.xlsx";
+    let output_file = "examples/output/gesperrt/LOCKED_bench_000.xlsx";
     println!("--- Test 3: Datei aus Filesystem ({}) ---", output_file);
 
     let result = std::process::Command::new("unzip")

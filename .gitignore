@@ -24,4 +24,4 @@ Thumbs.db
 # Test/example outputs
 *.xlsx
 /tmp/
-output/
+examples/output/
