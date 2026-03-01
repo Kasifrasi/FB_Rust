@@ -46,7 +46,7 @@ use derive_builder::Builder;
 
 use crate::report::api::{ApiKey, CellValue, ReportValues};
 use crate::report::body::BodyConfig;
-use crate::report::options::{RowGrouping, SheetOptions};
+use crate::report::options::{RowGrouping, SheetOptions, SheetProtection};
 use crate::report::writer::{create_protected_report, create_protected_report_precomputed};
 use crate::workbook_protection::WorkbookProtection;
 
@@ -287,9 +287,10 @@ pub struct ReportFooter {
 /// ```json
 /// {
 ///   "locked": true,
+///   "sheet_password": "sheet_secret",
 ///   "hide_columns_qv": true,
 ///   "hide_language_sheet": false,
-///   "workbook_password": "secret",
+///   "workbook_password": "wb_secret",
 ///   "row_grouping": {
 ///     "groups": [{ "start_row": 10, "end_row": 20, "collapsed": false }],
 ///     "symbols_above": false
@@ -303,6 +304,9 @@ pub struct ReportFooter {
 pub struct ReportOptions {
     /// Lock sheet (default protection for all cells except input fields)
     pub locked: bool,
+    /// Sheet protection password (`None` = no password, sheet still protected when `locked = true`)
+    #[builder(setter(into, strip_option))]
+    pub sheet_password: Option<String>,
     /// Hide helper columns Q-V
     pub hide_columns_qv: bool,
     /// Hide language sheet
@@ -383,7 +387,8 @@ pub struct ReportOptions {
 ///   "footer": { "bank": 8500.0, "kasse": 250.50 },
 ///   "options": {
 ///     "locked": true,
-///     "workbook_password": "secret",
+///     "sheet_password": "sheet_secret",
+///     "workbook_password": "wb_secret",
 ///     "hide_columns_qv": true,
 ///     "hide_language_sheet": true,
 ///     "row_grouping": {
@@ -597,7 +602,11 @@ impl ReportConfig {
 
     fn build_sheet_options(&self) -> SheetOptions {
         let mut opts = if self.options.locked {
-            SheetOptions::with_default_protection()
+            let mut prot = SheetProtection::from_defaults();
+            if let Some(ref pw) = self.options.sheet_password {
+                prot = prot.with_password(pw);
+            }
+            SheetOptions::new().with_protection(prot)
         } else {
             SheetOptions::new()
         };

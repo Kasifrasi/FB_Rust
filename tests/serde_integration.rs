@@ -79,6 +79,7 @@ fn test_report_config_full_roundtrip() {
         },
         options: ReportOptions {
             locked: true,
+            sheet_password: Some("blatt_pw".to_string()),
             workbook_password: Some("geheim".to_string()),
             hide_columns_qv: true,
             hide_language_sheet: true,
