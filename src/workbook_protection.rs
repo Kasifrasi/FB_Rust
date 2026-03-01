@@ -209,11 +209,12 @@ fn inject_protection(xml_content: &[u8], salt: &str, hash: &str, spin_count: u32
 fn write_protection_tag<W: std::io::Write>(writer: &mut Writer<W>, tag: &str) -> Result<()> {
     let mut temp_reader = Reader::from_str(tag);
     temp_reader.trim_text(true);
-    while let Ok(e) = temp_reader.read_event() {
-        if let Event::Eof = e {
-            break;
+    loop {
+        match temp_reader.read_event() {
+            Ok(Event::Eof) => break,
+            Ok(e) => writer.write_event(e)?,
+            Err(e) => return Err(e.into()),
         }
-        writer.write_event(e)?;
     }
     Ok(())
 }
