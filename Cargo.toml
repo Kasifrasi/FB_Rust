@@ -1,6 +1,6 @@
 [package]
 name = "fb-rust"
-version = "0.1.0"
+version = "0.5.0"
 edition = "2021"
 rust-version = "1.87"
 description = "High-performance Excel financial report generator (XLSX) with formulas, formatting, and workbook protection"
