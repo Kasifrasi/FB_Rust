@@ -1,5 +1,5 @@
 [package]
-name = "kmw-fb-rust"
+name = "fb-rust"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.87"
@@ -11,7 +11,7 @@ categories = ["finance", "template-engine"]
 
 [lib]
 crate-type = ["rlib"]
-name = "kmw_fb_rust"
+name = "fb_rust"
 
 [features]
 serde = ["dep:serde"]

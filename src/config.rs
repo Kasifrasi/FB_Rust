@@ -111,7 +111,7 @@ pub struct PositionEntry {
 /// ## Beispiel
 ///
 /// ```ignore
-/// use kmw_fb_rust::ReportConfig;
+/// use fb_rust::ReportConfig;
 ///
 /// let config = ReportConfig {
 ///     language: "deutsch".to_string(),
@@ -249,7 +249,7 @@ impl ReportConfig {
     /// `workbook_password` wird ignoriert — der übergebene Hash wird direkt verwendet.
     ///
     /// ```ignore
-    /// use kmw_fb_rust::{precompute_hash, ReportConfig};
+    /// use fb_rust::{precompute_hash, ReportConfig};
     ///
     /// let hash = precompute_hash("passwort");
     /// for config in &configs {

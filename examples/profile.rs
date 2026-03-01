@@ -2,11 +2,11 @@
 //!
 //! Usage: cargo run --example profile --release
 
-use kmw_fb_rust::lang::build_sheet as build_sprachversionen;
-use kmw_fb_rust::lang::{LANG_CONFIG, LANG_SUFFIXES};
-use kmw_fb_rust::report::writer::setup_sheet;
-use kmw_fb_rust::report::ApiKey;
-use kmw_fb_rust::{write_report_with_options, BodyConfig, ReportOptions, ReportValues};
+use fb_rust::lang::build_sheet as build_sprachversionen;
+use fb_rust::lang::{LANG_CONFIG, LANG_SUFFIXES};
+use fb_rust::report::writer::setup_sheet;
+use fb_rust::report::ApiKey;
+use fb_rust::{write_report_with_options, BodyConfig, ReportOptions, ReportValues};
 use rust_xlsxwriter::{Format, Workbook};
 use std::time::Instant;
 
@@ -186,7 +186,7 @@ fn main() {
         // Apply workbook protection (SHA-512 mit 100.000 Iterationen)
         let t = Instant::now();
         let final_file = temp_dir.join(format!("report_{:05}.xlsx", i));
-        kmw_fb_rust::workbook_protection::protect_workbook_with_spin_count(
+        fb_rust::workbook_protection::protect_workbook_with_spin_count(
             temp_file.to_str().unwrap(),
             final_file.to_str().unwrap(),
             "benchmark_password",
@@ -248,7 +248,7 @@ fn main() {
 
         let t = Instant::now();
         let final_file = temp_dir.join(format!("report_{:05}.xlsx", i));
-        kmw_fb_rust::workbook_protection::protect_workbook_with_spin_count(
+        fb_rust::workbook_protection::protect_workbook_with_spin_count(
             temp_file.to_str().unwrap(),
             final_file.to_str().unwrap(),
             "benchmark_password",
@@ -298,7 +298,7 @@ fn main() {
         // ZIP-Roundtrip mit minimalem Hashing (spin_count=1)
         let t = Instant::now();
         let final_file = temp_dir.join(format!("report_{:05}.xlsx", i));
-        kmw_fb_rust::workbook_protection::protect_workbook_with_spin_count(
+        fb_rust::workbook_protection::protect_workbook_with_spin_count(
             temp_file.to_str().unwrap(),
             final_file.to_str().unwrap(),
             "pw",
@@ -308,7 +308,7 @@ fn main() {
 
         // Reines SHA-512 Hashing (ohne ZIP) zum Vergleich
         let t = Instant::now();
-        kmw_fb_rust::workbook_protection::protect_workbook_with_spin_count(
+        fb_rust::workbook_protection::protect_workbook_with_spin_count(
             final_file.to_str().unwrap(),
             temp_file.to_str().unwrap(),
             "pw",

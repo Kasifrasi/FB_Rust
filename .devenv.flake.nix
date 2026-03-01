@@ -403,7 +403,7 @@
           config = project.config;
 
           options = pkgs.nixosOptionsDoc {
-            options = builtins.removeAttrs project.options [ "_module" ];
+            options = removeAttrs project.options [ "_module" ];
             warningsAreErrors = false;
             # Unpack Nix types, e.g. literalExpression, mDoc.
             transformOptions =

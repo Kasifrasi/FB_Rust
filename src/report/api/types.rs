@@ -18,7 +18,7 @@ use std::str::FromStr;
 ///
 /// # Beispiel
 /// ```ignore
-/// use kmw_fb_rust::report::types::Language;
+/// use fb_rust::report::types::Language;
 ///
 /// let lang = Language::Deutsch;
 /// assert_eq!(lang.as_str(), "deutsch");
@@ -108,7 +108,7 @@ impl FromStr for Language {
 ///
 /// # Beispiel
 /// ```ignore
-/// use kmw_fb_rust::report::types::Currency;
+/// use fb_rust::report::types::Currency;
 ///
 /// let eur = Currency::new("EUR").unwrap();
 /// let invalid = Currency::new("INVALID"); // None
@@ -192,7 +192,7 @@ impl Default for Currency {
 ///
 /// # Beispiel
 /// ```ignore
-/// use kmw_fb_rust::report::types::Category;
+/// use fb_rust::report::types::Category;
 ///
 /// let config = BodyConfig::new()
 ///     .with_positions(Category::Personal, 10)
@@ -302,7 +302,7 @@ impl fmt::Display for Category {
 ///
 /// # Beispiel
 /// ```ignore
-/// use kmw_fb_rust::report::types::ReportDate;
+/// use fb_rust::report::types::ReportDate;
 ///
 /// let date = ReportDate::new(2024, 1, 15).unwrap();
 /// assert_eq!(date.format_de(), "15.01.2024");

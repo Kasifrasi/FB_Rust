@@ -10,7 +10,7 @@
 //! - Audit: 0 Positionen (nur Header)
 //! - Reserve: 0 Positionen (nur Header)
 
-use kmw_fb_rust::{ReportConfig, RowGrouping};
+use fb_rust::{ReportConfig, RowGrouping};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let languages = ["deutsch", "english", "francais", "espanol", "portugues"];

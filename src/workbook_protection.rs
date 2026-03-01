@@ -106,7 +106,7 @@ const FAST_SPIN_COUNT: u32 = 1_000;
 ///
 /// # Example
 /// ```ignore
-/// use kmw_fb_rust::WorkbookProtection;
+/// use fb_rust::WorkbookProtection;
 ///
 /// // Standard (100.000 Iterationen, ~25ms pro Report)
 /// let protection = WorkbookProtection::new("secret123");

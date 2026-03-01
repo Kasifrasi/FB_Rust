@@ -1,4 +1,4 @@
-//! KMW-FB Rust - Financial Report Generator
+//! FB-Rust - Financial Report Generator
 //!
 //! High-performance Excel financial report generator with dynamic cost positions,
 //! formulas, formatting, and multi-language support.
@@ -6,7 +6,7 @@
 //! ## Usage
 //!
 //! ```ignore
-//! use kmw_fb_rust::ReportConfig;
+//! use fb_rust::ReportConfig;
 //!
 //! let config = ReportConfig {
 //!     language: "deutsch".into(),
@@ -20,7 +20,7 @@
 //! ### Batch mit vorberechnetem Hash
 //!
 //! ```ignore
-//! use kmw_fb_rust::{precompute_hash, ReportConfig};
+//! use fb_rust::{precompute_hash, ReportConfig};
 //!
 //! let hash = precompute_hash("passwort");
 //! for config in &configs {

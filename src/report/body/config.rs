@@ -65,7 +65,7 @@ impl BodyConfig {
     ///
     /// # Beispiel
     /// ```ignore
-    /// use kmw_fb_rust::report::types::Category;
+    /// use fb_rust::report::types::Category;
     ///
     /// let config = BodyConfig::new()
     ///     .with_cat_positions(Category::Personal, 10)

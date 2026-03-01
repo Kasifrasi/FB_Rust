@@ -9,7 +9,7 @@
 //!   cargo bench -- --baseline main
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use kmw_fb_rust::{
+use fb_rust::{
     precompute_hash_with_spin_count, PanelEntry, PositionEntry, ReportConfig, RowGrouping,
     TableEntry,
 };

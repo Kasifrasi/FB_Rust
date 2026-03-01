@@ -1,4 +1,4 @@
-# KMW-FB Rust - Financial Report Generator
+# FB-Rust - Financial Report Generator
 
 High-performance Excel financial report generator written in Rust.
 
@@ -34,7 +34,7 @@ cargo bench
 `ReportConfig` is the main entry point — it bundles all parameters in one serializable struct:
 
 ```rust
-use kmw_fb_rust::{ReportConfig, PositionEntry};
+use fb_rust::{ReportConfig, PositionEntry};
 
 let config = ReportConfig {
     language: "deutsch".to_string(),

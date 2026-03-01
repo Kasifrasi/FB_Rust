@@ -8,7 +8,7 @@
 //! - Alle Footer-Felder (Bank, Kasse, Sonstiges) gesetzt sind
 //! - Spalte E (Berichtsperiode) = Spalte F (Kumulativ) — wie im 1. Berichtszeitraum
 
-use kmw_fb_rust::{PanelEntry, PositionEntry, ReportConfig, TableEntry};
+use fb_rust::{PanelEntry, PositionEntry, ReportConfig, TableEntry};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Erstelle vollständigen Finanzbericht (E = F)...\n");

@@ -5,7 +5,7 @@
 //! Usage:
 //!   cargo run --example test_parallel_protection --release
 
-use kmw_fb_rust::{protect_workbook, ReportConfig};
+use fb_rust::{protect_workbook, ReportConfig};
 use rayon::prelude::*;
 use std::fs;
 use std::path::PathBuf;

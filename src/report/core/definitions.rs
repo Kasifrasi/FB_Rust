@@ -149,7 +149,7 @@ fn register_formula_cells(registry: &mut DynRegistry) -> Result<(), RegistryErro
     register_text_lookup(registry, CellAddr::new(7, 10), 59)?; // K8
 
     // ========================================================================
-    // Row 10: J11 (KMW Mittel), Q11, D11-H11 (Tabellenkopf)
+    // Row 10: J11 (Zuschuss-Mittel), Q11, D11-H11 (Tabellenkopf)
     // ========================================================================
 
     register_text_lookup(registry, CellAddr::new(10, 9), 19)?; // J11
@@ -191,7 +191,7 @@ fn register_formula_cells(registry: &mut DynRegistry) -> Result<(), RegistryErro
     register_text_lookup(registry, CellAddr::new(14, 1), 16)?; // B15: Saldovortrag
     register_text_lookup(registry, CellAddr::new(15, 1), 17)?; // B16: Lokale Eigenleistung
     register_text_lookup(registry, CellAddr::new(16, 1), 18)?; // B17: Beiträge dritter Seite
-    register_text_lookup(registry, CellAddr::new(17, 1), 19)?; // B18: KMW Mittel
+    register_text_lookup(registry, CellAddr::new(17, 1), 19)?; // B18: Zuschuss-Mittel
     register_text_lookup(registry, CellAddr::new(18, 1), 20)?; // B19: Zinserträge
 
     // ========================================================================

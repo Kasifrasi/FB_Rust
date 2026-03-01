@@ -218,7 +218,7 @@ impl ReportValues {
     ///
     /// # Beispiel
     /// ```ignore
-    /// use kmw_fb_rust::report::types::Language;
+    /// use fb_rust::report::types::Language;
     ///
     /// let values = ReportValues::new()
     ///     .with_lang(Language::English);
@@ -234,7 +234,7 @@ impl ReportValues {
     ///
     /// # Beispiel
     /// ```ignore
-    /// use kmw_fb_rust::report::types::Currency;
+    /// use fb_rust::report::types::Currency;
     ///
     /// let values = ReportValues::new()
     ///     .with_curr(Currency::eur());
@@ -407,7 +407,7 @@ impl ReportValues {
     ///
     /// # Beispiel
     /// ```ignore
-    /// use kmw_fb_rust::report::types::Category;
+    /// use fb_rust::report::types::Category;
     ///
     /// values.set_cat_position(Category::Personal, 1, PositionField::Approved, 5000.0);
     /// ```
@@ -425,7 +425,7 @@ impl ReportValues {
     ///
     /// # Beispiel
     /// ```ignore
-    /// use kmw_fb_rust::report::types::Category;
+    /// use fb_rust::report::types::Category;
     ///
     /// values.set_cat_position_row(
     ///     Category::Personal, 1,
@@ -458,7 +458,7 @@ impl ReportValues {
     ///
     /// # Beispiel
     /// ```ignore
-    /// use kmw_fb_rust::report::types::Category;
+    /// use fb_rust::report::types::Category;
     ///
     /// values.set_cat_header_input(
     ///     Category::Projektverwaltung,

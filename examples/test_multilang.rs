@@ -7,7 +7,7 @@
 //! - Spanisch (S_Informe_financiero.xlsx)
 //! - Portugiesisch (P_Relatorio_financeiro.xlsx)
 
-use kmw_fb_rust::{PositionEntry, ReportConfig, TableEntry};
+use fb_rust::{PositionEntry, ReportConfig, TableEntry};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Erstelle mehrsprachige Finanzberichte...\n");

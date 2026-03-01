@@ -7,8 +7,8 @@
 //! ## Usage
 //!
 //! ```ignore
-//! use kmw_fb_rust::report::protection::{SheetProtection, ValidationRule, FieldValidation};
-//! use kmw_fb_rust::report::api::ApiKey;
+//! use fb_rust::report::protection::{SheetProtection, ValidationRule, FieldValidation};
+//! use fb_rust::report::api::ApiKey;
 //!
 //! // Protection with custom options
 //! let protection = SheetProtection::new()
@@ -108,7 +108,7 @@ impl SheetProtection {
         Self::default()
     }
 
-    /// Creates protection with KMW default settings
+    /// Creates protection with recommended default settings
     pub fn from_defaults() -> Self {
         Self {
             password: None,
@@ -1028,7 +1028,7 @@ mod tests {
     #[test]
     fn test_sheet_protection_from_defaults() {
         let prot = SheetProtection::from_defaults();
-        // Check that it uses KMW default settings
+        // Check that it uses recommended default settings
         assert!(prot.format_cells); // allow_formatting_cells = true in defaults
         assert!(prot.sort); // allow_sorting = true
         assert!(!prot.insert_columns); // allow_inserting_columns = false

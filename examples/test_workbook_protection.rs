@@ -2,7 +2,7 @@
 //!
 //! Demonstriert die `ReportConfig` API mit verschiedenen Schutz-Stufen
 
-use kmw_fb_rust::ReportConfig;
+use fb_rust::ReportConfig;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing Workbook-Protection Integration...\n");
