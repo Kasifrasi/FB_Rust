@@ -108,6 +108,7 @@ config.write_to("report.xlsx")?;
 ```
 
 > See [`examples/test_all_fields.rs`](examples/test_all_fields.rs) for a complete reference with all fields populated.
+
 > See [`examples/test_mixed_categories.rs`](examples/test_mixed_categories.rs) for mixed category modes (header-input vs. multi-row for categories 6–8).
 
 ## Project Structure
