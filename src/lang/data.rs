@@ -1,9 +1,7 @@
-//! Statische Sprachdaten: Textmatrix und Währungen
+//! Static language data: text matrix and currencies.
 //!
-//! Enthält:
-//! - [`TEXT_MATRIX`]: 66 UI-Begriffe × 5 Sprachen (Deutsch, Englisch, Französisch, Spanisch,
-//!   Portugiesisch)
-//! - [`Currency`]: ISO-4217-Enum mit allen 153 unterstützten Währungscodes
+//! - [`TEXT_MATRIX`]: 66 UI terms x 5 languages (German, English, French, Spanish, Portuguese)
+//! - [`Currency`]: ISO 4217 enum with all 153 supported currency codes
 
 use std::fmt;
 use std::str::FromStr;

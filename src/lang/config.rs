@@ -1,25 +1,25 @@
-//! Sprachkonfiguration für alle unterstützten Sprachen
+//! Language configuration for all supported languages.
 //!
-//! Definiert [`LanguageConfig`] mit den sprachspezifischen Sheet-Namen und
-//! Fehlermeldungen sowie die statische Map [`LANG_CONFIG`].
+//! Defines [`LanguageConfig`] with per-language sheet names and
+//! error messages, plus the static map [`LANG_CONFIG`].
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-/// Sprachspezifische Konfiguration für Sheet-Namen und Fehlermeldungen
+/// Per-language configuration for sheet names and error messages.
 #[derive(Debug, Clone)]
 pub struct LanguageConfig {
-    /// Basisname für generierte Dateinamen (z.B. `"D_Finanzbericht"`)
+    /// Base name for generated file names (e.g. `"D_Finanzbericht"`)
     pub base: &'static str,
-    /// Sprachcode wie er in TEXT_MATRIX steht (z.B. `"deutsch"`)
+    /// Language code as used in TEXT_MATRIX (e.g. `"deutsch"`)
     pub lang_val: &'static str,
-    /// Lokalisierter Sheet-Name (z.B. `"Finanzbericht"`)
+    /// Localized sheet name (e.g. `"Finanzbericht"`)
     pub fb_sheet: &'static str,
-    /// Fehlermeldung für Dezimalstellen-Validierung in der jeweiligen Sprache
+    /// Decimal-place validation error message in the respective language
     pub decimal_err: &'static str,
 }
 
-/// Sprachkonfiguration, indiziert nach deutschem Sprachnamen (z.B. `"Deutsch"`, `"Englisch"`)
+/// Language configuration, keyed by German language name (e.g. `"Deutsch"`, `"Englisch"`).
 pub static LANG_CONFIG: LazyLock<HashMap<&'static str, LanguageConfig>> = LazyLock::new(|| {
     HashMap::from([
         (

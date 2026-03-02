@@ -2,20 +2,16 @@ use super::data::TEXT_MATRIX;
 use crate::report::api::Currency;
 use rust_xlsxwriter::{Format, Workbook, XlsxError};
 
-/// Erstellt das Sprachversionen-Sheet (sichtbar)
+/// Builds the "Sprachversionen" language sheet (visible).
 pub fn build_sheet(workbook: &mut Workbook) -> Result<(), XlsxError> {
     build_sheet_with_visibility(workbook, false)
 }
 
-/// Erstellt das Sprachversionen-Sheet mit optionaler Ausblendung
-///
-/// # Arguments
-/// * `workbook` - Das Workbook
-/// * `hidden` - Wenn true, wird das Sheet ausgeblendet
+/// Builds the "Sprachversionen" language sheet with optional visibility control.
 pub fn build_sheet_with_visibility(workbook: &mut Workbook, hidden: bool) -> Result<(), XlsxError> {
     let ws = workbook.add_worksheet().set_name("Sprachversionen")?;
 
-    // Sheet ausblenden wenn gewünscht
+    // Hide sheet if requested
     if hidden {
         ws.set_hidden(true);
     }

@@ -1,8 +1,8 @@
-//! Language Module - Sprachversionen und Übersetzungen
+//! Language sheet generation.
 //!
-//! Enthält:
-//! - data: TEXT_MATRIX
-//! - builder: Sheet-Builder für Sprachversionen
+//! - [`data`]: [`TEXT_MATRIX`] — 66 UI terms x 5 languages + [`Currency`](crate::Currency) enum
+//! - [`config`]: [`LanguageConfig`] + [`LANG_CONFIG`] — per-language sheet names and messages
+//! - [`builder`]: [`build_sheet`] / [`build_sheet_with_visibility`] — writes the "Sprachversionen" sheet
 
 pub mod builder;
 pub mod config;
