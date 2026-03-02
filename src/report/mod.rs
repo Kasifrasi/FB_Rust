@@ -3,10 +3,10 @@
 //! ## Module Structure
 //!
 //! - [`api`]: Public API types (ApiKey, Language, Currency, ReportValues, etc.)
-//! - [`core`]: Core types ([`CellAddr`])
-//! - [`calc`]: IronCalc formula engine ([`calc::ModelTemplate`], [`calc::CalcBridge`])
+//! - [`core`]: Core types (`CellAddr`)
+//! - `calc`: IronCalc formula engine (`ModelTemplate`, `CalcBridge`)
 //! - [`options`]: Sheet-level options (SheetOptions, SheetProtection, Validation, etc.)
-//! - [`styles`]: Internal styles and format matrix (ReportStyles, FormatMatrix)
+//! - `styles`: Internal styles and format matrix (`ReportStyles`, `FormatMatrix`)
 //! - [`writer`]: Excel writer (write_report_with_options, create_protected_report)
 //! - [`body`]: Dynamic cost position sections (BodyConfig, BodyLayout, FooterLayout)
 

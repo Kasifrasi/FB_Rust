@@ -1,8 +1,8 @@
 //! Excel writer for the financial report
 //!
-//! - [`engine`]: main write functions (`write_report_with_options`, `create_protected_report`)
-//! - [`layout`]: sheet setup (column widths, row heights, freeze panes)
-//! - [`structure`]: report structure (merges, blanks, static strings, validations)
+//! - `engine`: main write functions ([`write_report_with_options`], `create_protected_report`)
+//! - `layout`: sheet setup (column widths, row heights, freeze panes)
+//! - `structure`: report structure (merges, blanks, static strings, validations)
 
 mod engine;
 mod layout;

@@ -10,52 +10,52 @@
 //! 2. Range cell:  `NewField => (start_row, col, count),` in the `range` block
 //!    Done — everything else is generated automatically.
 //!
-//! ## Dynamische Positionen (Kostenkategorien)
+//! ## Dynamic positions (cost categories)
 //!
-//! Für Kostenpositionen wird `ApiKey::Position` verwendet:
+//! Cost positions use `ApiKey::Position`:
 //!
-//! - **position = 0**: Header-Eingabe-Modus
-//!   - Nur bei Kategorien mit 0 Positionen in BodyConfig
-//!   - Eingabe direkt in der Header-Zeile (D, E, F, H)
-//!   - Description nicht verfügbar (C ist VLOOKUP-Label)
+//! - **position = 0**: Header-input mode
+//!   - Only for categories with 0 positions in BodyConfig
+//!   - Input directly in the header row (D, E, F, H)
+//!   - Description not available (C is the VLOOKUP label)
 //!
-//! - **position = 1..N**: Positions-Modus
-//!   - Bei Kategorien mit 1+ Positionen in BodyConfig
-//!   - Eingabe in separaten Positions-Zeilen
-//!   - Alle Felder verfügbar (C, D, E, F, H)
+//! - **position = 1..N**: Position mode
+//!   - For categories with 1+ positions in BodyConfig
+//!   - Input in separate position rows
+//!   - All fields available (C, D, E, F, H)
 
 use crate::report::core::CellAddr;
 
 // =============================================================================
-// PositionField - Felder einer Kostenposition
+// PositionField — fields of a cost position
 // =============================================================================
 
-/// Felder einer Kostenposition im Body-Bereich
+/// Fields of a cost position in the body area.
 ///
-/// Jede Position hat 5 Eingabefelder in den Spalten C, D, E, F, H.
-/// (G ist die Ratio-Formel und wird nicht als API-Feld behandelt)
+/// Each position has 5 input fields in columns C, D, E, F, H.
+/// (G is the ratio formula and is not exposed as an API field.)
 ///
-/// ## Hinweis zu Header-Eingabe-Modus (position=0)
+/// ## Header-input mode (position=0)
 ///
-/// Bei Header-Eingabe (position=0) ist `Description` NICHT verfügbar,
-/// da Spalte C das VLOOKUP-Label enthält. `BodyLayout::position_addr()`
-/// gibt `None` zurück für `Description` bei position=0.
+/// In header-input mode (position=0), `Description` is NOT available
+/// because column C contains the VLOOKUP label. `BodyLayout::position_addr()`
+/// returns `None` for `Description` when position=0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PositionField {
-    /// Beschreibung (Spalte C) - NUR bei position >= 1!
+    /// Description (column C) — only available when position >= 1!
     Description,
-    /// Bewilligtes Budget (Spalte D)
+    /// Approved budget (column D)
     Approved,
-    /// Einnahmen Berichtszeitraum (Spalte E)
+    /// Income report period (column E)
     IncomeReport,
-    /// Einnahmen gesamt (Spalte F)
+    /// Income total (column F)
     IncomeTotal,
-    /// Begründung/Bemerkung (Spalte H)
+    /// Reason / remark (column H)
     Remark,
 }
 
 impl PositionField {
-    /// Gibt die Spaltennummer zurück (0-basiert)
+    /// Returns the column number (0-based).
     pub const fn col(&self) -> u16 {
         match self {
             Self::Description => 2,  // C
@@ -66,7 +66,7 @@ impl PositionField {
         }
     }
 
-    /// Gibt alle 5 PositionFields als Array zurück
+    /// Returns all 5 PositionFields as an array.
     pub const fn all() -> [PositionField; 5] {
         [
             Self::Description,
@@ -77,9 +77,9 @@ impl PositionField {
         ]
     }
 
-    /// Gibt alle PositionFields zurück, die bei Header-Eingabe (position=0) verfügbar sind
+    /// Returns all PositionFields available in header-input mode (position=0).
     ///
-    /// Bei Header-Eingabe ist `Description` nicht verfügbar (C ist das VLOOKUP-Label).
+    /// `Description` is not available in header-input mode (C is the VLOOKUP label).
     pub const fn header_input_fields() -> [PositionField; 4] {
         [
             Self::Approved,
@@ -89,18 +89,18 @@ impl PositionField {
         ]
     }
 
-    /// Prüft, ob dieses Feld bei Header-Eingabe (position=0) verfügbar ist
+    /// Returns whether this field is available in header-input mode (position=0).
     pub const fn available_at_header_input(&self) -> bool {
         !matches!(self, Self::Description)
     }
 }
 
-/// Macro zur Definition aller API-Zellen
+/// Macro for defining all API cells.
 ///
-/// Generiert:
+/// Generates:
 /// - `ApiKey` enum
-/// - `ApiKey::addr()` Methode
-/// - `ApiKey::all_keys()` Iterator
+/// - `ApiKey::static_addr()` method
+/// - `ApiKey::all_static_keys()` iterator
 macro_rules! define_api_cells {
     (
         single {
@@ -110,71 +110,71 @@ macro_rules! define_api_cells {
             $( $range_name:ident => ($range_start_row:expr, $range_col:expr, $range_count:expr) ),* $(,)?
         }
     ) => {
-        /// Schlüssel für API-Werte
+        /// Key for API values.
         ///
-        /// Jede Variante entspricht genau einer Eingabezelle im Finanzbericht.
-        /// Die Adressen sind 0-basiert (row, col).
+        /// Each variant corresponds to exactly one input cell in the financial report.
+        /// Addresses are 0-based (row, col).
         ///
-        /// **Statische Keys** (single/range): Adresse zur Compile-Zeit bekannt.
-        /// **Dynamische Keys** (Position): Adresse zur Laufzeit basierend auf BodyLayout.
+        /// **Static keys** (single/range): address known at compile time.
+        /// **Dynamic keys** (Position, Footer): address computed at runtime from BodyLayout/FooterLayout.
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         pub enum ApiKey {
-            // Einzelzellen (statisch)
+            // Single cells (static)
             $( $single_name, )*
-            // Bereichszellen mit Index (statisch)
+            // Range cells with index (static)
             $( $range_name(u8), )*
-            /// Dynamische Kostenposition
+            /// Dynamic cost position.
             ///
-            /// Die Adresse wird zur Laufzeit basierend auf `BodyLayout` berechnet.
+            /// Address computed at runtime from `BodyLayout`.
             ///
-            /// ## Position-Werte
+            /// ## Position values
             ///
-            /// - `position = 0`: Header-Eingabe-Modus
-            ///   - Nur bei Kategorien mit 0 Positionen in BodyConfig
-            ///   - `Description` nicht verfügbar!
+            /// - `position = 0`: Header-input mode
+            ///   - Only for categories with 0 positions in BodyConfig
+            ///   - `Description` not available!
             ///
-            /// - `position = 1..N`: Normale Position
-            ///   - Bei Kategorien mit 1+ Positionen in BodyConfig
-            ///   - Alle Felder verfügbar
+            /// - `position = 1..N`: Normal position
+            ///   - For categories with 1+ positions in BodyConfig
+            ///   - All fields available
             Position {
-                /// Kategorie-Nummer (1-8)
+                /// Category number (1-8)
                 category: u8,
-                /// Position: 0 = Header-Eingabe, 1..N = Positions-Zeile
+                /// Position: 0 = header-input, 1..N = position row
                 position: u16,
-                /// Welches Feld der Position
+                /// Which field of the position
                 field: PositionField,
             },
-            /// Footer-Eingabefelder (Bank, Kasse, Sonstiges)
+            /// Footer input fields (Bank, Kasse, Sonstiges).
             ///
-            /// Die Adresse wird zur Laufzeit basierend auf `FooterLayout` berechnet.
+            /// Address computed at runtime from `FooterLayout`.
             Footer(FooterField),
         }
 
         impl ApiKey {
-            /// Gibt die Zelladresse für statische Keys zurück (0-basiert)
+            /// Returns the cell address for static keys (0-based).
             ///
-            /// Für dynamische Keys (`Position`, `Footer`) wird `None` zurückgegeben -
-            /// diese benötigen ein `BodyLayout`/`FooterLayout` zur Adressberechnung.
+            /// Returns `None` for dynamic keys (`Position`, `Footer`) —
+            /// these require a `BodyLayout`/`FooterLayout` for address resolution.
             pub const fn static_addr(&self) -> Option<CellAddr> {
                 match self {
-                    // Einzelzellen
+                    // Single cells
                     $( Self::$single_name => Some(CellAddr::new($single_row, $single_col)), )*
-                    // Bereichszellen
+                    // Range cells
                     $( Self::$range_name(i) => Some(CellAddr::new($range_start_row + *i as u32, $range_col)), )*
-                    // Dynamische Keys haben keine feste Adresse
+                    // Dynamic keys have no fixed address
                     Self::Position { .. } => None,
                     Self::Footer(_) => None,
                 }
             }
 
-            /// Prüft, ob dieser Key eine zur Laufzeit berechnete Adresse hat
+            /// Returns whether this key has a runtime-computed address.
             pub const fn is_dynamic(&self) -> bool {
                 matches!(self, Self::Position { .. } | Self::Footer(_))
             }
 
-            /// Gibt alle statischen API-Keys als Iterator zurück
+            /// Returns all static API keys as an iterator.
             ///
-            /// `Position`- und `Footer`-Keys sind nicht enthalten, da diese dynamisch sind.
+            /// `Position` and `Footer` keys are not included as they are dynamic.
             pub fn all_static_keys() -> impl Iterator<Item = ApiKey> {
                 let singles = [
                     $( Self::$single_name, )*
@@ -189,11 +189,11 @@ macro_rules! define_api_cells {
                 singles.chain(ranges)
             }
 
-            /// Anzahl aller statischen API-Zellen
+            /// Total number of static API cells.
             pub const fn static_count() -> usize {
-                // Einzelzellen zählen
+                // Count single cells
                 let singles = [$( stringify!($single_name), )*].len();
-                // Bereichszellen summieren
+                // Sum range cells
                 let ranges = 0 $( + $range_count )*;
                 singles + ranges
             }
@@ -204,73 +204,72 @@ macro_rules! define_api_cells {
 }
 
 // =============================================================================
-// API-Zellen Definition - EINZIGE QUELLE DER WAHRHEIT
+// API cell definitions — single source of truth
 // =============================================================================
 //
-// Um eine neue Zelle hinzuzufügen:
-// - Einzelzelle: Name => (row, col),
-// - Bereichszelle: Name => (start_row, col, count),
+// To add a new cell:
+// - Single cell: Name => (row, col),
+// - Range cell:  Name => (start_row, col, count),
 //
-// row/col sind 0-basiert! E2 = (1, 4), D15 = (14, 3), L14 = (13, 11)
+// row/col are 0-based! E2 = (1, 4), D15 = (14, 3), L14 = (13, 11)
 
 define_api_cells! {
     single {
-        // Header-Bereich
-        Language => (1, 4),        // E2: Sprachauswahl
-        Currency => (2, 4),        // E3: Währungsauswahl
-        ProjectNumber => (4, 3),   // D5: Projektnummer
-        ProjectTitle => (5, 3),    // D6: Projekttitel
-        ProjectStart => (7, 4),    // E8: Projektstart
-        ProjectEnd => (7, 6),      // G8: Projektende
-        ReportStart => (8, 4),     // E9: Berichtszeitraum Start
-        ReportEnd => (8, 6),       // G9: Berichtszeitraum Ende
+        // Header area
+        Language => (1, 4),        // E2: language selection
+        Currency => (2, 4),        // E3: currency selection
+        ProjectNumber => (4, 3),   // D5: project number
+        ProjectTitle => (5, 3),    // D6: project title
+        ProjectStart => (7, 4),    // E8: project start
+        ProjectEnd => (7, 6),      // G8: project end
+        ReportStart => (8, 4),     // E9: report period start
+        ReportEnd => (8, 6),       // G9: report period end
     }
     range {
-        // Tabelle: Zeilen 15-19 (Index 0-4)
-        ApprovedBudget => (14, 3, 5),      // D15-D19: Bewilligtes Budget
-        IncomeReportPeriod => (14, 4, 5),  // E15-E19: Einnahmen Berichtszeitraum
-        IncomeTotal => (14, 5, 5),         // F15-F19: Einnahmen gesamt
-        IncomeReason => (14, 7, 5),        // H15-H19: Begründung
+        // Table: rows 15-19 (index 0-4)
+        ApprovedBudget => (14, 3, 5),      // D15-D19: approved budget
+        IncomeReportPeriod => (14, 4, 5),  // E15-E19: income report period
+        IncomeTotal => (14, 5, 5),         // F15-F19: income total
+        IncomeReason => (14, 7, 5),        // H15-H19: reason
 
-        // Right Panel Links: Zeilen 14-31 (Index 0-17)
-        LeftDate => (13, 11, 18),          // L14-L31: Datum
-        LeftAmountEuro => (13, 12, 18),    // M14-M31: Betrag Euro
-        LeftAmountLocal => (13, 13, 18),   // N14-N31: Betrag Lokal
+        // Left panel: rows 14-31 (index 0-17)
+        LeftDate => (13, 11, 18),          // L14-L31: date
+        LeftAmountEuro => (13, 12, 18),    // M14-M31: amount Euro
+        LeftAmountLocal => (13, 13, 18),   // N14-N31: amount local
 
-        // Right Panel Rechts: Zeilen 14-31 (Index 0-17)
-        RightDate => (13, 18, 18),         // S14-S31: Datum
-        RightAmountEuro => (13, 19, 18),   // T14-T31: Betrag Euro
-        RightAmountLocal => (13, 20, 18),  // U14-U31: Betrag Lokal
+        // Right panel: rows 14-31 (index 0-17)
+        RightDate => (13, 18, 18),         // S14-S31: date
+        RightAmountEuro => (13, 19, 18),   // T14-T31: amount Euro
+        RightAmountLocal => (13, 20, 18),  // U14-U31: amount local
     }
 }
 
 // =============================================================================
-// Footer API-Keys (dynamische Adressen, abhängig von Body-Layout)
+// Footer API keys (dynamic addresses, depend on body layout)
 // =============================================================================
 
-/// Footer-Eingabefeld im Saldenabstimmungs-Bereich
+/// Footer input field in the balance reconciliation area.
 ///
-/// Diese Felder befinden sich im Footer nach dem dynamischen Body-Bereich.
-/// Die genauen Zeilenpositionen werden zur Laufzeit basierend auf dem
-/// `FooterLayout` berechnet.
+/// These fields are located in the footer after the dynamic body area.
+/// Exact row positions are computed at runtime from `FooterLayout`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FooterField {
-    /// Bank-Saldo (E-Spalte, Footer Zeile 7)
+    /// Bank balance (column E, footer row 7)
     Bank,
-    /// Kassen-Saldo (E-Spalte, Footer Zeile 8)
+    /// Cash balance (column E, footer row 8)
     Kasse,
-    /// Sonstige Salden (E-Spalte, Footer Zeile 9)
-    /// (noch nicht eingelöste Schecks, Vorschüsse, Darlehen, etc.)
+    /// Other balances (column E, footer row 9)
+    /// (uncashed checks, advances, loans, etc.)
     Sonstiges,
 }
 
 impl FooterField {
-    /// Gibt alle 3 FooterFields als Array zurück
+    /// Returns all 3 FooterFields as an array.
     pub const fn all() -> [FooterField; 3] {
         [Self::Bank, Self::Kasse, Self::Sonstiges]
     }
 
-    /// Gibt den 0-basierten Index im `input_rows`-Array des FooterLayouts zurück
+    /// Returns the 0-based index in the `input_rows` array of FooterLayout.
     pub const fn index(&self) -> usize {
         match self {
             Self::Bank => 0,
@@ -279,9 +278,9 @@ impl FooterField {
         }
     }
 
-    /// Gibt die Spaltennummer zurück (immer Spalte E = Index 4)
+    /// Returns the column number (always column E = index 4).
     pub const fn col(&self) -> u16 {
-        4 // E-Spalte
+        4 // column E
     }
 }
 
@@ -320,7 +319,7 @@ mod tests {
     #[test]
     fn test_all_keys_count() {
         let count = ApiKey::all_static_keys().count();
-        // 8 Einzelzellen + 4*5 Table + 6*18 Right Panel = 8 + 20 + 108 = 136
+        // 8 single cells + 4*5 table + 6*18 panel = 8 + 20 + 108 = 136
         assert_eq!(count, 136);
         assert_eq!(ApiKey::static_count(), 136);
     }
@@ -329,11 +328,11 @@ mod tests {
     fn test_all_keys_iteration() {
         let keys: Vec<_> = ApiKey::all_static_keys().collect();
 
-        // Erste 8 sind Einzelzellen
+        // First 8 are single cells
         assert_eq!(keys[0], ApiKey::Language);
         assert_eq!(keys[7], ApiKey::ReportEnd);
 
-        // Dann kommen die Bereichszellen
+        // Then come the range cells
         assert_eq!(keys[8], ApiKey::ApprovedBudget(0));
         assert_eq!(keys[12], ApiKey::ApprovedBudget(4));
     }
@@ -348,11 +347,11 @@ mod tests {
             field: Description,
         };
 
-        // Position-Keys sind dynamisch
+        // Position keys are dynamic
         assert!(key.is_dynamic());
         assert_eq!(key.static_addr(), None);
 
-        // Statische Keys sind nicht dynamisch
+        // Static keys are not dynamic
         assert!(!ApiKey::Language.is_dynamic());
         assert!(ApiKey::Language.static_addr().is_some());
     }
@@ -367,10 +366,10 @@ mod tests {
         assert_eq!(IncomeTotal.col(), 5); // F
         assert_eq!(Remark.col(), 7); // H
 
-        // all() gibt alle 5 Felder zurück
+        // all() returns all 5 fields
         assert_eq!(PositionField::all().len(), 5);
 
-        // header_input_fields() gibt 4 Felder zurück (ohne Description)
+        // header_input_fields() returns 4 fields (without Description)
         assert_eq!(PositionField::header_input_fields().len(), 4);
     }
 
@@ -378,10 +377,10 @@ mod tests {
     fn test_position_field_availability() {
         use PositionField::*;
 
-        // Description nicht bei Header-Eingabe verfügbar
+        // Description not available in header-input mode
         assert!(!Description.available_at_header_input());
 
-        // Alle anderen sind verfügbar
+        // All others are available
         assert!(Approved.available_at_header_input());
         assert!(IncomeReport.available_at_header_input());
         assert!(IncomeTotal.available_at_header_input());
@@ -392,7 +391,7 @@ mod tests {
     fn test_header_input_position() {
         use PositionField::*;
 
-        // Header-Eingabe: position=0
+        // Header-input: position=0
         let key = ApiKey::Position {
             category: 6,
             position: 0,
@@ -401,7 +400,7 @@ mod tests {
 
         assert!(key.is_dynamic());
 
-        // Normale Position: position=1
+        // Normal position: position=1
         let key = ApiKey::Position {
             category: 1,
             position: 1,

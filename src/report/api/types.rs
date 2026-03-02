@@ -8,7 +8,7 @@ use std::fmt;
 use std::str::FromStr;
 
 // ============================================================================
-// Language - Typsichere Sprachauswahl
+// Language — type-safe language selection
 // ============================================================================
 
 /// Supported languages for the financial report.
@@ -58,7 +58,7 @@ pub enum Language {
 }
 
 impl Language {
-    /// Gibt den String-Wert zurück, wie er in TEXT_MATRIX verwendet wird
+    /// Returns the string value as used in `TEXT_MATRIX`
     pub fn as_str(&self) -> &'static str {
         match self {
             Language::Deutsch => "deutsch",
@@ -69,7 +69,7 @@ impl Language {
         }
     }
 
-    /// Alle verfügbaren Sprachen
+    /// Returns all available languages
     pub fn all() -> &'static [Language] {
         &[
             Language::Deutsch,
@@ -80,7 +80,7 @@ impl Language {
         ]
     }
 
-    /// Validiert, dass die Sprache in TEXT_MATRIX existiert
+    /// Validates that the language exists in `TEXT_MATRIX`
     pub fn validate(&self) -> bool {
         let lang_str = self.as_str();
         TEXT_MATRIX
@@ -115,13 +115,13 @@ impl FromStr for Language {
 }
 
 // ============================================================================
-// Currency - ISO 4217 Enum (defined in lang::data, re-exported here)
+// Currency — ISO 4217 enum (defined in `lang::data`, re-exported here)
 // ============================================================================
 
 pub use crate::lang::data::Currency;
 
 // ============================================================================
-// Category - Kostenkategorien
+// Category — cost categories
 // ============================================================================
 
 /// Cost categories of the financial report.
@@ -159,33 +159,33 @@ pub use crate::lang::data::Currency;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Category {
-    /// Kategorie 1: Bauausgaben
+    /// Category 1: Building Expenses
     Bauausgaben = 1,
-    /// Kategorie 2: Investitionen
+    /// Category 2: Non-Recurring Expenses (Investments)
     Investitionen = 2,
-    /// Kategorie 3: Personalausgaben
+    /// Category 3: Personnel Expenses
     Personalausgaben = 3,
-    /// Kategorie 4: Projektaktivitäten
+    /// Category 4: Ongoing Expenses for Project Activities
     Projektaktivitaeten = 4,
-    /// Kategorie 5: Projektverwaltung
+    /// Category 5: Project Administration
     Projektverwaltung = 5,
-    /// Kategorie 6: Evaluierung
+    /// Category 6: Evaluation
     Evaluierung = 6,
-    /// Kategorie 7: Audit
+    /// Category 7: Audit
     Audit = 7,
-    /// Kategorie 8: Reserve
+    /// Category 8: Reserve
     Reserve = 8,
 }
 
 impl Category {
-    /// Gibt den numerischen Index zurück (1-8)
+    /// Returns the numeric index (1–8)
     pub fn index(&self) -> u8 {
         *self as u8
     }
 
-    /// Erstellt eine Kategorie aus einem Index
+    /// Creates a category from a numeric index.
     ///
-    /// Gibt `None` zurück wenn der Index nicht 1-8 ist.
+    /// Returns `None` if the index is not 1–8.
     pub fn from_index(idx: u8) -> Option<Self> {
         match idx {
             1 => Some(Category::Bauausgaben),
@@ -200,7 +200,7 @@ impl Category {
         }
     }
 
-    /// Alle Kategorien
+    /// Returns all 8 categories
     pub fn all() -> &'static [Category] {
         &[
             Category::Bauausgaben,
@@ -250,7 +250,7 @@ impl fmt::Display for Category {
 }
 
 // ============================================================================
-// ReportDate - Validiertes Datum
+// ReportDate — validated date
 // ============================================================================
 
 /// Validated date for financial reports.
@@ -297,25 +297,25 @@ pub struct ReportDate {
 /// Returned by [`ReportDate::new`] and [`ReportDate::parse`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DateError {
-    /// Ungültiger Monat (muss 1-12 sein)
+    /// Invalid month (must be 1–12)
     InvalidMonth(u8),
-    /// Ungültiger Tag für den gegebenen Monat
+    /// Invalid day for the given month
     InvalidDay { day: u8, month: u8, year: u16 },
-    /// Ungültiges Jahr
+    /// Invalid year (must be 1900–2100)
     InvalidYear(u16),
-    /// Ungültiges Format beim Parsen
+    /// Unparseable date string
     ParseError(String),
 }
 
 impl fmt::Display for DateError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DateError::InvalidMonth(m) => write!(f, "Ungültiger Monat: {} (muss 1-12 sein)", m),
+            DateError::InvalidMonth(m) => write!(f, "invalid month: {} (must be 1-12)", m),
             DateError::InvalidDay { day, month, year } => {
-                write!(f, "Ungültiger Tag: {}.{}.{}", day, month, year)
+                write!(f, "invalid day: {}.{}.{}", day, month, year)
             }
-            DateError::InvalidYear(y) => write!(f, "Ungültiges Jahr: {}", y),
-            DateError::ParseError(s) => write!(f, "Konnte Datum nicht parsen: {}", s),
+            DateError::InvalidYear(y) => write!(f, "invalid year: {}", y),
+            DateError::ParseError(s) => write!(f, "failed to parse date: {}", s),
         }
     }
 }
@@ -323,19 +323,19 @@ impl fmt::Display for DateError {
 impl std::error::Error for DateError {}
 
 impl ReportDate {
-    /// Erstellt ein neues validiertes Datum
+    /// Creates a new validated date.
     pub fn new(year: u16, month: u8, day: u8) -> Result<Self, DateError> {
-        // Jahr-Validierung (sinnvoller Bereich für Finanzberichte)
+        // Year validation (reasonable range for financial reports)
         if !(1900..=2100).contains(&year) {
             return Err(DateError::InvalidYear(year));
         }
 
-        // Monat-Validierung
+        // Month validation
         if !(1..=12).contains(&month) {
             return Err(DateError::InvalidMonth(month));
         }
 
-        // Tag-Validierung
+        // Day validation
         let days_in_month = Self::days_in_month(year, month);
         if day < 1 || day > days_in_month {
             return Err(DateError::InvalidDay { day, month, year });
@@ -344,17 +344,17 @@ impl ReportDate {
         Ok(ReportDate { year, month, day })
     }
 
-    /// Parst ein Datum aus verschiedenen Formaten
+    /// Parses a date from various formats.
     ///
-    /// Unterstützte Formate:
-    /// - `DD.MM.YYYY` (deutsch)
+    /// Supported formats:
+    /// - `DD.MM.YYYY` (German)
     /// - `YYYY-MM-DD` (ISO)
-    /// - `MM/DD/YYYY` (US)
-    /// - `DD/MM/YYYY` (EU)
+    /// - `DD/MM/YYYY` (EU, tried first)
+    /// - `MM/DD/YYYY` (US, fallback)
     pub fn parse(s: &str) -> Result<Self, DateError> {
         let s = s.trim();
 
-        // Versuche verschiedene Formate
+        // Try different formats
         if let Some(date) = Self::try_parse_de(s) {
             return Ok(date);
         }
@@ -393,7 +393,7 @@ impl ReportDate {
     }
 
     fn try_parse_slash(s: &str) -> Option<Self> {
-        // DD/MM/YYYY oder MM/DD/YYYY
+        // DD/MM/YYYY or MM/DD/YYYY
         let parts: Vec<&str> = s.split('/').collect();
         if parts.len() != 3 {
             return None;
@@ -402,11 +402,11 @@ impl ReportDate {
         let second: u8 = parts[1].parse().ok()?;
         let year: u16 = parts[2].parse().ok()?;
 
-        // Versuche DD/MM/YYYY zuerst
+        // Try DD/MM/YYYY first
         if let Ok(date) = Self::new(year, second, first) {
             return Some(date);
         }
-        // Dann MM/DD/YYYY
+        // Then MM/DD/YYYY
         Self::new(year, first, second).ok()
     }
 
@@ -429,32 +429,32 @@ impl ReportDate {
         (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400)
     }
 
-    /// Formatiert das Datum im deutschen Format (DD.MM.YYYY)
+    /// Formats the date in German format (DD.MM.YYYY)
     pub fn format_de(&self) -> String {
         format!("{:02}.{:02}.{}", self.day, self.month, self.year)
     }
 
-    /// Formatiert das Datum im ISO-Format (YYYY-MM-DD)
+    /// Formats the date in ISO format (YYYY-MM-DD)
     pub fn format_iso(&self) -> String {
         format!("{}-{:02}-{:02}", self.year, self.month, self.day)
     }
 
-    /// Formatiert das Datum im US-Format (MM/DD/YYYY)
+    /// Formats the date in US format (MM/DD/YYYY)
     pub fn format_us(&self) -> String {
         format!("{:02}/{:02}/{}", self.month, self.day, self.year)
     }
 
-    /// Getter für Jahr
+    /// Returns the year
     pub fn year(&self) -> u16 {
         self.year
     }
 
-    /// Getter für Monat
+    /// Returns the month
     pub fn month(&self) -> u8 {
         self.month
     }
 
-    /// Getter für Tag
+    /// Returns the day
     pub fn day(&self) -> u8 {
         self.day
     }
@@ -501,7 +501,7 @@ mod tests {
         assert_eq!(Language::from_str("deutsch"), Ok(Language::Deutsch));
         assert_eq!(Language::from_str("German"), Ok(Language::Deutsch));
         assert_eq!(Language::from_str("english"), Ok(Language::English));
-        assert_eq!(Language::from_str("englisch"), Ok(Language::English)); // Deutsche Schreibweise
+        assert_eq!(Language::from_str("englisch"), Ok(Language::English)); // German spelling
         assert!(Language::from_str("invalid").is_err());
     }
 
@@ -553,21 +553,21 @@ mod tests {
     #[test]
     fn test_date_new_valid() {
         assert!(ReportDate::new(2024, 1, 15).is_ok());
-        assert!(ReportDate::new(2024, 2, 29).is_ok()); // Schaltjahr
+        assert!(ReportDate::new(2024, 2, 29).is_ok()); // leap year
         assert!(ReportDate::new(2023, 2, 28).is_ok());
     }
 
     #[test]
     fn test_date_new_invalid() {
-        assert!(ReportDate::new(2024, 13, 1).is_err()); // Ungültiger Monat
-        assert!(ReportDate::new(2024, 2, 30).is_err()); // Ungültiger Tag
-        assert!(ReportDate::new(2023, 2, 29).is_err()); // Kein Schaltjahr
-        assert!(ReportDate::new(1800, 1, 1).is_err()); // Jahr zu klein
+        assert!(ReportDate::new(2024, 13, 1).is_err()); // invalid month
+        assert!(ReportDate::new(2024, 2, 30).is_err()); // invalid day
+        assert!(ReportDate::new(2023, 2, 29).is_err()); // not a leap year
+        assert!(ReportDate::new(1800, 1, 1).is_err()); // year out of range
     }
 
     #[test]
     fn test_date_parse() {
-        // Deutsches Format
+        // German format
         let date = ReportDate::parse("15.01.2024").unwrap();
         assert_eq!(date.day(), 15);
         assert_eq!(date.month(), 1);
@@ -577,7 +577,7 @@ mod tests {
         let date = ReportDate::parse("2024-01-15").unwrap();
         assert_eq!(date.format_iso(), "2024-01-15");
 
-        // Ungültig
+        // invalid
         assert!(ReportDate::parse("invalid").is_err());
     }
 

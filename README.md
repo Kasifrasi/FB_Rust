@@ -20,7 +20,7 @@ cargo test
 cargo run --example test_all_fields --release
 cargo run --example test_multilang --release
 
-# Criterion-Benchmarks (Statistik + HTML-Report + README-Update)
+# Criterion benchmarks (statistics + HTML report)
 # Run the benchmarks
 cargo bench
 
@@ -42,7 +42,7 @@ All structs use a hand-written fluent builder with infallible `.build()` — no 
 use fb_rust::*;
 
 let config = ReportConfig::builder()
-    // ── Header: Sprache, Währung, Projektdaten ──────────────────────
+    // ── Header: language, currency, project data ─────────────────────
     .header(
         ReportHeader::builder()
             .language(Language::Deutsch)
@@ -56,36 +56,36 @@ let config = ReportConfig::builder()
             .version("v2025-1")
             .build(),
     )
-    // ── Body: Einnahmen, Belege, Kostenpositionen ───────────────────
+    // ── Body: income, receipts, cost positions ───────────────────────
     .body(
         ReportBody::builder()
-            // Einnahmen-Tabelle (5 benannte Zeilen)
+            // Income table (5 named rows)
             .kmw_mittel(   TableEntry::builder().approved_budget(80_000.0).income_report(50_000.0).income_total(50_000.0).reason("1. Rate erhalten").build())
             .eigenmittel(  TableEntry::builder().approved_budget(15_000.0).income_report( 7_500.0).income_total( 7_500.0).reason("Eigenanteil eingebracht").build())
             .drittmittel(  TableEntry::builder().approved_budget(10_000.0).income_report( 5_000.0).income_total( 5_000.0).reason("Stiftung XY").build())
             .saldovortrag( TableEntry::builder().approved_budget( 2_500.0).income_report( 1_500.0).income_total( 1_500.0).reason("Spenden").build())
             .zinsertraege( TableEntry::builder().approved_budget(   500.0).income_report(   400.0).income_total(   400.0).reason("Tagesgeldkonto").build())
-            // Belegpanel links (max. 18 Einträge)
+            // Left receipt panel (max. 18 entries)
             .add_left_panel_entry(PanelEntry::builder().date("15.01.2024").amount_euro(9_000.0).amount_local(9_000.0).build())
             .add_left_panel_entry(PanelEntry::builder().date("15.01.2024").amount_euro(6_000.0).amount_local(6_000.0).build())
-            // ... weitere Belege ...
-            // Belegpanel rechts (max. 18 Einträge)
+            // ... more entries ...
+            // Right receipt panel (max. 18 entries)
             .add_right_panel_entry(PanelEntry::builder().date("05.01.2024").amount_euro(1_500.0).amount_local(1_500.0).build())
             .add_right_panel_entry(PanelEntry::builder().date("10.01.2024").amount_euro(  750.0).amount_local(  750.0).build())
-            // ... weitere Belege ...
-            // Kostenpositionen (Kategorien 1–5): Mehrere Einzelpositionen pro Kategorie
+            // ... more entries ...
+            // Cost positions (categories 1–5): multiple line items per category
             .add_position(1, PositionEntry::builder().description("Projektleitung").approved(18_000.0).income_report(9_000.0).income_total(9_000.0).remark("6 Monate").build())
             .add_position(1, PositionEntry::builder().description("Buchhaltung").approved(12_000.0).income_report(6_000.0).income_total(6_000.0).remark("Teilzeit").build())
             .add_position(2, PositionEntry::builder().description("Flüge International").approved(5_000.0).income_report(2_500.0).income_total(2_500.0).remark("2 Dienstreisen").build())
-            // ... weitere Positionen für Kategorien 1–5 ...
-            // Header-Input (Kategorien 6–8): Ein Aggregatwert pro Kategorie
-            // Pro Kategorie entweder add_position() ODER set_header_input() — nicht beides.
+            // ... more positions for categories 1–5 ...
+            // Header-input (categories 6–8): one aggregate value per category
+            // Per category use either add_position() OR set_header_input() — not both.
             .set_header_input(6, PositionEntry::builder().approved(8_000.0).income_report(4_000.0).income_total(4_000.0).remark("Verwaltungspauschale").build())
             .set_header_input(7, PositionEntry::builder().approved(3_000.0).income_report(1_500.0).income_total(1_500.0).remark("Broschüren + Website").build())
             .set_header_input(8, PositionEntry::builder().approved(1_200.0).income_report(  750.0).income_total(  750.0).remark("Bankgebühren").build())
             .build(),
     )
-    // ── Footer: Kassenbestand ───────────────────────────────────────
+    // ── Footer: balance reconciliation ──────────────────────────────
     .footer(
         ReportFooter::builder()
             .bank(8_500.0)
@@ -93,13 +93,13 @@ let config = ReportConfig::builder()
             .sonstiges(300.0)
             .build(),
     )
-    // ── Options: Schutz & Sichtbarkeit ──────────────────────────────
+    // ── Options: protection & visibility ─────────────────────────────
     .options(
         ReportOptions::builder()
-            .sheet_password("blatt_geheim")    // Blattschutz (Formeln gesperrt)
-            .workbook_password("wb_geheim")    // Workbook-Strukturschutz (SHA-512)
-            .hide_columns_qv(true)             // Q:V-Spalten ausblenden
-            .hide_language_sheet(true)          // Sprachversionen-Sheet verstecken
+            .sheet_password("blatt_geheim")    // sheet protection (formulas locked)
+            .workbook_password("wb_geheim")    // workbook structure lock (SHA-512)
+            .hide_columns_qv(true)             // hide columns Q:V
+            .hide_language_sheet(true)          // hide language sheet
             .build(),
     )
     .build();
@@ -118,7 +118,7 @@ src/
 ├── lib.rs                  Public re-exports and crate documentation
 ├── config.rs               ReportConfig — main entry point (Tauri-ready)
 ├── error.rs                ReportError — typed top-level error enum
-├── lang/                   Language data (TEXT_MATRIX, CURRENCIES) and sheet builder
+├── lang/                   Language data (TEXT_MATRIX, Currency) and sheet builder
 ├── workbook_protection.rs  ProtectionError + ZIP-level workbook structure lock (SHA-512)
 └── report/
     ├── api/                ApiKey, ReportValues, Language, Currency, ReportDate, …
@@ -174,7 +174,7 @@ examples/
 ## Testing
 
 ```bash
-cargo test                                             # Unit tests (100 tests)
+cargo test                                             # Unit + integration tests (111 tests)
 cargo test --features serde --test serde_integration   # Serde JSON tests (28 tests)
 cargo test --features serde                            # All tests (139 tests)
 cargo deny check                                       # License and security audit

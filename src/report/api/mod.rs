@@ -1,8 +1,8 @@
 //! Public API types for the financial report
 //!
-//! - [`keys`]: `ApiKey` and `PositionField` for cell addressing
-//! - [`types`]: Type-safe types (`Language`, `Currency`, `Category`, `ReportDate`)
-//! - [`values`]: `ReportValues` for input data
+//! - `keys`: [`ApiKey`] and [`PositionField`] for cell addressing
+//! - `types`: Type-safe types ([`Language`], [`Currency`], [`Category`], [`ReportDate`])
+//! - `values`: [`ReportValues`](CellValue) for input data
 
 mod keys;
 mod types;

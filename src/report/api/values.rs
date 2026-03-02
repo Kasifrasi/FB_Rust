@@ -31,7 +31,7 @@ impl CellValue {
     pub fn as_text(&self) -> Option<&str> {
         match self {
             CellValue::Text(s) => Some(s),
-            CellValue::Date(s) => Some(s), // Date ist auch ein String
+            CellValue::Date(s) => Some(s), // dates are also strings
             _ => None,
         }
     }
@@ -71,7 +71,7 @@ impl From<f64> for CellValue {
 }
 
 // ============================================================================
-// Report Values - Alle Eingabewerte des Finanzberichts
+// Report Values — all input values of the financial report
 // ============================================================================
 
 /// Stores all input values of a financial report
@@ -321,7 +321,7 @@ impl ReportValues {
         remark: impl Into<CellValue>,
     ) -> &mut Self {
         use PositionField::*;
-        // position=0 für Header-Eingabe
+        // position=0 for header-input mode
         self.set_position(category, 0, Approved, approved);
         self.set_position(category, 0, IncomeReport, income_report);
         self.set_position(category, 0, IncomeTotal, income_total);
@@ -511,7 +511,7 @@ mod tests {
     fn test_range_cells() {
         let mut values = ReportValues::new();
 
-        // Setze alle 5 ApprovedBudget Werte
+        // Set all 5 ApprovedBudget values
         for i in 0..5u8 {
             values.set(ApiKey::ApprovedBudget(i), 1000.0 * (i + 1) as f64);
         }
@@ -575,8 +575,8 @@ mod tests {
 
         let mut values = ReportValues::new();
         values.set_position_row(
-            1,                    // Kategorie
-            1,                    // Position
+            1,                    // category
+            1,                    // position
             "Reisekosten",        // Description
             2000.0,               // Approved
             1800.0,               // IncomeReport
@@ -613,7 +613,7 @@ mod tests {
         let mut values = ReportValues::new();
         values.set_header_input(6, 4000.0, 2000.0, 2000.0, "Sonstiges");
 
-        // position=0 für Header-Eingabe
+        // position=0 for header-input mode
         assert_eq!(
             values.get_position(6, 0, Approved).as_number(),
             Some(4000.0)
@@ -631,7 +631,7 @@ mod tests {
             Some("Sonstiges")
         );
 
-        // Description bei Header-Eingabe nicht gesetzt
+        // Description not available in header-input mode
         assert!(values.get_position(6, 0, Description).is_empty());
     }
 
@@ -641,15 +641,15 @@ mod tests {
 
         let mut values = ReportValues::new();
 
-        // Kategorie 1, Positionen 1-3
+        // Category 1, positions 1-3
         values.set_position_row(1, 1, "Personal", 5000.0, 2500.0, 2500.0, "");
         values.set_position_row(1, 2, "Reisen", 2000.0, 1800.0, 1800.0, "");
         values.set_position_row(1, 3, "Material", 1000.0, 500.0, 500.0, "");
 
-        // Kategorie 2, Position 1
+        // Category 2, position 1
         values.set_position_row(2, 1, "Externe", 3000.0, 1500.0, 1500.0, "");
 
-        // Prüfe verschiedene Positionen
+        // Verify different positions
         assert_eq!(
             values.get_position(1, 1, Description).as_text(),
             Some("Personal")
@@ -663,7 +663,7 @@ mod tests {
             Some("Externe")
         );
 
-        // Nicht gesetzte Position gibt Empty zurück
+        // Unset position returns Empty
         assert!(values.get_position(1, 4, Description).is_empty());
     }
 
@@ -673,13 +673,13 @@ mod tests {
 
         let mut values = ReportValues::new();
 
-        // Kategorie 1: Positions-Modus (position >= 1)
+        // Category 1: position mode (position >= 1)
         values.set_position_row(1, 1, "Personal", 5000.0, 2500.0, 2500.0, "");
 
-        // Kategorie 6: Header-Eingabe-Modus (position = 0)
+        // Category 6: header-input mode (position = 0)
         values.set_header_input(6, 4000.0, 2000.0, 2000.0, "");
 
-        // Prüfe beide Modi
+        // Verify both modes
         assert_eq!(
             values.get_position(1, 1, Description).as_text(),
             Some("Personal")
@@ -697,12 +697,12 @@ mod tests {
             .with_footer_kasse(250.25)
             .with_footer_sonstiges(100.0);
 
-        // Prüfe Footer-Werte über die Convenience-Methoden
+        // Check footer values via convenience methods
         assert_eq!(values.footer_bank(), Some(1500.50));
         assert_eq!(values.footer_kasse(), Some(250.25));
         assert_eq!(values.footer_sonstiges(), Some(100.0));
 
-        // Prüfe dass Footer-Werte in der HashMap sind (einheitlicher Zugriff!)
+        // Verify footer values are in the HashMap (uniform access)
         assert_eq!(
             values.get(ApiKey::Footer(FooterField::Bank)).as_number(),
             Some(1500.50)
@@ -718,7 +718,7 @@ mod tests {
             Some(100.0)
         );
 
-        // Prüfe Saldenabstimmungs-Logik
+        // Verify balance reconciliation logic
         assert_eq!(values.footer_balance_total(), 1850.75);
         assert!(values.validate_footer_complete());
     }
@@ -739,7 +739,7 @@ mod tests {
     fn test_footer_validation_incomplete() {
         let values = ReportValues::new().with_footer_bank(1000.0);
 
-        // Nur Bank gesetzt, Kasse fehlt
+        // Only bank set, cash missing
         assert!(!values.validate_footer_complete());
 
         let values = values.with_footer_kasse(500.0);
@@ -748,8 +748,8 @@ mod tests {
 
     #[test]
     fn test_unified_access_all_types() {
-        // Dieser Test zeigt die Eleganz der HashMap-Lösung:
-        // ALLE Werte (Header, Positions, Footer) über denselben Mechanismus!
+        // All value types (header, positions, footer) are accessed
+        // through the same unified HashMap mechanism.
 
         let mut values = ReportValues::new()
             .with_language("deutsch")
@@ -757,7 +757,7 @@ mod tests {
 
         values.set_position(1, 1, PositionField::Approved, 5000.0);
 
-        // Einheitlicher Zugriff über get()
+        // Uniform access via get()
         assert!(values.get(ApiKey::Language).as_text().is_some());
         assert!(values
             .get(ApiKey::Footer(FooterField::Bank))
