@@ -192,8 +192,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .project_number("DATE-TEST-003")
                 .project_title("Test dates — Formats mixtes")
                 // Type-safe API with ReportDate → format_de()
-                .project_start(&ReportDate::new(2024, 3, 1).unwrap().format_de())
-                .project_end(&ReportDate::new(2025, 2, 28).unwrap().format_de())
+                .project_start(ReportDate::new(2024, 3, 1).unwrap().format_de())
+                .project_end(ReportDate::new(2025, 2, 28).unwrap().format_de())
                 // String API with different formats
                 .report_start("01.03.2024")   // German
                 .report_end("2024-08-31")     // ISO
