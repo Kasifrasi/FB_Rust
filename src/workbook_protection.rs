@@ -1,3 +1,16 @@
+//! ECMA-376 Workbook-Protection: SHA-512 Hash + ZIP/XML-Injektion.
+//!
+//! Implementiert die passwortbasierte Workbook-Strukturschutz-Spezifikation
+//! (ECMA-376, 4th Edition, Part 4, §3.2.29) mit SHA-512 und 100.000 Iterationen.
+//!
+//! Der Schutz verhindert das Hinzufügen, Löschen, Umbenennen und Umsortieren
+//! von Arbeitsblättern in Excel/LibreOffice.
+//!
+//! # Workflow
+//!
+//! 1. [`PrecomputedHash::new()`] — berechnet den SHA-512 Hash vorab (~25ms)
+//! 2. [`create_protected_report_precomputed()`] — injiziert den Hash in eine .xlsx via ZIP/XML-Rewriting
+
 use base64::{engine::general_purpose, Engine as _};
 use byteorder::{WriteBytesExt, LE};
 use quick_xml::events::Event;

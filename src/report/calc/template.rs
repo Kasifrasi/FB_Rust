@@ -162,7 +162,7 @@ fn register_static_formulas(model: &mut Model, addrs: &mut Vec<CellAddr>) {
 
     for i in 1..5u32 {
         let row = 14 + i; // rows 15-18
-        set_iferror_division(model, row, 6, row, 5, row, 3, addrs); // G = IFERROR(F/D, 0)
+        set_iferror_division(model, CellAddr::new(row, 6), CellAddr::new(row, 5), CellAddr::new(row, 3), addrs); // G = IFERROR(F/D, 0)
     }
 
     // ========================================================================
@@ -178,7 +178,7 @@ fn register_static_formulas(model: &mut Model, addrs: &mut Vec<CellAddr>) {
     // F20: =SUM(F15:F19)
     set_sum_range(model, 19, 5, 14, 18, 5, addrs); // F20
     // G20: =IFERROR(F20/D20,0) — depends on formula cells
-    set_iferror_division(model, 19, 6, 19, 5, 19, 3, addrs); // G20
+    set_iferror_division(model, CellAddr::new(19, 6), CellAddr::new(19, 5), CellAddr::new(19, 3), addrs); // G20
 
     // ========================================================================
     // Right Panel Body (Rows 13-30)
@@ -286,18 +286,13 @@ fn set_currency_or_lookup(
 /// Setzt eine IFERROR Division Formel: =IFERROR(num/denom,0)
 fn set_iferror_division(
     model: &mut Model,
-    target_row: u32,
-    target_col: u16,
-    num_row: u32,
-    num_col: u16,
-    denom_row: u32,
-    denom_col: u16,
+    target: CellAddr,
+    numerator: CellAddr,
+    denominator: CellAddr,
     addrs: &mut Vec<CellAddr>,
 ) {
-    let num = CellAddr::new(num_row, num_col).to_excel();
-    let denom = CellAddr::new(denom_row, denom_col).to_excel();
-    let formula = format!("=IFERROR({}/{},0)", num, denom);
-    set_formula(model, target_row, target_col, formula, addrs);
+    let formula = format!("=IFERROR({}/{},0)", numerator.to_excel(), denominator.to_excel());
+    set_formula(model, target.row, target.col, formula, addrs);
 }
 
 /// Setzt eine SUM-Formel für einen zusammenhängenden Bereich

@@ -122,7 +122,8 @@ src/
 ├── workbook_protection.rs  ProtectionError + ZIP-level workbook structure lock (SHA-512)
 └── report/
     ├── api/                ApiKey, ReportValues, Language, Currency, ReportDate, …
-    ├── core/               Formula engine (CellRegistry, CellAddr, topological eval)
+    ├── core/               CellAddr (cell addressing)
+    ├── calc/               IronCalc-based formula engine (ModelTemplate, CalcBridge)
     ├── options.rs          SheetOptions, SheetProtection, validation rules
     ├── styles.rs           ReportStyles, FormatMatrix (internal)
     ├── body/               BodyConfig, BodyLayout, FooterLayout, formulas
@@ -138,6 +139,7 @@ examples/
 ├── test_workbook_protection.rs  3 protection levels
 ├── test_parallel_protection.rs  Parallel protection benchmark (Rayon)
 ├── test_mixed_categories.rs    Mixed category modes (header-input vs. multi-row for 6–8)
+├── test_page_breaks.rs        Print area and page break configuration
 ├── profile.rs                 Phase-level profiling
 └── verify_password.rs         Password hash verification
 ```
@@ -172,9 +174,9 @@ examples/
 ## Testing
 
 ```bash
-cargo test                                             # Unit tests (94 tests)
+cargo test                                             # Unit tests (100 tests)
 cargo test --features serde --test serde_integration   # Serde JSON tests (28 tests)
-cargo test --features serde                            # All tests (122 tests)
+cargo test --features serde                            # All tests (139 tests)
 cargo deny check                                       # License and security audit
 ```
 
