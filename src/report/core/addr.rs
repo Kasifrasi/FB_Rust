@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-/// Excel-Zelladresse (0-basiert intern)
+/// Excel cell address (0-based internally).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CellAddr {
     pub row: u32,
@@ -14,13 +14,13 @@ impl CellAddr {
         Self { row, col }
     }
 
-    /// Von Excel-Notation: A=0, B=1, ..., Row ist 1-basiert in Excel
-    /// Z.B. E2 = (row=1, col=4)
+    /// From Excel notation: A=0, B=1, ..., row is 1-based in Excel.
+    /// E.g. E2 = (row=1, col=4)
     pub const fn excel(col: u16, row: u32) -> Self {
         Self { row: row - 1, col }
     }
 
-    /// Zu Excel-Notation (z.B. "E2")
+    /// Converts to Excel notation (e.g. "E2").
     pub fn to_excel(self) -> String {
         let col_letter = Self::col_to_letter(self.col);
         format!("{}{}", col_letter, self.row + 1)

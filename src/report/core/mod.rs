@@ -1,6 +1,6 @@
-//! Kern-Typen für den Report
+//! Core types for the report
 //!
-//! Enthält `CellAddr` — die zentrale Zelladresse (0-basiert).
+//! Contains [`CellAddr`] — the central cell address type (0-based internally).
 
 mod addr;
 
