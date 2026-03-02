@@ -1,7 +1,7 @@
-//! Werte-Speicher für den Finanzbericht
+//! Input value store for the financial report
 //!
-//! Dieses Modul speichert alle Eingabewerte.
-//! Nutzt direkt `ApiKey` als Schlüssel - keine redundanten Enums.
+//! All input values are stored in a single `HashMap<ApiKey, CellValue>`.
+//! No redundant enums — `ApiKey` is the sole key type.
 
 use super::keys::{ApiKey, FooterField, PositionField};
 use super::types::{Category, Currency, Language, ReportDate};
@@ -11,7 +11,7 @@ use std::collections::HashMap;
 // Cell Value Types
 // ============================================================================
 
-/// Mögliche Werte einer Zelle
+/// Possible cell values in a financial report
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum CellValue {
@@ -19,7 +19,8 @@ pub enum CellValue {
     Empty,
     Text(String),
     Number(f64),
-    Date(String), // Format: "YYYY-MM-DD" oder "DD.MM.YYYY"
+    /// Date string (format: "YYYY-MM-DD" or "DD.MM.YYYY")
+    Date(String),
 }
 
 impl CellValue {
@@ -73,11 +74,11 @@ impl From<f64> for CellValue {
 // Report Values - Alle Eingabewerte des Finanzberichts
 // ============================================================================
 
-/// Speichert alle Eingabewerte eines Finanzberichts
+/// Stores all input values of a financial report
 ///
-/// Nutzt direkt `ApiKey` als Schlüssel für type-safe Zugriff.
+/// Uses `ApiKey` directly as key for type-safe access.
 ///
-/// # Beispiel
+/// # Example
 /// ```ignore
 /// let mut values = ReportValues::new();
 /// values.set(ApiKey::Language, "deutsch");
@@ -87,15 +88,9 @@ impl From<f64> for CellValue {
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct ReportValues {
-    /// Speicher für ALLE Zellwerte, indexiert durch ApiKey
-    ///
-    /// Einheitlicher Zugriffspunkt für:
-    /// - Header-Werte (Language, Currency, etc.)
-    /// - Positions-Werte (dynamisch)
-    /// - Footer-Werte (Bank, Kasse, Sonstiges)
-    /// - Rechtes Panel (Währungsumrechnungen)
+    /// All cell values, indexed by `ApiKey`
     values: HashMap<ApiKey, CellValue>,
-    /// Optional text for cell B2.
+    /// Optional version/suffix text for cell B2
     version: Option<String>,
 }
 
@@ -104,29 +99,27 @@ impl ReportValues {
         Self::default()
     }
 
-    /// Setzt einen Wert für eine API-Zelle
+    /// Sets a value for an API cell
     pub fn set(&mut self, key: ApiKey, value: impl Into<CellValue>) -> &mut Self {
         self.values.insert(key, value.into());
         self
     }
 
-    /// Holt einen Wert für eine API-Zelle (Referenz)
+    /// Returns a reference to the value for an API cell
     ///
-    /// Einheitlicher Getter für ALLE Keys (Header, Positions, Footer, Panel).
-    /// Gibt `&CellValue::Empty` zurück wenn nicht gesetzt.
+    /// Returns `&CellValue::Empty` if not set.
     pub fn get(&self, key: ApiKey) -> &CellValue {
         self.values.get(&key).unwrap_or(&CellValue::Empty)
     }
 
-    /// Holt einen Wert für eine API-Zelle (owned)
+    /// Returns an owned copy of the value for an API cell
     ///
-    /// Einheitlicher Getter für ALLE Keys (Header, Positions, Footer, Panel).
-    /// Gibt `CellValue::Empty` zurück wenn nicht gesetzt.
+    /// Returns `CellValue::Empty` if not set.
     pub fn get_owned(&self, key: ApiKey) -> CellValue {
         self.values.get(&key).cloned().unwrap_or(CellValue::Empty)
     }
 
-    /// Prüft ob eine Zelle einen Wert hat
+    /// Checks whether a cell has a non-empty value
     pub fn has_value(&self, key: ApiKey) -> bool {
         self.values
             .get(&key)
@@ -135,183 +128,146 @@ impl ReportValues {
     }
 
     // ========================================================================
-    // Convenience Getter für häufig verwendete Zellen
+    // Convenience getters
     // ========================================================================
 
-    /// Gibt die ausgewählte Sprache zurück (E2)
+    /// Returns the selected language (E2)
     pub fn language(&self) -> Option<&str> {
         self.get(ApiKey::Language).as_text()
     }
 
-    /// Gibt die ausgewählte Währung zurück (E3)
+    /// Returns the selected currency (E3)
     pub fn currency(&self) -> Option<&str> {
         self.get(ApiKey::Currency).as_text()
     }
 
-    /// Gibt die Projektnummer zurück (D5)
+    /// Returns the project number (D5)
     pub fn project_number(&self) -> Option<&str> {
         self.get(ApiKey::ProjectNumber).as_text()
     }
 
-    /// Gibt den Projekttitel zurück (D6)
+    /// Returns the project title (D6)
     pub fn project_title(&self) -> Option<&str> {
         self.get(ApiKey::ProjectTitle).as_text()
     }
 
-    /// Gibt den Versions-/Suffix-Override zurück (B2)
+    /// Returns the version/suffix override (B2)
     pub fn version(&self) -> Option<&str> {
         self.version.as_deref()
     }
 
     // ========================================================================
-    // Convenience Setter (Builder-Pattern)
+    // String-based builder setters
     // ========================================================================
 
-    /// Setzt die Sprache (E2)
+    /// Sets the language from a string (E2)
     pub fn with_language(mut self, lang: &str) -> Self {
         self.set(ApiKey::Language, lang);
         self
     }
 
-    /// Setzt die Währung (E3)
+    /// Sets the currency from a string (E3)
     pub fn with_currency(mut self, currency: &str) -> Self {
         self.set(ApiKey::Currency, currency);
         self
     }
 
-    /// Setzt die Projektnummer (D5)
+    /// Sets the project number (D5)
     pub fn with_project_number(mut self, number: &str) -> Self {
         self.set(ApiKey::ProjectNumber, number);
         self
     }
 
-    /// Setzt den Projekttitel (D6)
+    /// Sets the project title (D6)
     pub fn with_project_title(mut self, title: &str) -> Self {
         self.set(ApiKey::ProjectTitle, title);
         self
     }
 
-    /// Setzt den Versions-Text für Zelle B2
+    /// Sets the version text for cell B2
     pub fn with_version(mut self, version: &str) -> Self {
         self.version = if version.is_empty() { None } else { Some(version.to_string()) };
         self
     }
 
-    /// Setzt Projektstart-Datum (E8)
+    /// Sets the project start date from a string (E8)
     pub fn with_project_start(mut self, date: &str) -> Self {
         self.set(ApiKey::ProjectStart, CellValue::Date(date.to_string()));
         self
     }
 
-    /// Setzt Projektende-Datum (G8)
+    /// Sets the project end date from a string (G8)
     pub fn with_project_end(mut self, date: &str) -> Self {
         self.set(ApiKey::ProjectEnd, CellValue::Date(date.to_string()));
         self
     }
 
-    /// Setzt Berichtszeitraum Start (E9)
+    /// Sets the reporting period start from a string (E9)
     pub fn with_report_start(mut self, date: &str) -> Self {
         self.set(ApiKey::ReportStart, CellValue::Date(date.to_string()));
         self
     }
 
-    /// Setzt Berichtszeitraum Ende (G9)
+    /// Sets the reporting period end from a string (G9)
     pub fn with_report_end(mut self, date: &str) -> Self {
         self.set(ApiKey::ReportEnd, CellValue::Date(date.to_string()));
         self
     }
 
     // ========================================================================
-    // Typsichere Setter (empfohlen)
+    // Type-safe builder setters (recommended)
     // ========================================================================
 
-    /// Setzt die Sprache typsicher (E2)
-    ///
-    /// Verwendet das `Language` enum für Compile-Zeit-Sicherheit.
-    ///
-    /// # Beispiel
-    /// ```ignore
-    /// use fb_rust::report::types::Language;
-    ///
-    /// let values = ReportValues::new()
-    ///     .with_lang(Language::English);
-    /// ```
+    /// Sets the language using the [`Language`] enum (E2)
     pub fn with_lang(mut self, lang: Language) -> Self {
         self.set(ApiKey::Language, lang.as_str());
         self
     }
 
-    /// Setzt die Währung typsicher (E3)
-    ///
-    /// Verwendet den validierten `Currency` Typ.
-    ///
-    /// # Beispiel
-    /// ```ignore
-    /// use fb_rust::report::types::Currency;
-    ///
-    /// let values = ReportValues::new()
-    ///     .with_curr(Currency::EUR);
-    /// // Oder mit Parsing:
-    ///     .with_curr("USD".parse().unwrap());
-    /// ```
+    /// Sets the currency using the [`Currency`] type (E3)
     pub fn with_curr(mut self, currency: Currency) -> Self {
         self.set(ApiKey::Currency, currency.as_str());
         self
     }
 
-    /// Setzt Projektstart-Datum typsicher (E8)
-    ///
-    /// Verwendet das validierte `ReportDate`.
+    /// Sets the project start date using a validated [`ReportDate`] (E8)
     pub fn with_project_start_date(mut self, date: ReportDate) -> Self {
         self.set(ApiKey::ProjectStart, CellValue::Date(date.format_de()));
         self
     }
 
-    /// Setzt Projektende-Datum typsicher (G8)
+    /// Sets the project end date using a validated [`ReportDate`] (G8)
     pub fn with_project_end_date(mut self, date: ReportDate) -> Self {
         self.set(ApiKey::ProjectEnd, CellValue::Date(date.format_de()));
         self
     }
 
-    /// Setzt Berichtszeitraum Start typsicher (E9)
+    /// Sets the reporting period start using a validated [`ReportDate`] (E9)
     pub fn with_report_start_date(mut self, date: ReportDate) -> Self {
         self.set(ApiKey::ReportStart, CellValue::Date(date.format_de()));
         self
     }
 
-    /// Setzt Berichtszeitraum Ende typsicher (G9)
+    /// Sets the reporting period end using a validated [`ReportDate`] (G9)
     pub fn with_report_end_date(mut self, date: ReportDate) -> Self {
         self.set(ApiKey::ReportEnd, CellValue::Date(date.format_de()));
         self
     }
 
     // ========================================================================
-    // Positions-Methoden (Dynamische Kostenpositionen)
+    // Position methods (dynamic cost positions)
     // ========================================================================
 
-    /// Setzt ein einzelnes Positions-Feld
+    /// Sets a single position field
     ///
     /// # Arguments
-    /// * `category` - Kategorie-Nummer (1-8)
-    /// * `position` - Position:
-    ///   - `0`: Header-Eingabe (bei Kategorien mit 0 Positionen in BodyConfig)
-    ///   - `1..N`: Positions-Zeile (bei Kategorien mit 1+ Positionen)
-    /// * `field` - Welches Feld der Position
-    /// * `value` - Der Wert
+    /// * `category` — category number (1–8)
+    /// * `position` — `0` for header-input mode, `1..N` for individual rows
+    /// * `field` — which column of the position
+    /// * `value` — the cell value
     ///
-    /// # Hinweis
-    /// Bei `position=0` (Header-Eingabe) ist `PositionField::Description` nicht
-    /// verfügbar, da Spalte C das VLOOKUP-Label enthält.
-    ///
-    /// # Beispiel
-    /// ```ignore
-    /// // Position mit Positions-Zeile (position >= 1)
-    /// values.set_position(1, 1, PositionField::Description, "Personalkosten");
-    /// values.set_position(1, 1, PositionField::Approved, 5000.0);
-    ///
-    /// // Header-Eingabe (position = 0)
-    /// values.set_position(6, 0, PositionField::Approved, 3000.0);
-    /// ```
+    /// **Note:** At `position=0` (header-input), `PositionField::Description` is
+    /// not available because column C holds the VLOOKUP label.
     pub fn set_position(
         &mut self,
         category: u8,
@@ -329,24 +285,10 @@ impl ReportValues {
         )
     }
 
-    /// Setzt eine komplette Positions-Zeile (alle 5 Felder)
+    /// Sets all 5 fields of a position row at once
     ///
-    /// **Nur für position >= 1!** Für Header-Eingabe (position=0) verwende
-    /// `set_header_input()`.
-    ///
-    /// # Arguments
-    /// * `category` - Kategorie-Nummer (1-8)
-    /// * `position` - Position innerhalb der Kategorie (1-basiert!)
-    /// * `description` - Beschreibung (Spalte C)
-    /// * `approved` - Bewilligtes Budget (Spalte D)
-    /// * `income_report` - Einnahmen Berichtszeitraum (Spalte E)
-    /// * `income_total` - Einnahmen gesamt (Spalte F)
-    /// * `remark` - Begründung/Bemerkung (Spalte H)
-    ///
-    /// # Beispiel
-    /// ```ignore
-    /// values.set_position_row(1, 1, "Personalkosten", 5000.0, 2500.0, 2500.0, "");
-    /// ```
+    /// Only for `position >= 1`. For header-input (`position=0`), use
+    /// [`set_header_input()`](Self::set_header_input).
     #[allow(clippy::too_many_arguments)]
     pub fn set_position_row(
         &mut self,
@@ -367,23 +309,9 @@ impl ReportValues {
         self
     }
 
-    /// Setzt Header-Eingabe-Werte (position=0)
+    /// Sets header-input values (`position=0`) for categories with 0 position rows
     ///
-    /// Für Kategorien mit 0 Positionen in BodyConfig.
-    /// Kein Description-Feld (C ist VLOOKUP-Label).
-    ///
-    /// # Arguments
-    /// * `category` - Kategorie-Nummer (1-8)
-    /// * `approved` - Bewilligtes Budget (Spalte D)
-    /// * `income_report` - Einnahmen Berichtszeitraum (Spalte E)
-    /// * `income_total` - Einnahmen gesamt (Spalte F)
-    /// * `remark` - Begründung/Bemerkung (Spalte H)
-    ///
-    /// # Beispiel
-    /// ```ignore
-    /// // Kategorie 6 mit 0 Positionen in BodyConfig
-    /// values.set_header_input(6, 4000.0, 2000.0, 2000.0, "Sonstiges");
-    /// ```
+    /// No `Description` field — column C holds the VLOOKUP label.
     pub fn set_header_input(
         &mut self,
         category: u8,
@@ -401,7 +329,7 @@ impl ReportValues {
         self
     }
 
-    /// Holt einen Positions-Wert (falls vorhanden)
+    /// Returns the value of a position field
     pub fn get_position(&self, category: u8, position: u16, field: PositionField) -> &CellValue {
         self.get(ApiKey::Position {
             category,
@@ -411,19 +339,10 @@ impl ReportValues {
     }
 
     // ========================================================================
-    // Typsichere Positions-Methoden mit Category enum
+    // Type-safe position methods (using Category enum)
     // ========================================================================
 
-    /// Setzt ein einzelnes Positions-Feld typsicher
-    ///
-    /// Verwendet das `Category` enum für Compile-Zeit-Sicherheit.
-    ///
-    /// # Beispiel
-    /// ```ignore
-    /// use fb_rust::report::types::Category;
-    ///
-    /// values.set_cat_position(Category::Personal, 1, PositionField::Approved, 5000.0);
-    /// ```
+    /// Sets a single position field using the [`Category`] enum
     pub fn set_cat_position(
         &mut self,
         category: Category,
@@ -434,17 +353,7 @@ impl ReportValues {
         self.set_position(category.index(), position, field, value)
     }
 
-    /// Setzt eine komplette Positions-Zeile typsicher
-    ///
-    /// # Beispiel
-    /// ```ignore
-    /// use fb_rust::report::types::Category;
-    ///
-    /// values.set_cat_position_row(
-    ///     Category::Personal, 1,
-    ///     "Projektleiter", 60000.0, 30000.0, 30000.0, ""
-    /// );
-    /// ```
+    /// Sets all 5 fields of a position row using the [`Category`] enum
     #[allow(clippy::too_many_arguments)]
     pub fn set_cat_position_row(
         &mut self,
@@ -467,17 +376,7 @@ impl ReportValues {
         )
     }
 
-    /// Setzt Header-Eingabe typsicher
-    ///
-    /// # Beispiel
-    /// ```ignore
-    /// use fb_rust::report::types::Category;
-    ///
-    /// values.set_cat_header_input(
-    ///     Category::Projektverwaltung,
-    ///     8000.0, 4000.0, 4000.0, "Verwaltungskosten"
-    /// );
-    /// ```
+    /// Sets header-input values using the [`Category`] enum
     pub fn set_cat_header_input(
         &mut self,
         category: Category,
@@ -496,32 +395,28 @@ impl ReportValues {
     }
 
     // ========================================================================
-    // Footer-Werte (Saldenabstimmung)
+    // Footer values (balance reconciliation)
     // ========================================================================
-    //
-    // Alle Footer-Werte werden nun in der HashMap gespeichert.
-    // Diese Convenience-Methoden sind nur Wrapper um set()/get().
 
-    /// Setzt den Bank-Saldo für die Saldenabstimmung im Footer
+    /// Sets the bank balance (consuming builder)
     pub fn with_footer_bank(mut self, value: f64) -> Self {
         self.set(ApiKey::Footer(FooterField::Bank), value);
         self
     }
 
-    /// Setzt den Kassen-Saldo für die Saldenabstimmung im Footer
+    /// Sets the cash balance (consuming builder)
     pub fn with_footer_kasse(mut self, value: f64) -> Self {
         self.set(ApiKey::Footer(FooterField::Kasse), value);
         self
     }
 
-    /// Setzt den Sonstiges-Saldo für die Saldenabstimmung im Footer
-    /// (noch nicht eingelöste Schecks, Vorschüsse, Darlehen, etc.)
+    /// Sets other balances (uncashed cheques, advances, loans, etc.)
     pub fn with_footer_sonstiges(mut self, value: f64) -> Self {
         self.set(ApiKey::Footer(FooterField::Sonstiges), value);
         self
     }
 
-    /// Setzt alle Footer-Salden auf einmal
+    /// Sets all three footer balances at once
     pub fn with_footer_salden(mut self, bank: f64, kasse: f64, sonstiges: f64) -> Self {
         self.set(ApiKey::Footer(FooterField::Bank), bank);
         self.set(ApiKey::Footer(FooterField::Kasse), kasse);
@@ -529,56 +424,51 @@ impl ReportValues {
         self
     }
 
-    /// Setzt den Bank-Saldo (mutierend)
+    /// Sets the bank balance (mutating)
     pub fn set_footer_bank(&mut self, value: f64) -> &mut Self {
         self.set(ApiKey::Footer(FooterField::Bank), value);
         self
     }
 
-    /// Setzt den Kassen-Saldo (mutierend)
+    /// Sets the cash balance (mutating)
     pub fn set_footer_kasse(&mut self, value: f64) -> &mut Self {
         self.set(ApiKey::Footer(FooterField::Kasse), value);
         self
     }
 
-    /// Setzt den Sonstiges-Saldo (mutierend)
+    /// Sets other balances (mutating)
     pub fn set_footer_sonstiges(&mut self, value: f64) -> &mut Self {
         self.set(ApiKey::Footer(FooterField::Sonstiges), value);
         self
     }
 
-    /// Holt den Bank-Saldo
+    /// Returns the bank balance
     pub fn footer_bank(&self) -> Option<f64> {
         self.get(ApiKey::Footer(FooterField::Bank)).as_number()
     }
 
-    /// Holt den Kassen-Saldo
+    /// Returns the cash balance
     pub fn footer_kasse(&self) -> Option<f64> {
         self.get(ApiKey::Footer(FooterField::Kasse)).as_number()
     }
 
-    /// Holt den Sonstiges-Saldo
+    /// Returns other balances
     pub fn footer_sonstiges(&self) -> Option<f64> {
         self.get(ApiKey::Footer(FooterField::Sonstiges)).as_number()
     }
 
     // ========================================================================
-    // Validierungs-Methoden (Saldenabstimmung)
+    // Validation (balance reconciliation)
     // ========================================================================
 
-    /// Berechnet die Summe aller Footer-Salden
-    ///
-    /// Wird für die Saldenabstimmung verwendet.
+    /// Computes the sum of all footer balances
     pub fn footer_balance_total(&self) -> f64 {
         self.footer_bank().unwrap_or(0.0)
             + self.footer_kasse().unwrap_or(0.0)
             + self.footer_sonstiges().unwrap_or(0.0)
     }
 
-    /// Validiert ob alle erforderlichen Footer-Werte gesetzt sind
-    ///
-    /// Für eine vollständige Saldenabstimmung sollten mindestens
-    /// Bank und Kasse gesetzt sein.
+    /// Returns `true` if at least bank and cash balances are set
     pub fn validate_footer_complete(&self) -> bool {
         self.footer_bank().is_some() && self.footer_kasse().is_some()
     }

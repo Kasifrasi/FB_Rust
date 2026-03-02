@@ -1,7 +1,7 @@
-//! Typsichere Typen für die Finanzbericht-API
+//! Type-safe types for the financial report API
 //!
-//! Dieses Modul stellt sicher, dass nur gültige Werte an die API übergeben werden können.
-//! Ungültige Werte werden zur Compile-Zeit (Enums) oder zur Laufzeit mit klaren Fehlern abgefangen.
+//! This module ensures only valid values can be passed to the API.
+//! Invalid values are caught at compile time (enums) or at runtime with clear errors.
 
 use crate::lang::data::TEXT_MATRIX;
 use std::fmt;
@@ -144,13 +144,13 @@ pub use crate::lang::data::Currency;
 ///
 /// | JSON value | Index | Description |
 /// |---|---|---|
-/// | `"Bauausgaben"` | 1 | Personnel costs |
-/// | `"Investitionen"` | 2 | Material costs |
-/// | `"Personalausgaben"` | 3 | Travel costs |
-/// | `"Projektaktivitaeten"` | 4 | Investments |
-/// | `"Projektverwaltung"` | 5 | Other costs |
-/// | `"Evaluierung"` | 6 | Project administration |
-/// | `"Audit"` | 7 | Evaluation/Audit |
+/// | `"Bauausgaben"` | 1 | Building Expenses |
+/// | `"Investitionen"` | 2 | Non-Recurring Expenses (Investments) |
+/// | `"Personalausgaben"` | 3 | Personnel Expenses |
+/// | `"Projektaktivitaeten"` | 4 | Ongoing Expenses for Project Activities |
+/// | `"Projektverwaltung"` | 5 | Project Administration |
+/// | `"Evaluierung"` | 6 | Evaluation |
+/// | `"Audit"` | 7 | Audit |
 /// | `"Reserve"` | 8 | Reserve |
 ///
 /// **Note:** In [`ReportConfig`](crate::ReportConfig) JSON, categories are referenced
@@ -214,30 +214,30 @@ impl Category {
         ]
     }
 
-    /// Deutscher Name der Kategorie
+    /// German display name (matches TEXT_MATRIX labels)
     pub fn name_de(&self) -> &'static str {
         match self {
-            Category::Bauausgaben => "Personalkosten",
-            Category::Investitionen => "Sachkosten",
-            Category::Personalausgaben => "Reisekosten",
-            Category::Projektaktivitaeten => "Investitionen",
-            Category::Projektverwaltung => "Sonstige Kosten",
-            Category::Evaluierung => "Projektverwaltung",
-            Category::Audit => "Evaluierung/Audit",
+            Category::Bauausgaben => "Bauausgaben",
+            Category::Investitionen => "Einmalige Ausgaben (Investitionen)",
+            Category::Personalausgaben => "Personalkosten",
+            Category::Projektaktivitaeten => "Laufende Ausgaben für Projektaktivitäten",
+            Category::Projektverwaltung => "Projektverwaltung",
+            Category::Evaluierung => "Evaluierung",
+            Category::Audit => "Audit",
             Category::Reserve => "Reserve",
         }
     }
 
-    /// Englischer Name der Kategorie
+    /// English display name (matches TEXT_MATRIX labels)
     pub fn name_en(&self) -> &'static str {
         match self {
-            Category::Bauausgaben => "Personnel Costs",
-            Category::Investitionen => "Material Costs",
-            Category::Personalausgaben => "Travel Costs",
-            Category::Projektaktivitaeten => "Investments",
-            Category::Projektverwaltung => "Other Costs",
-            Category::Evaluierung => "Project Administration",
-            Category::Audit => "Evaluation/Audit",
+            Category::Bauausgaben => "Building Expenses",
+            Category::Investitionen => "Non-Recurring Expenses (Investments)",
+            Category::Personalausgaben => "Personnel Expenses",
+            Category::Projektaktivitaeten => "Ongoing Expenses for Project Activities",
+            Category::Projektverwaltung => "Project Administration",
+            Category::Evaluierung => "Evaluation",
+            Category::Audit => "Audit",
             Category::Reserve => "Reserve",
         }
     }

@@ -1,9 +1,8 @@
-//! API-Typen für den Finanzbericht
+//! Public API types for the financial report
 //!
-//! Dieses Modul enthält alle öffentlichen Typen für die Nutzung der API:
-//! - `keys`: ApiKey und PositionField für Zell-Referenzierung
-//! - `types`: Typsichere Typen (Language, Currency, Category, ReportDate)
-//! - `values`: ReportValues für Eingabewerte
+//! - [`keys`]: `ApiKey` and `PositionField` for cell addressing
+//! - [`types`]: Type-safe types (`Language`, `Currency`, `Category`, `ReportDate`)
+//! - [`values`]: `ReportValues` for input data
 
 mod keys;
 mod types;

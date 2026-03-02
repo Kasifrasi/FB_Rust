@@ -1,14 +1,14 @@
-//! API-Zellen Definition
+//! API cell definitions
 //!
-//! Alle API-Zellen werden hier zentral definiert. Das Macro generiert:
-//! - `ApiKey` enum mit allen Varianten
-//! - `addr()` Methode für jede Variante
-//! - `register_all_api_cells()` Funktion
+//! All API cells are defined centrally here. The macro generates:
+//! - `ApiKey` enum with all variants
+//! - `ApiKey::static_addr()` method for compile-time-known addresses
+//! - `ApiKey::all_static_keys()` iterator
 //!
-//! Um eine neue API-Zelle hinzuzufügen:
-//! 1. Einzelzelle: `NewField => (row, col),` im `single` Block
-//! 2. Bereichszelle: `NewField => (start_row, col, count),` im `range` Block
-//!    FERTIG! Alles andere wird automatisch generiert.
+//! To add a new API cell:
+//! 1. Single cell: `NewField => (row, col),` in the `single` block
+//! 2. Range cell:  `NewField => (start_row, col, count),` in the `range` block
+//!    Done — everything else is generated automatically.
 //!
 //! ## Dynamische Positionen (Kostenkategorien)
 //!
