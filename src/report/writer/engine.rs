@@ -1,6 +1,6 @@
 //! Report writer with IronCalc-based formula evaluation.
 //!
-//! Die Haupt-API ist `write_report_with_options()`.
+//! Main API: [`write_report_with_options()`].
 
 use super::layout::{self, setup_sheet};
 use super::structure::write_structure;
@@ -18,28 +18,28 @@ use rust_xlsxwriter::{Format, Formula, Workbook, Worksheet, XlsxError};
 use std::path::Path;
 use std::sync::LazyLock;
 
-/// Globales Master-Template: Einmal erstellt, für alle Reports wiederverwendet.
+/// Global master template: created once, reused for all reports.
 ///
-/// Enthält alle statischen Formeln + Sprachversionen-Daten.
-/// Wird beim ersten Zugriff initialisiert (LazyLock).
+/// Contains all static formulas + language sheet data.
+/// Initialized on first access (`LazyLock`).
 static MASTER_TEMPLATE: LazyLock<ModelTemplate> = LazyLock::new(ModelTemplate::new);
 
-/// Ergebnis der Body-Generierung
+/// Result of the body generation step.
 #[derive(Debug, Clone)]
 pub struct BodyResult {
-    /// Das berechnete Layout
+    /// The computed body layout
     pub layout: BodyLayout,
-    /// Letzte beschriebene Zeile
+    /// Last written row
     pub last_row: u32,
-    /// Zeile der Gesamt-Summe
+    /// Row of the grand total
     pub total_row: u32,
-    /// E-Spalte Total (für Footer Check-Formel)
+    /// Col E total value (used by footer check formula)
     pub e_total: Option<f64>,
-    /// F-Spalte Total (für Footer Check-Formel)
+    /// Col F total value (used by footer check formula)
     pub f_total: Option<f64>,
 }
 
-/// Interne Funktion: Schreibt den Report mit Body-Bereich
+/// Internal: writes the report including the dynamic body area.
 fn write_report_with_body(
     ws: &mut Worksheet,
     suffix: &str,
@@ -47,40 +47,40 @@ fn write_report_with_body(
     body_config: &BodyConfig,
 ) -> Result<BodyResult, XlsxError> {
     let styles = ReportStyles::new();
-    // Standardwert für Formel-Ergebnisse auf "" setzen (statt 0)
+    // Set default formula result to "" (instead of 0)
     ws.set_formula_result_default("");
 
-    // 1. CalcBridge aus Template erstellen (enthält statische Formeln + Sprachversionen)
+    // 1. Create CalcBridge from template (contains static formulas + language sheet)
     let mut bridge = CalcBridge::from_template(&MASTER_TEMPLATE);
 
-    // 2. Layouts berechnen
+    // 2. Compute layouts
     let body_layout = BodyLayout::compute(body_config);
     let footer_layout = FooterLayout::compute(body_layout.total_row);
     let income_row = 19u32;
 
-    // 3. Dynamische Formeln registrieren (Body + Footer)
+    // 3. Register dynamic formulas (body + footer)
     bridge.register_body_formulas(&body_layout);
     bridge.register_footer_formulas(&footer_layout, income_row);
 
-    // 4. Input-Werte setzen + Evaluation
+    // 4. Populate input values + evaluate
     bridge.populate(values, &body_layout, &footer_layout);
     bridge.evaluate();
 
-    // 5. FormatMatrix vollständig aufbauen (statisch + body + footer)
+    // 5. Build complete FormatMatrix (static + body + footer)
     let sec = SectionStyles::new(&styles);
     let mut fmt = build_format_matrix(&styles, &sec);
     extend_format_matrix_with_body(&mut fmt, &styles, &body_layout);
     extend_format_matrix_with_footer(&mut fmt, &styles, &sec, footer_layout.start_row);
     extend_format_matrix_with_prebody(&mut fmt, &sec);
 
-    // 6. Komplette Struktur schreiben (Merges, Blanks, statische Strings)
+    // 6. Write complete structure (merges, blanks, static strings)
     let lang = values.language().unwrap_or("");
     write_structure(ws, &fmt, &body_layout, &footer_layout, suffix, lang)?;
 
-    // 7. ALLE Zellen aus Bridge schreiben (Formeln + Input-Werte)
+    // 7. Write ALL cells from bridge (formulas + input values)
     write_cells_from_bridge(ws, &bridge, &fmt)?;
 
-    // 8. Freeze Pane
+    // 8. Freeze pane
     layout::setup_freeze_panes(ws, 9)?;
 
     // BodyResult
@@ -98,16 +98,9 @@ fn write_report_with_body(
     })
 }
 
-/// Schreibt den kompletten Finanzbericht MIT dynamischem Body-Bereich UND Optionen
+/// Writes the complete financial report with dynamic body area and options.
 ///
-/// Styles werden intern mit Standard-Einstellungen erzeugt.
-///
-/// # Arguments
-/// * `ws` - Worksheet
-/// * `suffix` - Dateiname-Suffix
-/// * `values` - Eingabewerte
-/// * `body_config` - Body-Konfiguration
-/// * `options` - Protection, Validation und Display-Optionen
+/// Styles are created internally with default settings.
 pub fn write_report_with_options(
     ws: &mut Worksheet,
     suffix: &str,
@@ -115,30 +108,30 @@ pub fn write_report_with_options(
     body_config: &BodyConfig,
     options: &SheetOptions,
 ) -> Result<BodyResult, XlsxError> {
-    // Basis-Report schreiben
+    // Write base report
     let body_result = write_report_with_body(ws, suffix, values, body_config)?;
 
-    // Optionen anwenden
+    // Apply options
     apply_sheet_options(ws, options, &body_result)?;
 
     Ok(body_result)
 }
 
-/// Wendet SheetOptions auf ein Worksheet an
+/// Applies [`SheetOptions`] to a worksheet.
 ///
-/// Kann nach dem Schreiben des Reports aufgerufen werden.
+/// Can be called after writing the report.
 pub fn apply_sheet_options(
     ws: &mut Worksheet,
     options: &SheetOptions,
     _body_result: &BodyResult,
 ) -> Result<(), XlsxError> {
-    // 1. Spalten und Zeilen verstecken
+    // 1. Hide columns and rows
     apply_hidden_ranges(ws, &options.hidden)?;
 
-    // 2. Row Grouping anwenden (wenn konfiguriert)
+    // 2. Apply row grouping (if configured)
     apply_row_grouping(ws, &options.row_grouping)?;
 
-    // 3. Sheet Protection anwenden (wenn konfiguriert)
+    // 3. Apply sheet protection (if configured)
     if let Some(ref protection) = options.protection {
         let prot_options = protection.to_protection_options();
 
@@ -163,16 +156,16 @@ fn extract_version_from_values(values: &ReportValues) -> String {
 }
 
 // ============================================================================
-// Print Setup: Druckbereich + Seitenumbrüche
+// Print setup: print area + page breaks
 // ============================================================================
 
-/// Geschätzte Zeilen pro Druckseite (A4 Hochformat, fit_to_pages Breite=1).
+/// Estimated rows per printed page (A4 portrait, fit_to_pages width=1).
 const MAX_ROWS_PER_PAGE: u32 = 80;
 
-/// Bestimmt den Sheet-Namen anhand der Spracheinstellung.
+/// Determines the sheet name based on the language setting.
 ///
-/// Gibt den lokalisierten Sheet-Namen zurück (z.B. "Finanzbericht", "Financial Report")
-/// oder "Sheet1" als Fallback.
+/// Returns the localized sheet name (e.g. "Finanzbericht", "Financial Report")
+/// or "Sheet1" as fallback.
 fn determine_sheet_name(values: &ReportValues) -> String {
     values
         .get(crate::report::api::ApiKey::Language)
@@ -188,15 +181,15 @@ fn determine_sheet_name(values: &ReportValues) -> String {
         .unwrap_or_else(|| "Sheet1".to_string())
 }
 
-/// Berechnet horizontale Seitenumbrüche an Kategorie-Grenzen.
+/// Computes horizontal page breaks at category boundaries.
 ///
-/// Platziert Umbrüche VOR Kategorie-Headern, sobald die aktuelle Seite voll ist.
-/// Die erste Seite hat weniger Platz, da der Header-Abschnitt (Zeilen 0–25) verbraucht wird.
+/// Places breaks BEFORE category headers once the current page is full.
+/// The first page has less space because the header section (rows 0–25) is consumed.
 ///
-/// **Sonderfall übergroße Kategorie:** Wenn eine einzelne Kategorie zusammen mit dem
-/// bisherigen Seiteninhalt mehr als `MAX_ROWS_PER_PAGE` Zeilen belegt, wird zusätzlich
-/// innerhalb der Kategorie alle `MAX_ROWS_PER_PAGE` Zeilen hart umbrochen.
-/// Für nachfolgende Kategorien gilt wieder die normale Regel (Umbruch vor Header).
+/// **Oversized category:** If a single category together with the current page content
+/// exceeds `MAX_ROWS_PER_PAGE` rows, additional hard breaks are inserted every
+/// `MAX_ROWS_PER_PAGE` rows within the category.
+/// Subsequent categories follow the normal rule (break before header).
 fn compute_page_breaks(layout: &BodyLayout, footer_layout: &FooterLayout) -> Vec<u32> {
     let mut breaks = Vec::new();
     let mut rows_on_page = BODY_START_ROW;
@@ -210,28 +203,28 @@ fn compute_page_breaks(layout: &BodyLayout, footer_layout: &FooterLayout) -> Vec
         };
         let mut block_end = cat.sum_row();
         if is_cat_8 {
-            // Kategorie 8 wird immer mit der Summenzeile verbunden
+            // Category 8 is always kept together with the total row
             block_end = layout.total_row;
         }
 
         let block_rows = block_end - cat_start + 1;
 
         if rows_on_page + block_rows <= MAX_ROWS_PER_PAGE {
-            // Passt noch auf die aktuelle Seite
+            // Fits on the current page
             rows_on_page += block_rows;
         } else {
-            // Passt NICHT mehr auf die aktuelle Seite.
-            // Regel: Eine Kategorie wird nur dann auf der nächsten Seite komplett gehalten,
-            // wenn die aktuelle Seite dadurch mindestens ~65 Zeilen (2/3 von MAX_ROWS_PER_PAGE) nutzt.
-            // Ansonsten füllen wir die Seite auf und brechen innerhalb der Kategorie um.
-            // Kategorie 8 ist eine Ausnahme und wird immer als Block auf die nächste Seite verschoben
-            // (oder ggf. dort umbrochen, falls sie allein zu groß ist).
+            // Does NOT fit on the current page.
+            // Rule: A category is only pushed to the next page if the current page has
+            // at least ~65 rows (2/3 of MAX_ROWS_PER_PAGE) used. Otherwise, fill the
+            // page and break within the category.
+            // Category 8 is an exception — always moved as a block to the next page
+            // (or broken there if it alone exceeds the page).
             let min_rows_to_keep = 65;
             let should_fill_page =
                 !is_cat_8 && rows_on_page < min_rows_to_keep && cat_start > BODY_START_ROW;
 
             if should_fill_page {
-                // Seite auffüllen -> harter Umbruch innerhalb der Kategorie
+                // Fill the page → hard break within the category
                 let page_remaining = MAX_ROWS_PER_PAGE.saturating_sub(rows_on_page);
                 let mut pos = cat_start + page_remaining;
                 while pos <= block_end {
@@ -241,15 +234,15 @@ fn compute_page_breaks(layout: &BodyLayout, footer_layout: &FooterLayout) -> Vec
                 let last_break = breaks.last().copied().unwrap_or(cat_start);
                 rows_on_page = block_end.saturating_sub(last_break) + 1;
             } else {
-                // Umbruch VOR dem Block, sofern wir nicht eh am Anfang sind
+                // Break BEFORE the block, unless we are at the start
                 if cat_start > BODY_START_ROW {
                     breaks.push(cat_start);
                     rows_on_page = 0;
                 }
 
-                // Prüfen ob der Block jetzt auf die leere Seite passt
+                // Check if the block fits on the empty page
                 if rows_on_page + block_rows > MAX_ROWS_PER_PAGE {
-                    // Block ist allein schon zu groß, muss hart umbrochen werden
+                    // Block alone exceeds the page — must be hard-broken
                     let start_of_page = if rows_on_page == 0 {
                         cat_start
                     } else {
@@ -269,26 +262,26 @@ fn compute_page_breaks(layout: &BodyLayout, footer_layout: &FooterLayout) -> Vec
         }
     }
 
-    // Footer Block
+    // Footer block
     let footer_start = footer_layout.start_row;
     let footer_rows = footer_layout.end_row - footer_layout.start_row + 1;
 
     if rows_on_page + footer_rows > MAX_ROWS_PER_PAGE {
-        // Footer passt nicht auf diese Seite -> Umbruch VOR Footer
+        // Footer does not fit on this page → break before footer
         breaks.push(footer_start);
     }
 
     breaks
 }
 
-/// Wendet Druckeinstellungen auf das Worksheet an (A4, Hochformat, Seitenumbrüche).
+/// Applies print settings to the worksheet (A4, portrait, page breaks).
 fn apply_print_setup(
     ws: &mut Worksheet,
     body_result: &BodyResult,
     footer_layout: &FooterLayout,
 ) -> Result<(), XlsxError> {
     ws.set_paper_size(9); // A4
-    ws.set_print_fit_to_pages(1, 0); // Breite = 1 Seite, Höhe unbegrenzt
+    ws.set_print_fit_to_pages(1, 0); // width = 1 page, height unlimited
 
     let breaks = compute_page_breaks(&body_result.layout, footer_layout);
     if !breaks.is_empty() {
@@ -298,10 +291,10 @@ fn apply_print_setup(
     Ok(())
 }
 
-/// Setzt den Druckbereich als non-contiguous Print Area via `define_name`.
+/// Sets the print area as a non-contiguous range via `define_name`.
 ///
-/// Bereich 1: B1:H{footer_end} (Hauptbericht — ggf. mehrere Seiten, Hochformat)
-/// Bereich 2: J1:V31 (Belegpanel — immer 1 Seite, Hochformat)
+/// Range 1: B1:H{footer_end} (main report — may span multiple pages, portrait)
+/// Range 2: J1:V31 (receipt panel — always 1 page, portrait)
 fn setup_print_area(
     workbook: &mut Workbook,
     sheet_name: &str,
@@ -320,10 +313,10 @@ fn setup_print_area(
 // High-Level API: create_protected_report
 // ============================================================================
 
-/// Erstellt einen kompletten Finanzbericht mit optionalem Workbook-Schutz.
+/// Creates a complete financial report with optional workbook protection.
 ///
-/// Styles werden intern erzeugt. Workbook-Protection und Language-Sheet-Sichtbarkeit
-/// werden als separate Parameter übergeben (nicht Teil von SheetOptions).
+/// Styles are created internally. Workbook protection and language sheet visibility
+/// are passed as separate parameters (not part of [`SheetOptions`]).
 pub(crate) fn create_protected_report(
     output_path: impl AsRef<Path>,
     values: &ReportValues,
@@ -362,8 +355,8 @@ pub(crate) fn create_protected_report(
             &wb_prot.password,
             wb_prot.spin_count,
         )?;
-        // tmp wird beim Drop automatisch gelöscht — nicht persisten,
-        // da output_path bereits die geschützte Datei enthält.
+        // tmp is automatically deleted on drop — not persisted,
+        // since output_path already contains the protected file.
     } else {
         workbook.save(output_path)?;
     }
@@ -371,10 +364,10 @@ pub(crate) fn create_protected_report(
     Ok(())
 }
 
-/// Wie `create_protected_report`, aber mit vorberechnetem Hash (kein SHA-512-Aufwand).
+/// Like [`create_protected_report`], but with a precomputed hash (no SHA-512 overhead).
 ///
-/// Für Batch-Operationen: Hash einmal mit `precompute_hash()` berechnen,
-/// dann für N Dateien wiederverwenden.
+/// For batch operations: compute the hash once with `precompute_hash()`,
+/// then reuse it for N files.
 pub(crate) fn create_protected_report_precomputed(
     output_path: impl AsRef<Path>,
     values: &ReportValues,
@@ -411,24 +404,24 @@ pub(crate) fn create_protected_report_precomputed(
             .ok_or_else(|| crate::error::ReportError::InvalidPath(format!("{:?}", output_path)))?,
         hash,
     )?;
-    // tmp wird beim Drop automatisch gelöscht — nicht persistieren,
-    // da output_path bereits die geschützte Datei enthält.
+    // tmp is automatically deleted on drop — not persisted,
+    // since output_path already contains the protected file.
     Ok(())
 }
 
-/// Wendet HiddenRanges auf ein Worksheet an
+/// Applies [`HiddenRanges`](crate::report::options::HiddenRanges) to a worksheet.
 fn apply_hidden_ranges(
     ws: &mut Worksheet,
     hidden: &crate::report::options::HiddenRanges,
 ) -> Result<(), XlsxError> {
-    // Spalten verstecken
+    // Hide columns
     for range in hidden.column_ranges() {
         for col in range.start..=range.end {
             ws.set_column_hidden(col as u16)?;
         }
     }
 
-    // Zeilen verstecken
+    // Hide rows
     for range in hidden.row_ranges() {
         for row in range.start..=range.end {
             ws.set_row_hidden(row)?;
@@ -438,7 +431,7 @@ fn apply_hidden_ranges(
     Ok(())
 }
 
-/// Wendet Row Grouping auf ein Worksheet an
+/// Applies row grouping to a worksheet.
 fn apply_row_grouping(
     ws: &mut Worksheet,
     grouping: &crate::report::options::RowGrouping,
@@ -447,12 +440,12 @@ fn apply_row_grouping(
         return Ok(());
     }
 
-    // Outline-Symbole Position setzen
+    // Set outline symbols position
     if grouping.symbols_above {
         ws.group_symbols_above(true);
     }
 
-    // Gruppen anwenden
+    // Apply groups
     for group in grouping.groups() {
         if group.collapsed {
             ws.group_rows_collapsed(group.start_row, group.end_row)?;
@@ -464,27 +457,27 @@ fn apply_row_grouping(
     Ok(())
 }
 
-/// Schreibt alle Zellen aus der CalcBridge (Input-Werte und Formeln mit Cache)
+/// Writes all cells from the [`CalcBridge`] (input values and formulas with cached results).
 fn write_cells_from_bridge(
     ws: &mut Worksheet,
     bridge: &CalcBridge,
     fmt: &FormatMatrix,
 ) -> Result<(), XlsxError> {
-    // 1. Input-Zellen schreiben (mit ihren Werten, auch leere als Blanks)
+    // 1. Write input cells (with their values, including empty ones as blanks)
     for addr in bridge.input_cells() {
         let value = bridge.get_value(addr.row, addr.col);
         write_cell_value(ws, *addr, &value, fmt)?;
     }
 
-    // 2. Formel-Zellen schreiben (mit gecachten Ergebnissen)
+    // 2. Write formula cells (with cached results)
     for addr in bridge.formula_cells() {
         if let Some(formula_str) = bridge.get_formula(addr.row, addr.col) {
             let result = bridge.get_value(addr.row, addr.col);
 
-            // Formula mit Result erstellen (Cache für Excel)
+            // Create formula with result (cache for Excel)
             let formula = Formula::new(&formula_str).set_result(cell_value_to_string(&result));
 
-            // Mit Format schreiben (locked)
+            // Write with format (locked)
             if let Some(format) = fmt.get_locked(addr.row, addr.col) {
                 ws.write_formula_with_format(addr.row, addr.col, formula, format)?;
             } else {
@@ -494,9 +487,9 @@ fn write_cells_from_bridge(
         }
     }
 
-    // 3. Hyperlink-Zellen: nativer Hyperlink via write_url_with_format
-    //    IronCalc evaluiert den VLOOKUP → URL-String, write_url erzeugt ein echtes
-    //    <hyperlink>-XML-Element — universell klickbar ohne Formel-Neuberechnung.
+    // 3. Hyperlink cells: native hyperlink via write_url_with_format
+    //    IronCalc evaluates the VLOOKUP → URL string, write_url creates a real
+    //    <hyperlink> XML element — universally clickable without formula recalculation.
     for addr in bridge.hyperlink_cells() {
         let url_value = bridge.get_value(addr.row, addr.col);
         let url = cell_value_to_string(&url_value);
@@ -514,7 +507,7 @@ fn write_cells_from_bridge(
     Ok(())
 }
 
-/// Konvertiert CellValue zu String für Formula::set_result
+/// Converts a [`CellValue`] to a string for `Formula::set_result`.
 fn cell_value_to_string(value: &CellValue) -> String {
     match value {
         CellValue::Empty => String::new(),
@@ -524,7 +517,7 @@ fn cell_value_to_string(value: &CellValue) -> String {
     }
 }
 
-/// Schreibt einen Zellwert (für Registry-API-Cells)
+/// Writes a cell value with optional format from the [`FormatMatrix`].
 fn write_cell_value(
     ws: &mut Worksheet,
     addr: CellAddr,

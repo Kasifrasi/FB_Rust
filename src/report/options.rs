@@ -13,8 +13,8 @@
 //! // Protection with custom options
 //! let protection = SheetProtection::new()
 //!     .with_password("secret")
-//!     .allow_formatting_cells(true)
-//!     .allow_sorting(true);
+//!     .allow_format_cells(true)
+//!     .allow_sort(true);
 //!
 //! // Validation for specific fields
 //! let validation = FieldValidation::new()
@@ -1049,9 +1049,9 @@ mod tests {
     fn test_sheet_protection_from_defaults() {
         let prot = SheetProtection::from_defaults();
         // Check that it uses recommended default settings
-        assert!(prot.format_cells); // allow_formatting_cells = true in defaults
-        assert!(prot.sort); // allow_sorting = true
-        assert!(!prot.insert_columns); // allow_inserting_columns = false
+        assert!(prot.format_cells);
+        assert!(prot.sort);
+        assert!(!prot.insert_columns);
     }
 
     #[test]

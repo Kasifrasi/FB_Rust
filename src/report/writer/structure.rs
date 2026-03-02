@@ -1,7 +1,7 @@
-//! Report-Struktur: Merges, Blanks, statische Strings, Validierungen
+//! Report structure: merges, blanks, static strings, validations
 //!
-//! Alle Formeln und API-Werte werden von `write_cells_from_registry()` geschrieben.
-//! Dieses Modul schreibt nur die Excel-Struktur die VOR den Inhalten existieren muss.
+//! Formulas and input values are written by `write_cells_from_bridge()` in `engine.rs`.
+//! This module only writes the Excel structure that must exist before the content.
 
 use super::layout::MergeRange;
 use crate::report::api::Currency;
@@ -9,7 +9,7 @@ use crate::report::body::{BodyLayout, CategoryLayout, CategoryMode, FooterLayout
 use crate::report::styles::FormatMatrix;
 use rust_xlsxwriter::{DataValidation, Worksheet, XlsxError};
 
-/// Schreibt die komplette Report-Struktur (Merges, Blanks, statische Strings)
+/// Writes the complete report structure (merges, blanks, static strings).
 pub fn write_structure(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
@@ -18,13 +18,13 @@ pub fn write_structure(
     suffix: &str,
     language: &str,
 ) -> Result<(), XlsxError> {
-    // Statische Bereiche
+    // Static sections
     write_header(ws, fmt, suffix, language)?;
     write_table(ws, fmt)?;
     write_panel(ws, fmt)?;
     write_prebody(ws, fmt)?;
 
-    // Dynamische Bereiche
+    // Dynamic sections
     write_body(ws, fmt, body_layout)?;
     write_footer(ws, fmt, footer_layout)?;
 
@@ -160,7 +160,7 @@ fn write_table(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> 
 }
 
 // ============================================================================
-// Panel (Rows 10-30, Spalten J-V)
+// Panel (rows 10-30, cols J-V)
 // ============================================================================
 
 const PANEL_MERGES: &[MergeRange] = &[
@@ -171,7 +171,7 @@ const PANEL_MERGES: &[MergeRange] = &[
 fn write_panel(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> {
     write_merges(ws, fmt, PANEL_MERGES)?;
 
-    // Row 10: L-O und S-V Blanks
+    // Row 10: L-O and S-V blanks
     for col in [11u16, 12, 13, 14] {
         write_blank(ws, fmt, 10, col)?;
     }
@@ -179,7 +179,7 @@ fn write_panel(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> 
         write_blank(ws, fmt, 10, col)?;
     }
 
-    // Row 11: J-O und Q-V Blanks
+    // Row 11: J-O and Q-V blanks
     for col in [9u16, 10, 11, 12, 13, 14] {
         write_blank(ws, fmt, 11, col)?;
     }
@@ -187,7 +187,7 @@ fn write_panel(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> 
         write_blank(ws, fmt, 11, col)?;
     }
 
-    // Row 12: J, K, Q, R Blanks
+    // Row 12: J, K, Q, R blanks
     for col in [9u16, 10] {
         write_blank(ws, fmt, 12, col)?;
     }
@@ -195,19 +195,19 @@ fn write_panel(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> 
         write_blank(ws, fmt, 12, col)?;
     }
 
-    // Body: 18 Zeilen (Row 13-30) — Index-Strings + Blanks
+    // Body: 18 rows (row 13-30) — index strings + blanks
     for i in 0..18u32 {
         let row = 13 + i;
         let left_num = 1 + i;
         let right_num = 19 + i;
 
-        // Links: J Index + L/M/N Blanks
+        // Left: J index + L/M/N blanks
         write_string(ws, fmt, row, 9, &format!("{}. ", left_num))?;
         for col in [11u16, 12, 13] {
             write_blank(ws, fmt, row, col)?;
         }
 
-        // Rechts: Q Index + S/T/U Blanks
+        // Right: Q index + S/T/U blanks
         write_string(ws, fmt, row, 16, &format!("{}. ", right_num))?;
         for col in [18u16, 19, 20] {
             write_blank(ws, fmt, row, col)?;
@@ -224,18 +224,18 @@ fn write_panel(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> 
 fn write_prebody(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError> {
     ws.set_row_height(20, 13.5)?;
 
-    // D-H (Spalten 3-7): Vertikale Merges Zeile 22-25 (locked)
+    // D-H (cols 3-7): vertical merges rows 22-25 (locked)
     for col in 3u16..=7u16 {
         if let Some(format) = fmt.get_locked(22, col) {
             ws.merge_range(22, col, 25, col, "", format)?;
         }
     }
 
-    // B22, C22: Blanks
+    // B22, C22: blanks
     write_blank(ws, fmt, 22, 1)?;
     write_blank(ws, fmt, 22, 2)?;
 
-    // B:C Merges rows 23-24 (locked, Formeln via Registry)
+    // B:C merges rows 23-24 (locked, formulas via CalcBridge)
     for row in 23..=24 {
         if let Some(format) = fmt.get_locked(row, 1) {
             ws.merge_range(row, 1, row, 2, "", format)?;
@@ -251,7 +251,7 @@ fn write_prebody(ws: &mut Worksheet, fmt: &FormatMatrix) -> Result<(), XlsxError
 }
 
 // ============================================================================
-// Body (dynamisch)
+// Body (dynamic)
 // ============================================================================
 
 fn write_body(
@@ -263,7 +263,7 @@ fn write_body(
         write_category(ws, fmt, cat)?;
     }
 
-    // Gesamt-Zeile: B:C Merge (locked) + H Blank
+    // Total row: B:C merge (locked) + H blank
     if let Some(format) = fmt.get_locked(layout.total_row, 1) {
         ws.merge_range(layout.total_row, 1, layout.total_row, 2, "", format)?;
     }
@@ -286,19 +286,19 @@ fn write_category(
             positions,
             footer_row,
         } => {
-            // Header: Nummer + D-H Blanks
+            // Header: number + D-H blanks
             write_string(ws, fmt, *header_row, 1, &format!("{}.", cat.meta.num))?;
             for col in 3..=7 {
                 write_blank(ws, fmt, *header_row, col)?;
             }
 
-            // Positions: Nummern
+            // Positions: numbers
             for i in 0..positions.count {
                 let row = positions.start_row + i as u32;
                 write_string(ws, fmt, row, 1, &format!("{}.{}", cat.meta.num, i + 1))?;
             }
 
-            // Footer: B:C Merge (locked) + H Blank
+            // Footer: B:C merge (locked) + H blank
             if let Some(format) = fmt.get_locked(*footer_row, 1) {
                 ws.merge_range(*footer_row, 1, *footer_row, 2, "", format)?;
             }
@@ -309,7 +309,7 @@ fn write_category(
 }
 
 // ============================================================================
-// Footer (dynamisch)
+// Footer (dynamic)
 // ============================================================================
 
 fn write_footer(
@@ -319,7 +319,7 @@ fn write_footer(
 ) -> Result<(), XlsxError> {
     let s = layout.start_row;
 
-    // Zeile 0: Blanks B-D + E:E+1 Merge (locked)
+    // Row 0: blanks B-D + E:E+1 merge (locked)
     for col in 1..=3 {
         write_blank(ws, fmt, s, col)?;
     }
@@ -327,44 +327,44 @@ fn write_footer(
         ws.merge_range(s, 4, s + 1, 4, "", format)?;
     }
 
-    // Zeile 1: B:D Merge (locked)
+    // Row 1: B:D merge (locked)
     if let Some(format) = fmt.get_locked(s + 1, 1) {
         ws.merge_range(s + 1, 1, s + 1, 3, "", format)?;
     }
 
-    // Zeile 2: Blanks B-D
+    // Row 2: blanks B-D
     for col in 1..=3 {
         write_blank(ws, fmt, s + 2, col)?;
     }
 
-    // Zeile 3: Blanks B-E
+    // Row 3: blanks B-E
     for col in 1..=4 {
         write_blank(ws, fmt, s + 3, col)?;
     }
 
-    // Zeile 4: Blank C
+    // Row 4: blank C
     write_blank(ws, fmt, s + 4, 2)?;
 
-    // Zeile 5: Blanks B-E
+    // Row 5: blanks B-E
     for col in 1..=4 {
         write_blank(ws, fmt, s + 5, col)?;
     }
 
-    // Zeile 6: Blanks C, D
+    // Row 6: blanks C, D
     write_blank(ws, fmt, s + 6, 2)?;
     write_blank(ws, fmt, s + 6, 3)?;
 
-    // Zeilen 7-8: Blanks C, D
+    // Rows 7-8: blanks C, D
     for i in 7..=8 {
         write_blank(ws, fmt, s + i, 2)?;
         write_blank(ws, fmt, s + i, 3)?;
     }
 
-    // Zeile 9: Blanks C, D
+    // Row 9: blanks C, D
     write_blank(ws, fmt, s + 9, 2)?;
     write_blank(ws, fmt, s + 9, 3)?;
 
-    // Zeile 19: Blank C + Blanks E-G
+    // Row 19: blank C + blanks E-G
     write_blank(ws, fmt, s + 19, 2)?;
     for col in 4..=6 {
         write_blank(ws, fmt, s + 19, col)?;
@@ -374,10 +374,10 @@ fn write_footer(
 }
 
 // ============================================================================
-// Generische Helfer
+// Generic helpers
 // ============================================================================
 
-/// Schreibt Merge-Bereiche mit Format aus FormatMatrix (unlocked)
+/// Writes merge ranges with unlocked format from [`FormatMatrix`].
 fn write_merges(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
@@ -398,7 +398,7 @@ fn write_merges(
     Ok(())
 }
 
-/// Schreibt mehrere Blank-Zellen aus einem const-Array
+/// Writes multiple blank cells from a const array.
 fn write_blanks(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
@@ -410,7 +410,7 @@ fn write_blanks(
     Ok(())
 }
 
-/// Schreibt eine einzelne Blank-Zelle mit Format
+/// Writes a single blank cell with format.
 fn write_blank(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,
@@ -423,7 +423,7 @@ fn write_blank(
     Ok(())
 }
 
-/// Schreibt einen String mit optionalem Format
+/// Writes a string with optional format.
 fn write_string(
     ws: &mut Worksheet,
     fmt: &FormatMatrix,

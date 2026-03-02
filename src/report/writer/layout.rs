@@ -1,16 +1,11 @@
-//! Layout-Konfiguration für den Finanzbericht
+//! Layout configuration for the financial report
 //!
-//! Enthält:
-//! - Spaltenbreiten
-//! - Zeilenhöhen
-//! - Merge-Bereiche
-//! - Freeze Panes
-//! - Page Setup
+//! Column widths, row heights, merge ranges, freeze panes, and page setup.
 
 use rust_xlsxwriter::{Worksheet, XlsxError};
 
 // ============================================================================
-// Merge-Definition
+// Merge range definition
 // ============================================================================
 
 /// A rectangular cell merge range, defined by inclusive row/column bounds.
@@ -34,7 +29,7 @@ impl MergeRange {
 }
 
 // ============================================================================
-// Sheet Setup (Spaltenbreiten, Zeilenhöhen, Zoom, etc.)
+// Sheet setup (column widths, row heights, zoom, etc.)
 // ============================================================================
 
 /// Configures the worksheet with zoom level, column widths, and row heights.
@@ -44,10 +39,10 @@ pub fn setup_sheet(ws: &mut Worksheet) -> Result<(), XlsxError> {
     ws.set_zoom(85);
     ws.set_screen_gridlines(false);
 
-    // Spaltenbreiten
+    // Column widths
     setup_column_widths(ws)?;
 
-    // Zeilenhöhen
+    // Row heights
     setup_row_heights(ws)?;
 
     Ok(())

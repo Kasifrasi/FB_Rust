@@ -1,21 +1,22 @@
-//! Zentrale Format-Definitionen für den Finanzbericht
+//! Central format definitions for the financial report.
 //!
-//! Enthält:
-//! - ReportStyles: Basis-Styles (Farben, Borders, Standard-Formate)
-//! - SectionStyles: Abgeleitete Styles für spezifische Bereiche
-//! - FormatMatrix: Zell-spezifische Format-Zuordnung
+//! - [`ReportStyles`]: Base styles (colors, borders, standard formats)
+//! - [`SectionStyles`]: Derived styles for specific sections
+//! - [`FormatMatrix`]: Per-cell format lookup
+//! - [`BodyStyles`]: Styles for the dynamic body section
 
 use crate::report::body::BodyLayout;
 use rust_xlsxwriter::{Color, Format, FormatAlign, FormatBorder, FormatPattern};
 use std::collections::HashMap;
 
 // ============================================================================
-// FormatMatrix: Zentrale Speicherung aller Zellformate
+// FormatMatrix
 // ============================================================================
 
-/// Zentrale Matrix für alle Zellformate
-/// Default-Format ist unlocked (Arial 10), nur Formel-Zellen werden locked.
-/// Locked-Varianten werden beim Einfügen vorab gecacht um Clones im Hot Path zu vermeiden.
+/// Per-cell format lookup for the report grid.
+///
+/// Default format is unlocked (Arial 10); only formula cells are locked.
+/// Locked variants are pre-cached on insertion to avoid clones in the hot path.
 pub struct FormatMatrix {
     formats: HashMap<(u32, u16), Format>,
     locked_formats: HashMap<(u32, u16), Format>,
@@ -29,7 +30,7 @@ impl FormatMatrix {
         }
     }
 
-    /// Setzt das Format für eine Zelle (automatisch unlocked + locked gecacht)
+    /// Sets the format for a cell (automatically caches both unlocked and locked variants).
     pub fn set(&mut self, row: u32, col: u16, format: &Format) {
         let key = (row, col);
         let unlocked = format.clone().set_unlocked();
@@ -38,12 +39,12 @@ impl FormatMatrix {
         self.locked_formats.insert(key, locked);
     }
 
-    /// Holt das Format für eine Zelle (unlocked)
+    /// Returns the unlocked format for a cell.
     pub fn get(&self, row: u32, col: u16) -> Option<&Format> {
         self.formats.get(&(row, col))
     }
 
-    /// Holt das Format für eine Zelle mit locked flag (für Formeln)
+    /// Returns the locked format for a cell (for formula cells).
     pub fn get_locked(&self, row: u32, col: u16) -> Option<&Format> {
         self.locked_formats.get(&(row, col))
     }
@@ -56,7 +57,7 @@ impl Default for FormatMatrix {
 }
 
 // ============================================================================
-// ReportStyles: Basis-Styles
+// ReportStyles: Base styles
 // ============================================================================
 
 pub struct ReportStyles {
@@ -134,7 +135,7 @@ impl ReportStyles {
         let border_dotted = FormatBorder::Dotted;
         let border_dashed = FormatBorder::Dashed;
 
-        // Base Format (Standard: Arial 10, locked - Formeln sind immer gesperrt)
+        // Base format (Arial 10, locked — formula cells are always protected)
         let base = Format::new().set_font_name("Arial").set_font_size(10.0);
 
         // Base Alignments
@@ -349,7 +350,7 @@ impl Default for ReportStyles {
 }
 
 // ============================================================================
-// SectionStyles: Abgeleitete Styles für spezifische Bereiche
+// SectionStyles: Derived styles for specific sections
 // ============================================================================
 
 pub struct SectionStyles {
@@ -428,10 +429,10 @@ pub struct SectionStyles {
     pub pb_lbl_b: Format,    // B23: blank — medium-left+top, no right border
     pub pb_lbl_c: Format,    // C23: blank — medium-top, thin-right
     pub pb_val: Format,      // D23, F23, G23: merge head — center+wrap, medium-top, thin-left/right
-    pub pb_val_bold: Format, // E23: wie pb_val + bold
-    pub pb_right: Format,    // H23: wie pb_val + medium-right
+    pub pb_val_bold: Format, // E23: like pb_val + bold
+    pub pb_right: Format,    // H23: like pb_val + medium-right
     pub pb_mid: Format,      // B25: B:C merge — center+wrap, medium-left, thin-right
-    pub pb_mid_bold: Format, // B24: wie pb_mid + bold
+    pub pb_mid_bold: Format, // B24: like pb_mid + bold
     pub pb_bot: Format,      // B26: B:C merge (blank) — medium-left+bottom, thin-right
 }
 
@@ -818,14 +819,14 @@ impl SectionStyles {
 }
 
 // ============================================================================
-// build_format_matrix: Zentrale Zell-Format-Zuordnung
+// build_format_matrix: Static cell format assignment
 // ============================================================================
 
 pub fn build_format_matrix(styles: &ReportStyles, sec: &SectionStyles) -> FormatMatrix {
     let mut m = FormatMatrix::new();
 
     // ========================================================================
-    // HEADER BEREICH (Rows 0-9)
+    // HEADER (Rows 0-9)
     // ========================================================================
 
     // Row 0
@@ -913,7 +914,7 @@ pub fn build_format_matrix(styles: &ReportStyles, sec: &SectionStyles) -> Format
     // TABLE BODY (Rows 14-18)
     // ========================================================================
 
-    // Row 14 (erste Datenzeile)
+    // Row 14 (first data row)
     m.set(14, 1, &sec.body_label_top);
     m.set(14, 3, &styles.body_value);
     m.set(14, 4, &styles.body_input);
@@ -943,10 +944,10 @@ pub fn build_format_matrix(styles: &ReportStyles, sec: &SectionStyles) -> Format
     m.set(19, 7, &styles.summary_right);
 
     // ========================================================================
-    // RIGHT PANEL (Row 10-30, Cols J-O und Q-V)
+    // RIGHT PANEL (Row 10-30, Cols J-O and Q-V)
     // ========================================================================
 
-    // Row 10 (J11-O11, Q11-V11): Header mit top border
+    // Row 10 (J11-O11, Q11-V11): header with top border
     let j11_fmt = styles
         .left_center_bold
         .clone()
@@ -965,7 +966,7 @@ pub fn build_format_matrix(styles: &ReportStyles, sec: &SectionStyles) -> Format
     m.set(10, 20, &sec.rp_hdr_mid_top);
     m.set(10, 21, &sec.rp_hdr_right_top);
 
-    // Row 11 (J12-O12, Q12-V12): Header ohne top border
+    // Row 11 (J12-O12, Q12-V12): header without top border
     m.set(11, 9, &sec.rp_hdr_left);
     m.set(11, 10, &sec.rp_hdr_mid);
     m.set(11, 11, &sec.rp_hdr_mid);
@@ -979,13 +980,13 @@ pub fn build_format_matrix(styles: &ReportStyles, sec: &SectionStyles) -> Format
     m.set(11, 20, &sec.rp_hdr_mid);
     m.set(11, 21, &sec.rp_hdr_right);
 
-    // Row 12 (J13, K13, Q13, R13): nur blanks, L13-O13 und S13-V13 haben center_center_bold
+    // Row 12 (J13, K13, Q13, R13): blanks only; L13-O13 and S13-V13 use center_center_bold
     m.set(12, 9, &sec.rp_hdr_left);
     m.set(12, 10, &sec.rp_hdr_mid);
     m.set(12, 16, &sec.rp_hdr_left);
     m.set(12, 17, &sec.rp_hdr_mid);
 
-    // Rows 13-29: Body ohne bottom border
+    // Rows 13-29: body without bottom border
     for row in 13..=29 {
         m.set(row, 9, &sec.rp_idx);
         m.set(row, 10, &sec.rp_txt);
@@ -1001,7 +1002,7 @@ pub fn build_format_matrix(styles: &ReportStyles, sec: &SectionStyles) -> Format
         m.set(row, 21, &sec.rp_calc);
     }
 
-    // Row 30: Body mit bottom border
+    // Row 30: body with bottom border
     m.set(30, 9, &sec.rp_idx_last);
     m.set(30, 10, &sec.rp_txt_last);
     m.set(30, 11, &sec.rp_date_last);
@@ -1019,62 +1020,62 @@ pub fn build_format_matrix(styles: &ReportStyles, sec: &SectionStyles) -> Format
 }
 
 // ============================================================================
-// BodyStyles: Formate für den dynamischen Body-Bereich
+// BodyStyles: Formats for the dynamic body section
 // ============================================================================
 
-/// Styles für den dynamischen Body-Bereich (Kostenkategorien)
+/// Styles for the dynamic body section (cost categories).
 pub struct BodyStyles {
-    // === Category Header (bold, keine Füllung) ===
-    /// B: Kategorie-Nummer ("1."), rechts, bold, medium left border
+    // === Category Header (bold, no fill) ===
+    /// B: category number ("1."), left, bold, medium left border
     pub cat_header_b: Format,
-    /// C: VLOOKUP Label, links, bold
+    /// C: VLOOKUP label, left, bold
     pub cat_header_c: Format,
-    /// D-F: Werte-Spalten (leer im Header)
+    /// D-F: value columns (empty in header)
     pub cat_header_value: Format,
-    /// G: Prozent-Spalte (leer im Header)
+    /// G: percent column (empty in header)
     pub cat_header_pct: Format,
-    /// H: Bemerkung, medium right border
+    /// H: remarks, medium right border
     pub cat_header_h: Format,
 
-    // === Position Row (Input Cells, gelb) ===
-    /// B: Positions-Nummer ("1.1"), rechts
+    // === Position Row (input cells, yellow) ===
+    /// B: position number ("1.1"), left
     pub pos_b: Format,
-    /// C: Beschreibung, links, input fill, wrap
+    /// C: description, left, input fill, wrap
     pub pos_c: Format,
-    /// D: Bewilligt, grau fill (berechnet oder value)
+    /// D: approved, gray fill (calculated or value)
     pub pos_d: Format,
-    /// E-F: Einnahmen, input fill
+    /// E-F: income, input fill
     pub pos_ef: Format,
-    /// G: Prozent (Formel)
+    /// G: percent (formula)
     pub pos_g: Format,
-    /// H: Bemerkung, input fill, wrap, medium right
+    /// H: remarks, input fill, wrap, medium right
     pub pos_h: Format,
 
-    // === Category Footer (grau fill, bold) ===
-    /// B:C merged: Sum-Label via VLOOKUP (keine rechte border auf B, da merged)
+    // === Category Footer (gray fill, bold) ===
+    /// B:C merged: sum label via VLOOKUP (no right border on B, merged)
     pub footer_bc: Format,
-    /// D-F: SUM Formeln
+    /// D-F: SUM formulas
     pub footer_value: Format,
-    /// G: Ratio-Formel
+    /// G: ratio formula
     pub footer_pct: Format,
-    /// H: leer, medium right
+    /// H: empty, medium right
     pub footer_h: Format,
 
-    // === Single-Row Category (wie Position, aber mit bold Label) ===
-    /// B: Kategorie-Nummer ("6."), rechts, bold
+    // === Single-Row Category (like position, but with bold label) ===
+    /// B: category number ("6."), left, bold
     pub single_b: Format,
-    /// C: VLOOKUP Label, bold
+    /// C: VLOOKUP label, bold
     pub single_c: Format,
-    // D-H: gleich wie pos_*
+    // D-H: same as pos_*
 
-    // === Total Row (grau fill, bold, medium bottom) ===
-    /// B:C merged: "Gesamt" Label
+    // === Total Row (gray fill, bold, medium bottom) ===
+    /// B:C merged: "Total" label
     pub total_bc: Format,
-    /// D-F: SUM Formeln
+    /// D-F: SUM formulas
     pub total_value: Format,
-    /// G: Ratio-Formel
+    /// G: ratio formula
     pub total_pct: Format,
-    /// H: leer, medium right + bottom
+    /// H: empty, medium right + bottom
     pub total_h: Format,
 }
 
@@ -1180,7 +1181,7 @@ impl BodyStyles {
             .set_border_bottom(thin)
             .set_border_right(medium);
 
-        // === Category Footer (grau) ===
+        // === Category Footer (gray) ===
         let gray_bold = s
             .base
             .clone()
@@ -1188,7 +1189,7 @@ impl BodyStyles {
             .set_pattern(FormatPattern::Solid)
             .set_bold();
 
-        // B:C merged - linksbündig, left border (medium), right border (thin)
+        // B:C merged — left-aligned, left border (medium), right border (thin)
         let footer_bc = gray_bold
             .clone()
             .set_align(FormatAlign::Left)
@@ -1228,7 +1229,7 @@ impl BodyStyles {
             .set_border_bottom(thin)
             .set_border_right(thin);
 
-        // Für Kategorie 8: grauer Text
+        // For category 8: gray text
         let single_c = s
             .base
             .clone()
@@ -1236,8 +1237,8 @@ impl BodyStyles {
             .set_bold()
             .set_border(thin);
 
-        // === Total Row (grau, medium bottom) ===
-        // B:C merged - linksbündig, left border (medium), right border (thin)
+        // === Total Row (gray, medium bottom) ===
+        // B:C merged — left-aligned, left border (medium), right border (thin)
         let total_bc = gray_bold
             .clone()
             .set_align(FormatAlign::Left)
@@ -1298,17 +1299,17 @@ impl BodyStyles {
 }
 
 // ============================================================================
-// apply_formats!: Deklaratives Makro für Spalte→Format-Zuordnungen
+// apply_formats!: Declarative macro for column→format assignment
 // ============================================================================
 
-/// Setzt eine feste Spalte→Format-Zuordnung für eine oder mehrere Zeilen.
+/// Sets a fixed column→format mapping for one or more rows.
 ///
-/// # Varianten
+/// # Variants
 ///
-/// - `row $row` — einzelne Zeile
-/// - `rows $range` — Zeilenbereich (for-Schleife)
+/// - `row $row` — single row
+/// - `rows $range` — row range (for-loop)
 ///
-/// # Beispiel
+/// # Example
 ///
 /// ```ignore
 /// apply_formats!(m, row header_row, {
@@ -1330,10 +1331,10 @@ macro_rules! apply_formats {
 }
 
 // ============================================================================
-// extend_format_matrix_with_body: Fügt Body-Formate zur Matrix hinzu
+// extend_format_matrix_with_body
 // ============================================================================
 
-/// Erweitert die FormatMatrix um die dynamischen Body-Formate
+/// Extends the [`FormatMatrix`] with dynamic body formats.
 pub fn extend_format_matrix_with_body(
     m: &mut FormatMatrix,
     styles: &ReportStyles,
@@ -1345,9 +1346,9 @@ pub fn extend_format_matrix_with_body(
 
     for cat in &layout.categories {
         match &cat.mode {
-            // === Header-Eingabe-Modus (0 Positionen) ===
+            // === Header-input mode (0 positions) ===
             CategoryMode::HeaderInput { row } => {
-                // B: fett, C: fett (Kategorie 8 grau)
+                // B: bold, C: bold (category 8 gray)
                 m.set(*row, 1, &body.single_b);
                 if cat.meta.num == 8 {
                     let gray_text = body.single_c.clone().set_font_color(Color::RGB(0xBFBFBF));
@@ -1355,7 +1356,7 @@ pub fn extend_format_matrix_with_body(
                 } else {
                     m.set(*row, 2, &body.single_c);
                 }
-                // D–H: Eingabe-Formate (wie Positions-Zeile)
+                // D–H: input formats (same as position row)
                 apply_formats!(m, row *row, {
                     3 => &body.pos_d,
                     4 => &body.pos_ef,
@@ -1365,13 +1366,13 @@ pub fn extend_format_matrix_with_body(
                 });
             }
 
-            // === Positions-Modus (1+ Positionen) ===
+            // === Positions mode (1+ positions) ===
             CategoryMode::WithPositions {
                 header_row,
                 positions,
                 footer_row,
             } => {
-                // Header-Zeile: B–H
+                // Header row: B–H
                 apply_formats!(m, row *header_row, {
                     1 => &body.cat_header_b,
                     2 => &body.cat_header_c,
@@ -1382,7 +1383,7 @@ pub fn extend_format_matrix_with_body(
                     7 => &body.cat_header_h,
                 });
 
-                // Positions-Zeilen: B–H
+                // Position rows: B–H
                 apply_formats!(m, rows positions.start_row..=positions.end_row, {
                     1 => &body.pos_b,
                     2 => &body.pos_c,
@@ -1393,7 +1394,7 @@ pub fn extend_format_matrix_with_body(
                     7 => &body.pos_h,
                 });
 
-                // Footer-Zeile: B (B:C gemerged im Writer), D–H
+                // Footer row: B (B:C merged in writer), D–H
                 apply_formats!(m, row *footer_row, {
                     1 => &body.footer_bc,
                     3 => &body.footer_value,
@@ -1406,7 +1407,7 @@ pub fn extend_format_matrix_with_body(
         }
     }
 
-    // === Total-Zeile: B (B:C gemerged im Writer), D–H ===
+    // === Total row: B (B:C merged in writer), D–H ===
     apply_formats!(m, row layout.total_row, {
         1 => &body.total_bc,
         3 => &body.total_value,
@@ -1418,16 +1419,10 @@ pub fn extend_format_matrix_with_body(
 }
 
 // ============================================================================
-// extend_format_matrix_with_footer: Fügt Footer-Formate zur Matrix hinzu
+// extend_format_matrix_with_footer
 // ============================================================================
 
-/// Erweitert die FormatMatrix um die Footer-Formate
-///
-/// # Arguments
-/// * `m` - FormatMatrix
-/// * `styles` - ReportStyles
-/// * `sec` - SectionStyles
-/// * `start_row` - Startzeile des Footers (total_row + 3)
+/// Extends the [`FormatMatrix`] with footer formats.
 pub fn extend_format_matrix_with_footer(
     m: &mut FormatMatrix,
     _styles: &ReportStyles,
@@ -1436,7 +1431,7 @@ pub fn extend_format_matrix_with_footer(
 ) {
     let s = start_row;
 
-    // Zeile 0: B–E (top borders, E beginnt merge mit Zeile 1)
+    // Row 0: B–E (top borders, E starts merge with row 1)
     apply_formats!(m, row s, {
         1 => &sec.ft_b_top_left,
         2 => &sec.ft_c_top,
@@ -1444,10 +1439,10 @@ pub fn extend_format_matrix_with_footer(
         4 => &sec.ft_e_merged_top,
     });
 
-    // Zeile 1: B:D merged (E liegt im merge von oben)
+    // Row 1: B:D merged (E is in the merge from above)
     m.set(s + 1, 1, &sec.ft_bcd_merged);
 
-    // Zeile 2: B–E
+    // Row 2: B–E
     apply_formats!(m, row s + 2, {
         1 => &sec.ft_b_left,
         2 => &_styles.center_center,
@@ -1455,7 +1450,7 @@ pub fn extend_format_matrix_with_footer(
         4 => &sec.ft_e_center,
     });
 
-    // Zeile 3: B–E (Blanks)
+    // Row 3: B–E (blanks)
     apply_formats!(m, row s + 3, {
         1 => &sec.ft_b_left,
         2 => &_styles.left_center,
@@ -1463,7 +1458,7 @@ pub fn extend_format_matrix_with_footer(
         4 => &sec.ft_e_right,
     });
 
-    // Zeile 4: Saldo-Box (B: Formel, C: Blank, D: Check, E: Differenz)
+    // Row 4: balance box (B: formula, C: blank, D: check, E: difference)
     apply_formats!(m, row s + 4, {
         1 => &sec.ft_b_label_box,
         2 => &sec.ft_c_box,
@@ -1471,7 +1466,7 @@ pub fn extend_format_matrix_with_footer(
         4 => &sec.ft_e_number_box,
     });
 
-    // Zeile 5: B–E (Blanks)
+    // Row 5: B–E (blanks)
     apply_formats!(m, row s + 5, {
         1 => &sec.ft_b_left,
         2 => &_styles.left_center,
@@ -1479,7 +1474,7 @@ pub fn extend_format_matrix_with_footer(
         4 => &sec.ft_e_right,
     });
 
-    // Zeile 6: Saldenabstimmung (B: Formel, C,D: Blank, E: OK-Formel)
+    // Row 6: balance reconciliation (B: formula, C,D: blank, E: OK formula)
     apply_formats!(m, row s + 6, {
         1 => &sec.ft_b_left,
         2 => &_styles.left_center,
@@ -1487,7 +1482,7 @@ pub fn extend_format_matrix_with_footer(
         4 => &sec.ft_e_gray_box,
     });
 
-    // Zeilen 7–8: Bank, Kasse (B: Label, C,D: Blank, E: Input)
+    // Rows 7–8: bank, cash (B: label, C,D: blank, E: input)
     apply_formats!(m, rows s + 7..=s + 8, {
         1 => &sec.ft_b_input_label_top,
         2 => &sec.ft_c_input_top,
@@ -1495,7 +1490,7 @@ pub fn extend_format_matrix_with_footer(
         4 => &sec.ft_e_input_top,
     });
 
-    // Zeile 9: Sonstiges (B: Label, C,D: Blank, E: Input mit bottom border)
+    // Row 9: other (B: label, C,D: blank, E: input with bottom border)
     apply_formats!(m, row s + 9, {
         1 => &sec.ft_b_input_label_bottom,
         2 => &sec.ft_c_input_bottom,
@@ -1503,11 +1498,11 @@ pub fn extend_format_matrix_with_footer(
         4 => &sec.ft_e_input_bottom,
     });
 
-    // Zeilen 13–14: Bestätigungstexte (B: Formel)
+    // Rows 13–14: confirmation text (B: formula)
     m.set(s + 13, 1, &_styles.left_center);
     m.set(s + 14, 1, &_styles.left_center);
 
-    // Zeile 19: Unterschriften (B, D: Formeln; C, E–G: Blanks mit top border)
+    // Row 19: signatures (B, D: formulas; C, E–G: blanks with top border)
     apply_formats!(m, row s + 19, {
         1 => &sec.ft_signature,
         2 => &sec.ft_signature_top,
@@ -1517,28 +1512,28 @@ pub fn extend_format_matrix_with_footer(
         6 => &sec.ft_signature_top,
     });
 
-    // Zeile 20: Funktion (D: Formel)
+    // Row 20: function title (D: formula)
     m.set(s + 20, 3, &_styles.left_center);
 }
 
-/// Ergänzt die FormatMatrix um Formate für die Pre-Body Section (Rows 22–25)
+/// Extends the [`FormatMatrix`] with pre-body section formats (rows 22–25).
 ///
-/// Muss nach `build_format_matrix` aufgerufen werden, vor `write_prebody_section`.
+/// Must be called after [`build_format_matrix`], before writing the prebody section.
 pub fn extend_format_matrix_with_prebody(m: &mut FormatMatrix, sec: &SectionStyles) {
-    // Row 22 (Excel 23): Spaltenüberschriften (D–H: vertikale Merge-Heads) + Blanks B/C
+    // Row 22 (Excel 23): column headers (D–H: vertical merge heads) + blanks B/C
     apply_formats!(m, row 22, {
         1 => &sec.pb_lbl_b,    // B23: blank
         2 => &sec.pb_lbl_c,    // C23: blank
         3 => &sec.pb_val,      // D23: merge-head D23:D26
-        4 => &sec.pb_val_bold, // E23: merge-head E23:E26 (Ausgaben, bold)
+        4 => &sec.pb_val_bold, // E23: merge-head E23:E26 (expenses, bold)
         5 => &sec.pb_val,      // F23: merge-head F23:F26
         6 => &sec.pb_val,      // G23: merge-head G23:G26
         7 => &sec.pb_right,    // H23: merge-head H23:H26 (medium-right)
     });
 
-    // Rows 23–25 (Excel 24–26): B:C merged Zeilen
-    apply_formats!(m, row 23, { 1 => &sec.pb_mid_bold }); // B24:C24 (Ausgaben, bold)
-    apply_formats!(m, row 24, { 1 => &sec.pb_mid });       // B25:C25 (Währungszeile)
+    // Rows 23–25 (Excel 24–26): B:C merged rows
+    apply_formats!(m, row 23, { 1 => &sec.pb_mid_bold }); // B24:C24 (expenses, bold)
+    apply_formats!(m, row 24, { 1 => &sec.pb_mid });       // B25:C25 (currency row)
     apply_formats!(m, row 25, { 1 => &sec.pb_bot });       // B26:C26 (thin bottom)
 }
 
@@ -1551,15 +1546,13 @@ mod format_tests {
     use super::*;
     use crate::report::body::{BodyConfig, BodyLayout, CategoryMode};
 
-    /// Prüft, dass extend_format_matrix_with_body() für alle erwarteten
-    /// Zeilen/Spalten-Kombinationen Formate setzt.
-    ///
-    /// Dieser Test muss vor UND nach dem apply_formats!-Refactoring grün sein.
+    /// Verifies that `extend_format_matrix_with_body()` sets formats for all
+    /// expected row/column combinations.
     #[test]
     fn test_body_format_matrix_coverage() {
         let styles = ReportStyles::new();
-        // Kat 1: 2 Positionen → Header + 2 Pos-Zeilen + Footer
-        // Kat 2: 0 Positionen → Header-Eingabe (eine Zeile)
+        // Cat 1: 2 positions → header + 2 position rows + footer
+        // Cat 2: 0 positions → header-input (single row)
         let config = BodyConfig::new()
             .with_positions(1, 2)
             .with_positions(2, 0);
@@ -1568,51 +1561,51 @@ mod format_tests {
         let mut fmt = build_format_matrix(&styles, &sec);
         extend_format_matrix_with_body(&mut fmt, &styles, &layout);
 
-        // --- Kategorie 1: WithPositions ---
+        // --- Category 1: WithPositions ---
         let cat1 = &layout.categories[0];
         if let CategoryMode::WithPositions { header_row, positions, footer_row } = &cat1.mode {
-            // Header-Zeile: B–H alle gesetzt
+            // Header row: B–H all set
             for col in [1u16, 2, 3, 4, 5, 6, 7] {
                 assert!(fmt.get(*header_row, col).is_some(),
-                    "cat1 header row={header_row}, col={col} fehlt");
+                    "cat1 header row={header_row}, col={col} missing");
             }
-            // Positions-Zeilen: B–H alle gesetzt
+            // Position rows: B–H all set
             for row in positions.start_row..=positions.end_row {
                 for col in [1u16, 2, 3, 4, 5, 6, 7] {
                     assert!(fmt.get(row, col).is_some(),
-                        "cat1 pos row={row}, col={col} fehlt");
+                        "cat1 pos row={row}, col={col} missing");
                 }
             }
-            // Footer-Zeile: B, D–H gesetzt (kein C: B:C wird gemerged)
+            // Footer row: B, D–H set (no C: B:C is merged)
             for col in [1u16, 3, 4, 5, 6, 7] {
                 assert!(fmt.get(*footer_row, col).is_some(),
-                    "cat1 footer row={footer_row}, col={col} fehlt");
+                    "cat1 footer row={footer_row}, col={col} missing");
             }
-            // Spalte C in Footer-Zeile: explizit NICHT gesetzt
+            // Column C in footer row: explicitly NOT set
             assert!(fmt.get(*footer_row, 2).is_none(),
-                "cat1 footer col=2 sollte nicht gesetzt sein (B:C merged)");
+                "cat1 footer col=2 should not be set (B:C merged)");
         } else {
-            panic!("cat1 ist nicht WithPositions");
+            panic!("cat1 is not WithPositions");
         }
 
-        // --- Kategorie 2: HeaderInput ---
+        // --- Category 2: HeaderInput ---
         let cat2 = &layout.categories[1];
         if let CategoryMode::HeaderInput { row } = &cat2.mode {
-            // B–H alle gesetzt
+            // B–H all set
             for col in [1u16, 2, 3, 4, 5, 6, 7] {
                 assert!(fmt.get(*row, col).is_some(),
-                    "cat2 header-input row={row}, col={col} fehlt");
+                    "cat2 header-input row={row}, col={col} missing");
             }
         } else {
-            panic!("cat2 ist nicht HeaderInput");
+            panic!("cat2 is not HeaderInput");
         }
 
-        // --- Total-Zeile: B, D–H gesetzt (kein C: B:C wird gemerged) ---
+        // --- Total row: B, D–H set (no C: B:C is merged) ---
         for col in [1u16, 3, 4, 5, 6, 7] {
             assert!(fmt.get(layout.total_row, col).is_some(),
-                "total row={}, col={col} fehlt", layout.total_row);
+                "total row={}, col={col} missing", layout.total_row);
         }
         assert!(fmt.get(layout.total_row, 2).is_none(),
-            "total col=2 sollte nicht gesetzt sein (B:C merged)");
+            "total col=2 should not be set (B:C merged)");
     }
 }
