@@ -4,7 +4,7 @@
 
 use super::layout::{self, setup_sheet};
 use super::structure::write_structure;
-use crate::report::api::{CellValue, ReportValues};
+use crate::report::api::{CellValue, ReportDate, ReportValues};
 use crate::report::body::config::BODY_START_ROW;
 use crate::report::body::{BodyConfig, BodyLayout, CategoryMode, FooterLayout};
 use crate::report::calc::{CalcBridge, ModelTemplate};
@@ -14,7 +14,7 @@ use crate::report::styles::{
     build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,
     extend_format_matrix_with_prebody, FormatMatrix, ReportStyles, SectionStyles,
 };
-use rust_xlsxwriter::{Format, Formula, Workbook, Worksheet, XlsxError};
+use rust_xlsxwriter::{ExcelDateTime, Format, Formula, Workbook, Worksheet, XlsxError};
 use std::path::Path;
 use std::sync::LazyLock;
 
@@ -546,13 +546,151 @@ fn write_cell_value(
             }
         }
         CellValue::Date(d) => {
-            if let Some(f) = format {
-                ws.write_string_with_format(addr.row, addr.col, d, f)?;
+            // Try to parse and write as a real Excel date
+            if let Ok(parsed) = ReportDate::parse(d) {
+                if let Ok(dt) =
+                    ExcelDateTime::from_ymd(parsed.year(), parsed.month(), parsed.day())
+                {
+                    if let Some(f) = format {
+                        ws.write_datetime_with_format(addr.row, addr.col, &dt, f)?;
+                    } else {
+                        let default_fmt = Format::new().set_num_format_index(14);
+                        ws.write_datetime_with_format(addr.row, addr.col, &dt, &default_fmt)?;
+                    }
+                } else {
+                    // ExcelDateTime construction failed — fall back to string
+                    if let Some(f) = format {
+                        ws.write_string_with_format(addr.row, addr.col, d, f)?;
+                    } else {
+                        ws.write_string(addr.row, addr.col, d)?;
+                    }
+                }
             } else {
-                ws.write_string(addr.row, addr.col, d)?;
+                // Parse failed — fall back to string
+                if let Some(f) = format {
+                    ws.write_string_with_format(addr.row, addr.col, d, f)?;
+                } else {
+                    ws.write_string(addr.row, addr.col, d)?;
+                }
             }
         }
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_xlsxwriter::Workbook;
+
+    fn test_worksheet() -> (Workbook, FormatMatrix) {
+        (Workbook::new(), FormatMatrix::new())
+    }
+
+    // ── Date: valid formats written as real ExcelDateTime ─────────────
+
+    #[test]
+    fn test_write_date_german_format() {
+        let (mut wb, fmt) = test_worksheet();
+        let ws = wb.add_worksheet();
+        let addr = CellAddr { row: 0, col: 0 };
+        let value = CellValue::Date("15.01.2024".to_string());
+        write_cell_value(ws, addr, &value, &fmt).unwrap();
+    }
+
+    #[test]
+    fn test_write_date_iso_format() {
+        let (mut wb, fmt) = test_worksheet();
+        let ws = wb.add_worksheet();
+        let addr = CellAddr { row: 0, col: 0 };
+        let value = CellValue::Date("2024-06-30".to_string());
+        write_cell_value(ws, addr, &value, &fmt).unwrap();
+    }
+
+    #[test]
+    fn test_write_date_slash_format() {
+        let (mut wb, fmt) = test_worksheet();
+        let ws = wb.add_worksheet();
+        let addr = CellAddr { row: 0, col: 0 };
+        let value = CellValue::Date("25/12/2024".to_string());
+        write_cell_value(ws, addr, &value, &fmt).unwrap();
+    }
+
+    // ── Date: unparseable string falls back to text ──────────────────
+
+    #[test]
+    fn test_write_date_invalid_falls_back_to_string() {
+        let (mut wb, fmt) = test_worksheet();
+        let ws = wb.add_worksheet();
+        let addr = CellAddr { row: 0, col: 0 };
+        let value = CellValue::Date("not-a-date".to_string());
+        write_cell_value(ws, addr, &value, &fmt).unwrap();
+    }
+
+    #[test]
+    fn test_write_date_empty_string_falls_back() {
+        let (mut wb, fmt) = test_worksheet();
+        let ws = wb.add_worksheet();
+        let addr = CellAddr { row: 0, col: 0 };
+        let value = CellValue::Date(String::new());
+        write_cell_value(ws, addr, &value, &fmt).unwrap();
+    }
+
+    // ── Date: with format from FormatMatrix ──────────────────────────
+
+    #[test]
+    fn test_write_date_with_format() {
+        let (mut wb, mut fmt) = test_worksheet();
+        let ws = wb.add_worksheet();
+        let addr = CellAddr { row: 0, col: 0 };
+        fmt.set(0, 0, &Format::new().set_num_format_index(14));
+        let value = CellValue::Date("01.01.2024".to_string());
+        write_cell_value(ws, addr, &value, &fmt).unwrap();
+    }
+
+    #[test]
+    fn test_write_date_invalid_with_format() {
+        let (mut wb, mut fmt) = test_worksheet();
+        let ws = wb.add_worksheet();
+        let addr = CellAddr { row: 0, col: 0 };
+        fmt.set(0, 0, &Format::new().set_num_format_index(14));
+        let value = CellValue::Date("foobar".to_string());
+        write_cell_value(ws, addr, &value, &fmt).unwrap();
+    }
+
+    // ── Date: edge cases ─────────────────────────────────────────────
+
+    #[test]
+    fn test_write_date_leap_year() {
+        let (mut wb, fmt) = test_worksheet();
+        let ws = wb.add_worksheet();
+        let addr = CellAddr { row: 0, col: 0 };
+        let value = CellValue::Date("29.02.2024".to_string());
+        write_cell_value(ws, addr, &value, &fmt).unwrap();
+    }
+
+    #[test]
+    fn test_write_date_end_of_year() {
+        let (mut wb, fmt) = test_worksheet();
+        let ws = wb.add_worksheet();
+        let addr = CellAddr { row: 0, col: 0 };
+        let value = CellValue::Date("31.12.2026".to_string());
+        write_cell_value(ws, addr, &value, &fmt).unwrap();
+    }
+
+    #[test]
+    fn test_write_date_multiple_formats_in_one_sheet() {
+        let (mut wb, fmt) = test_worksheet();
+        let ws = wb.add_worksheet();
+        let dates = ["01.01.2024", "2024-06-15", "31.12.2026", "not-a-date"];
+        for (i, d) in dates.iter().enumerate() {
+            let addr = CellAddr {
+                row: i as u32,
+                col: 0,
+            };
+            let value = CellValue::Date(d.to_string());
+            write_cell_value(ws, addr, &value, &fmt).unwrap();
+        }
+    }
 }

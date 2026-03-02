@@ -56,7 +56,7 @@ fn create_report(language: Language) -> Result<(), Box<dyn std::error::Error>> {
         )
         .build();
 
-    let filename = format!("test_grouped_{}.xlsx", language);
+    let filename = format!("examples/output/test_grouped_{}.xlsx", language);
     config.write_to(&filename)?;
     println!("  ✓ {}", filename);
 

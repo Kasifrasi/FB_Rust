@@ -272,7 +272,7 @@ impl ReportStyles {
         let rp_date = base
             .clone()
             .set_align(FormatAlign::Center)
-            .set_num_format("mm-dd-yy")
+            .set_num_format_index(14)
             .set_background_color(fill_input);
 
         let rp_number = base
@@ -465,7 +465,7 @@ impl SectionStyles {
         let fmt_row7_date = fmt_row7_base
             .clone()
             .set_background_color(s.fill_input)
-            .set_num_format("mm-dd-yy")
+            .set_num_format_index(14)
             .set_align(FormatAlign::Left);
 
         let orange_dotted = s
