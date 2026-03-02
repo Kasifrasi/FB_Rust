@@ -5,11 +5,11 @@
 use super::layout::{self, setup_sheet};
 use super::structure::write_structure;
 use crate::report::api::{CellValue, ReportValues};
+use crate::report::body::config::BODY_START_ROW;
 use crate::report::body::{
     register_body_formulas, register_footer_formulas, BodyConfig, BodyLayout, CategoryMode,
     FooterLayout,
 };
-use crate::report::body::config::BODY_START_ROW;
 use crate::report::core::{build_registry, CellAddr, CellKind, DynRegistry, EvalContext};
 use crate::report::options::SheetOptions;
 use crate::report::styles::{
@@ -180,13 +180,11 @@ fn determine_sheet_name(values: &ReportValues) -> String {
         .get(crate::report::api::ApiKey::Language)
         .as_text()
         .and_then(|lang_text| {
-            crate::lang::LANG_CONFIG
-                .get(lang_text)
-                .or_else(|| {
-                    crate::lang::LANG_CONFIG
-                        .values()
-                        .find(|c| c.lang_val.eq_ignore_ascii_case(lang_text))
-                })
+            crate::lang::LANG_CONFIG.get(lang_text).or_else(|| {
+                crate::lang::LANG_CONFIG
+                    .values()
+                    .find(|c| c.lang_val.eq_ignore_ascii_case(lang_text))
+            })
         })
         .map(|c| c.fb_sheet.to_string())
         .unwrap_or_else(|| "Sheet1".to_string())
@@ -201,61 +199,100 @@ fn determine_sheet_name(values: &ReportValues) -> String {
 /// bisherigen Seiteninhalt mehr als `MAX_ROWS_PER_PAGE` Zeilen belegt, wird zusätzlich
 /// innerhalb der Kategorie alle `MAX_ROWS_PER_PAGE` Zeilen hart umbrochen.
 /// Für nachfolgende Kategorien gilt wieder die normale Regel (Umbruch vor Header).
-fn compute_page_breaks(layout: &BodyLayout) -> Vec<u32> {
+fn compute_page_breaks(layout: &BodyLayout, footer_layout: &FooterLayout) -> Vec<u32> {
     let mut breaks = Vec::new();
     let mut rows_on_page = BODY_START_ROW;
 
     for cat in &layout.categories {
+        let is_cat_8 = cat.meta.num == 8;
+
         let cat_start = match &cat.mode {
             CategoryMode::HeaderInput { row } => *row,
             CategoryMode::WithPositions { header_row, .. } => *header_row,
         };
-        let cat_end = cat.sum_row();
-        let cat_rows = cat_end - cat_start + 1;
+        let mut block_end = cat.sum_row();
+        if is_cat_8 {
+            // Kategorie 8 wird immer mit der Summenzeile verbunden
+            block_end = layout.total_row;
+        }
 
-        if rows_on_page + cat_rows <= MAX_ROWS_PER_PAGE {
-            // Kategorie passt noch auf die aktuelle Seite
-            rows_on_page += cat_rows;
-        } else if cat_start > BODY_START_ROW && rows_on_page < MAX_ROWS_PER_PAGE {
-            // Kategorie passt nicht mehr → Umbruch VOR dem Header
-            breaks.push(cat_start);
+        let block_rows = block_end - cat_start + 1;
 
-            // Prüfen ob die Kategorie allein > MAX_ROWS_PER_PAGE ist
-            if cat_rows > MAX_ROWS_PER_PAGE {
-                // Harte Umbrüche innerhalb der Kategorie
-                let mut pos = cat_start + MAX_ROWS_PER_PAGE;
-                while pos <= cat_end {
+        if rows_on_page + block_rows <= MAX_ROWS_PER_PAGE {
+            // Passt noch auf die aktuelle Seite
+            rows_on_page += block_rows;
+        } else {
+            // Passt NICHT mehr auf die aktuelle Seite.
+            // Regel: Eine Kategorie wird nur dann auf der nächsten Seite komplett gehalten,
+            // wenn die aktuelle Seite dadurch mindestens ~65 Zeilen (2/3 von MAX_ROWS_PER_PAGE) nutzt.
+            // Ansonsten füllen wir die Seite auf und brechen innerhalb der Kategorie um.
+            // Kategorie 8 ist eine Ausnahme und wird immer als Block auf die nächste Seite verschoben
+            // (oder ggf. dort umbrochen, falls sie allein zu groß ist).
+            let min_rows_to_keep = 65;
+            let should_fill_page =
+                !is_cat_8 && rows_on_page < min_rows_to_keep && cat_start > BODY_START_ROW;
+
+            if should_fill_page {
+                // Seite auffüllen -> harter Umbruch innerhalb der Kategorie
+                let page_remaining = MAX_ROWS_PER_PAGE.saturating_sub(rows_on_page);
+                let mut pos = cat_start + page_remaining;
+                while pos <= block_end {
                     breaks.push(pos);
                     pos += MAX_ROWS_PER_PAGE;
                 }
-                // Restzeilen auf neuer Seite
-                let last_break = *breaks.last().unwrap();
-                rows_on_page = cat_end - last_break + 1;
+                let last_break = breaks.last().copied().unwrap_or(cat_start);
+                rows_on_page = block_end.saturating_sub(last_break) + 1;
             } else {
-                rows_on_page = cat_rows;
+                // Umbruch VOR dem Block, sofern wir nicht eh am Anfang sind
+                if cat_start > BODY_START_ROW {
+                    breaks.push(cat_start);
+                    rows_on_page = 0;
+                }
+
+                // Prüfen ob der Block jetzt auf die leere Seite passt
+                if rows_on_page + block_rows > MAX_ROWS_PER_PAGE {
+                    // Block ist allein schon zu groß, muss hart umbrochen werden
+                    let start_of_page = if rows_on_page == 0 {
+                        cat_start
+                    } else {
+                        cat_start.saturating_sub(rows_on_page)
+                    };
+                    let mut pos = start_of_page + MAX_ROWS_PER_PAGE;
+                    while pos <= block_end {
+                        breaks.push(pos);
+                        pos += MAX_ROWS_PER_PAGE;
+                    }
+                    let last_break = breaks.last().copied().unwrap_or(cat_start);
+                    rows_on_page = block_end.saturating_sub(last_break) + 1;
+                } else {
+                    rows_on_page += block_rows;
+                }
             }
-        } else {
-            // Seite bereits voll oder erste Kategorie übergroß → harte Umbrüche
-            let page_remaining = MAX_ROWS_PER_PAGE.saturating_sub(rows_on_page);
-            let mut pos = cat_start + page_remaining;
-            while pos <= cat_end {
-                breaks.push(pos);
-                pos += MAX_ROWS_PER_PAGE;
-            }
-            let last_break = breaks.last().copied().unwrap_or(cat_start);
-            rows_on_page = cat_end - last_break + 1;
         }
+    }
+
+    // Footer Block
+    let footer_start = footer_layout.start_row;
+    let footer_rows = footer_layout.end_row - footer_layout.start_row + 1;
+
+    if rows_on_page + footer_rows > MAX_ROWS_PER_PAGE {
+        // Footer passt nicht auf diese Seite -> Umbruch VOR Footer
+        breaks.push(footer_start);
     }
 
     breaks
 }
 
 /// Wendet Druckeinstellungen auf das Worksheet an (A4, Hochformat, Seitenumbrüche).
-fn apply_print_setup(ws: &mut Worksheet, body_result: &BodyResult) -> Result<(), XlsxError> {
+fn apply_print_setup(
+    ws: &mut Worksheet,
+    body_result: &BodyResult,
+    footer_layout: &FooterLayout,
+) -> Result<(), XlsxError> {
     ws.set_paper_size(9); // A4
     ws.set_print_fit_to_pages(1, 0); // Breite = 1 Seite, Höhe unbegrenzt
 
-    let breaks = compute_page_breaks(&body_result.layout);
+    let breaks = compute_page_breaks(&body_result.layout, footer_layout);
     if !breaks.is_empty() {
         ws.set_page_breaks(&breaks)?;
     }
@@ -276,10 +313,7 @@ fn setup_print_area(
     let q = format!("'{}'", sheet_name);
 
     let name = format!("{}!_xlnm.Print_Area", q);
-    let range = format!(
-        "{}!$B$1:$H${},{}!$J$1:$V$31",
-        q, footer_excel, q
-    );
+    let range = format!("{}!$B$1:$H${},{}!$J$1:$V$31", q, footer_excel, q);
     workbook.define_name(name, &range)?;
     Ok(())
 }
@@ -311,15 +345,13 @@ pub(crate) fn create_protected_report(
     let suffix = extract_version_from_values(values);
     let body_result = write_report_with_options(ws, &suffix, values, body_config, options)?;
     let footer_layout = FooterLayout::compute(body_result.total_row);
-    apply_print_setup(ws, &body_result)?;
+    apply_print_setup(ws, &body_result, &footer_layout)?;
 
     setup_print_area(&mut workbook, &sheet_name, footer_layout.end_row)?;
     crate::lang::build_sheet_with_visibility(&mut workbook, hide_language_sheet)?;
 
     if let Some(wb_prot) = wb_protection {
-        let tmp = tempfile::NamedTempFile::new_in(
-            output_path.parent().unwrap_or(Path::new(".")),
-        )?;
+        let tmp = tempfile::NamedTempFile::new_in(output_path.parent().unwrap_or(Path::new(".")))?;
         workbook.save(tmp.path())?;
 
         crate::workbook_protection::protect_workbook_with_spin_count(
@@ -364,23 +396,21 @@ pub(crate) fn create_protected_report_precomputed(
     let suffix = extract_version_from_values(values);
     let body_result = write_report_with_options(ws, &suffix, values, body_config, options)?;
     let footer_layout = FooterLayout::compute(body_result.total_row);
-    apply_print_setup(ws, &body_result)?;
+    apply_print_setup(ws, &body_result, &footer_layout)?;
 
     setup_print_area(&mut workbook, &sheet_name, footer_layout.end_row)?;
     crate::lang::build_sheet_with_visibility(&mut workbook, hide_language_sheet)?;
 
-    let tmp = tempfile::NamedTempFile::new_in(
-        output_path.parent().unwrap_or(Path::new(".")),
-    )?;
+    let tmp = tempfile::NamedTempFile::new_in(output_path.parent().unwrap_or(Path::new(".")))?;
     workbook.save(tmp.path())?;
 
     crate::workbook_protection::protect_workbook_precomputed(
-        tmp.path().to_str().ok_or_else(|| {
-            crate::error::ReportError::InvalidPath(format!("{:?}", tmp.path()))
-        })?,
-        output_path.to_str().ok_or_else(|| {
-            crate::error::ReportError::InvalidPath(format!("{:?}", output_path))
-        })?,
+        tmp.path()
+            .to_str()
+            .ok_or_else(|| crate::error::ReportError::InvalidPath(format!("{:?}", tmp.path())))?,
+        output_path
+            .to_str()
+            .ok_or_else(|| crate::error::ReportError::InvalidPath(format!("{:?}", output_path)))?,
         hash,
     )?;
     // tmp wird beim Drop automatisch gelöscht — nicht persistieren,
