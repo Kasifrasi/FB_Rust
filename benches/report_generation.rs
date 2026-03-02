@@ -130,6 +130,7 @@ fn build_config(index: usize) -> ReportConfig {
             project_end: Some("31.12.2026".to_string()),
             report_start: Some(format!("01.{:02}.2024", (index % 12) + 1)),
             report_end: Some("30.06.2024".to_string()),
+            version: None,
         },
         body: ReportBody {
             table,

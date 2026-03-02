@@ -3,7 +3,7 @@
 //! Usage: cargo run --example profile --release
 
 use fb_rust::lang::build_sheet as build_sprachversionen;
-use fb_rust::lang::{LANG_CONFIG, LANG_SUFFIXES};
+use fb_rust::lang::LANG_CONFIG;
 use fb_rust::report::writer::setup_sheet;
 use fb_rust::report::ApiKey;
 use fb_rust::{write_report_with_options, BodyConfig, SheetOptions, ReportValues};
@@ -100,7 +100,7 @@ fn main() {
 
         let t = Instant::now();
         let config = LANG_CONFIG.get("Deutsch").unwrap();
-        let suffix = LANG_SUFFIXES.get("Deutsch").unwrap();
+        let suffix = "";
         let ws = workbook.add_worksheet();
         ws.set_name(config.fb_sheet).unwrap();
         setup_sheet(ws).unwrap();
@@ -161,7 +161,7 @@ fn main() {
         let mut workbook = Workbook::new();
         build_sprachversionen(&mut workbook).unwrap();
         let config = LANG_CONFIG.get("Deutsch").unwrap();
-        let suffix = LANG_SUFFIXES.get("Deutsch").unwrap();
+        let suffix = "";
         let ws = workbook.add_worksheet();
         ws.set_name(config.fb_sheet).unwrap();
         let unlocked = Format::new().set_font_name("Arial").set_font_size(10.0).set_unlocked();
@@ -231,7 +231,7 @@ fn main() {
         let mut workbook = Workbook::new();
         build_sprachversionen(&mut workbook).unwrap();
         let config = LANG_CONFIG.get("Deutsch").unwrap();
-        let suffix = LANG_SUFFIXES.get("Deutsch").unwrap();
+        let suffix = "";
         let ws = workbook.add_worksheet();
         ws.set_name(config.fb_sheet).unwrap();
         let unlocked = Format::new().set_font_name("Arial").set_font_size(10.0).set_unlocked();
@@ -278,7 +278,7 @@ fn main() {
         let mut workbook = Workbook::new();
         build_sprachversionen(&mut workbook).unwrap();
         let config = LANG_CONFIG.get("Deutsch").unwrap();
-        let suffix = LANG_SUFFIXES.get("Deutsch").unwrap();
+        let suffix = "";
         let ws = workbook.add_worksheet();
         ws.set_name(config.fb_sheet).unwrap();
         let unlocked = Format::new().set_font_name("Arial").set_font_size(10.0).set_unlocked();

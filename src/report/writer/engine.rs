@@ -155,18 +155,11 @@ pub fn apply_sheet_options(
 // High-Level API: create_protected_report
 // ============================================================================
 
-/// Extracts the language suffix from ReportValues for sheet naming
-fn extract_suffix_from_values(values: &ReportValues) -> String {
-    use crate::report::api::ApiKey;
-    let lang_value = values.get(ApiKey::Language);
-
-    if let Some(lang) = lang_value.as_text() {
-        if let Some(suffix) = crate::lang::LANG_SUFFIXES.get(lang) {
-            return suffix.to_string();
-        }
-    }
-
-    String::new()
+/// Extracts the version string for cell B2 from ReportValues.
+///
+/// Returns the version if set, otherwise an empty string.
+fn extract_version_from_values(values: &ReportValues) -> String {
+    values.version().unwrap_or("").to_string()
 }
 
 /// Erstellt einen kompletten Finanzbericht mit optionalem Workbook-Schutz.
@@ -200,7 +193,7 @@ pub(crate) fn create_protected_report(
     }
 
     setup_sheet(ws)?;
-    let suffix = extract_suffix_from_values(values);
+    let suffix = extract_version_from_values(values);
     write_report_with_options(ws, &suffix, values, body_config, options)?;
     crate::lang::build_sheet_with_visibility(&mut workbook, hide_language_sheet)?;
 
@@ -260,7 +253,7 @@ pub(crate) fn create_protected_report_precomputed(
     }
 
     setup_sheet(ws)?;
-    let suffix = extract_suffix_from_values(values);
+    let suffix = extract_version_from_values(values);
     write_report_with_options(ws, &suffix, values, body_config, options)?;
     crate::lang::build_sheet_with_visibility(&mut workbook, hide_language_sheet)?;
 

@@ -306,7 +306,8 @@ impl PositionEntryBuilder {
 ///   "project_start": "01.01.2025",
 ///   "project_end": "31.12.2025",
 ///   "report_start": "01.01.2025",
-///   "report_end": "30.06.2025"
+///   "report_end": "30.06.2025",
+///   "version": "v2025-1"
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -329,6 +330,8 @@ pub struct ReportHeader {
     pub report_start: Option<String>,
     /// Report period end (cell G9)
     pub report_end: Option<String>,
+    /// Version / identifier text written to cell B2
+    pub version: Option<String>,
 }
 
 impl Default for ReportHeader {
@@ -342,6 +345,7 @@ impl Default for ReportHeader {
             project_end: None,
             report_start: None,
             report_end: None,
+            version: None,
         }
     }
 }
@@ -363,6 +367,7 @@ pub struct ReportHeaderBuilder {
     project_end: Option<String>,
     report_start: Option<String>,
     report_end: Option<String>,
+    version: Option<String>,
 }
 
 impl ReportHeaderBuilder {
@@ -398,6 +403,11 @@ impl ReportHeaderBuilder {
         self.report_end = Some(v.into());
         self
     }
+    /// Version / identifier text for cell B2
+    pub fn version(mut self, v: impl Into<String>) -> Self {
+        self.version = Some(v.into());
+        self
+    }
     pub fn build(self) -> ReportHeader {
         let def = ReportHeader::default();
         ReportHeader {
@@ -409,6 +419,7 @@ impl ReportHeaderBuilder {
             project_end: self.project_end,
             report_start: self.report_start,
             report_end: self.report_end,
+            version: self.version,
         }
     }
 }
@@ -929,6 +940,14 @@ impl ReportConfig {
             }
         }
 
+        for &cat in self.body.positions.keys() {
+            if self.body.header_inputs.contains_key(&cat) {
+                return Err(crate::error::ReportError::Validation(format!(
+                    "category {cat} is used in both positions and header_inputs — use one or the other",
+                )));
+            }
+        }
+
         Ok(())
     }
 
@@ -953,6 +972,9 @@ impl ReportConfig {
         }
         if let Some(ref s) = h.report_end {
             v = v.with_report_end(s);
+        }
+        if let Some(ref s) = h.version {
+            v = v.with_version(s);
         }
 
         // Table (rows 15-19): fixed order by named field
@@ -1417,5 +1439,120 @@ mod tests {
             )
             .build();
         assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_categories_6_7_8_multi_row_via_add_position() {
+        let body = ReportBody::builder()
+            .add_position(6, PositionEntry::builder().description("Cat6 Row1").approved(1_000.0).build())
+            .add_position(6, PositionEntry::builder().description("Cat6 Row2").approved(2_000.0).build())
+            .add_position(7, PositionEntry::builder().description("Cat7 Row1").approved(500.0).build())
+            .add_position(8, PositionEntry::builder().description("Cat8 Row1").approved(300.0).build())
+            .add_position(8, PositionEntry::builder().description("Cat8 Row2").approved(400.0).build())
+            .add_position(8, PositionEntry::builder().description("Cat8 Row3").approved(500.0).build())
+            .build();
+        assert_eq!(body.positions[&6].len(), 2);
+        assert_eq!(body.positions[&7].len(), 1);
+        assert_eq!(body.positions[&8].len(), 3);
+        assert!(body.header_inputs.is_empty());
+    }
+
+    #[test]
+    fn test_build_body_config_categories_6_to_8_multi_row() {
+        let config = ReportConfig::builder()
+            .body(
+                ReportBody::builder()
+                    .add_position(6, PositionEntry::builder().approved(1_000.0).build())
+                    .add_position(6, PositionEntry::builder().approved(2_000.0).build())
+                    .add_position(7, PositionEntry::builder().approved(500.0).build())
+                    .add_position(8, PositionEntry::builder().approved(300.0).build())
+                    .build(),
+            )
+            .build();
+        assert!(config.validate().is_ok());
+        let bc = config.build_body_config();
+        assert_eq!(bc.position_count(6), 2);
+        assert_eq!(bc.position_count(7), 1);
+        assert_eq!(bc.position_count(8), 1);
+    }
+
+    #[test]
+    fn test_categories_6_7_8_header_input() {
+        let body = ReportBody::builder()
+            .set_header_input(6, PositionEntry::builder().approved(3_000.0).build())
+            .set_header_input(7, PositionEntry::builder().approved(1_500.0).remark("Overhead").build())
+            .set_header_input(8, PositionEntry::builder().approved(800.0).build())
+            .build();
+        assert!(body.header_inputs[&6].is_some());
+        assert_eq!(body.header_inputs[&6].as_ref().unwrap().approved, Some(3_000.0));
+        assert!(body.header_inputs[&7].is_some());
+        assert_eq!(body.header_inputs[&7].as_ref().unwrap().remark, Some("Overhead".to_string()));
+        assert!(body.header_inputs[&8].is_some());
+        assert!(body.positions.is_empty());
+    }
+
+    #[test]
+    fn test_mixed_positions_categories_1_through_8() {
+        let config = ReportConfig::builder()
+            .body(
+                ReportBody::builder()
+                    .add_position(1, PositionEntry::builder().description("Personal").approved(5_000.0).build())
+                    .add_position(2, PositionEntry::builder().description("Reisen").approved(1_000.0).build())
+                    .add_position(6, PositionEntry::builder().description("Overhead").approved(500.0).build())
+                    .add_position(7, PositionEntry::builder().description("Reserve").approved(200.0).build())
+                    .set_header_input(8, PositionEntry::builder().approved(100.0).build())
+                    .build(),
+            )
+            .build();
+        assert!(config.validate().is_ok());
+        let bc = config.build_body_config();
+        assert_eq!(bc.position_count(1), 1);
+        assert_eq!(bc.position_count(2), 1);
+        assert_eq!(bc.position_count(6), 1);
+        assert_eq!(bc.position_count(7), 1);
+        assert_eq!(bc.position_count(8), 0); // header-input → count 0
+    }
+
+    #[test]
+    fn test_validate_rejects_category_in_both_positions_and_header_inputs() {
+        let config = ReportConfig {
+            body: ReportBody {
+                positions: [(6u8, vec![Some(PositionEntry::default())])].into_iter().collect(),
+                header_inputs: [(6u8, Some(PositionEntry::default()))].into_iter().collect(),
+                ..ReportBody::default()
+            },
+            ..ReportConfig::default()
+        };
+        let err = config.validate().unwrap_err();
+        assert!(err.to_string().contains("category 6"));
+    }
+
+    #[test]
+    fn test_skip_position_row_categories_6_to_8() {
+        let body = ReportBody::builder()
+            .add_position(6, PositionEntry::builder().approved(1_000.0).build())
+            .skip_position_row(6)
+            .add_position(6, PositionEntry::builder().approved(2_000.0).build())
+            .add_position(7, PositionEntry::builder().approved(500.0).build())
+            .skip_position_row(8)
+            .add_position(8, PositionEntry::builder().approved(300.0).build())
+            .build();
+        assert_eq!(body.positions[&6].len(), 3);
+        assert!(body.positions[&6][1].is_none()); // skipped middle row
+        assert_eq!(body.positions[&7].len(), 1);
+        assert_eq!(body.positions[&8].len(), 2);
+        assert!(body.positions[&8][0].is_none()); // first row is the skip
+    }
+
+    #[test]
+    fn test_version_builder_setter() {
+        let h = ReportHeader::builder().version("v2025-1").build();
+        assert_eq!(h.version, Some("v2025-1".to_string()));
+    }
+
+    #[test]
+    fn test_version_none_by_default() {
+        let h = ReportHeader::builder().build();
+        assert_eq!(h.version, None);
     }
 }

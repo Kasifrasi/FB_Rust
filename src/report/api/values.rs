@@ -95,6 +95,8 @@ pub struct ReportValues {
     /// - Footer-Werte (Bank, Kasse, Sonstiges)
     /// - Rechtes Panel (Währungsumrechnungen)
     values: HashMap<ApiKey, CellValue>,
+    /// Optional text for cell B2.
+    version: Option<String>,
 }
 
 impl ReportValues {
@@ -156,6 +158,11 @@ impl ReportValues {
         self.get(ApiKey::ProjectTitle).as_text()
     }
 
+    /// Gibt den Versions-/Suffix-Override zurück (B2)
+    pub fn version(&self) -> Option<&str> {
+        self.version.as_deref()
+    }
+
     // ========================================================================
     // Convenience Setter (Builder-Pattern)
     // ========================================================================
@@ -181,6 +188,12 @@ impl ReportValues {
     /// Setzt den Projekttitel (D6)
     pub fn with_project_title(mut self, title: &str) -> Self {
         self.set(ApiKey::ProjectTitle, title);
+        self
+    }
+
+    /// Setzt den Versions-Text für Zelle B2
+    pub fn with_version(mut self, version: &str) -> Self {
+        self.version = if version.is_empty() { None } else { Some(version.to_string()) };
         self
     }
 

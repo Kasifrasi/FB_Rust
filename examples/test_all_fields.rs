@@ -26,6 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .project_end("31.12.2026")
                 .report_start("01.01.2024")
                 .report_end("30.06.2024")
+                .version("v2025-1")
                 .build(),
         )
         .body(

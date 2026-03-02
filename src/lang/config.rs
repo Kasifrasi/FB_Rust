@@ -1,7 +1,7 @@
 //! Sprachkonfiguration für alle unterstützten Sprachen
 //!
 //! Definiert [`LanguageConfig`] mit den sprachspezifischen Sheet-Namen und
-//! Fehlermeldungen sowie die statischen Maps [`LANG_CONFIG`] und [`LANG_SUFFIXES`].
+//! Fehlermeldungen sowie die statische Map [`LANG_CONFIG`].
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
@@ -70,13 +70,3 @@ pub static LANG_CONFIG: LazyLock<HashMap<&'static str, LanguageConfig>> = LazyLo
     ])
 });
 
-/// Dateiname-Suffixe pro Sprache (z.B. `"Deutsch"` → `"_de"`)
-pub static LANG_SUFFIXES: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
-    HashMap::from([
-        ("Deutsch", "_de"),
-        ("Englisch", "_en"),
-        ("Französisch", "_fr"),
-        ("Spanisch", "_es"),
-        ("Portugiesisch", "_po"),
-    ])
-});

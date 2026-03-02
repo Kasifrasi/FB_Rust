@@ -30,6 +30,7 @@ fn test_report_config_full_roundtrip() {
             project_end: Some("31.12.2025".to_string()),
             report_start: Some("01.01.2025".to_string()),
             report_end: Some("30.06.2025".to_string()),
+            version: Some("v2025-1".to_string()),
         },
         body: ReportBody {
             table: IncomeTable {

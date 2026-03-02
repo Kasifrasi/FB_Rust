@@ -9,5 +9,5 @@ pub mod config;
 pub mod data;
 
 pub use builder::{build_sheet, build_sheet_with_visibility};
-pub use config::{LanguageConfig, LANG_CONFIG, LANG_SUFFIXES};
+pub use config::{LanguageConfig, LANG_CONFIG};
 pub use data::TEXT_MATRIX;
