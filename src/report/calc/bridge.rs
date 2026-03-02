@@ -27,8 +27,9 @@ pub(crate) struct CalcBridge {
     model: Model<'static>,
     /// All cells containing formulas (consumed by `write_cells_from_bridge`)
     formula_cells: Vec<CellAddr>,
-    /// All cells containing input values (consumed by `write_cells_from_bridge`)
-    input_cells: Vec<CellAddr>,
+    /// Input values with their original data — written directly to Excel without
+    /// IronCalc readback (IronCalc's `set_user_input` may auto-parse strings).
+    input_values: Vec<(CellAddr, CellValue)>,
     /// Hyperlink cells — IronCalc evaluates the VLOOKUP (→ URL), writer uses `write_url_with_format()`
     hyperlink_cells: Vec<CellAddr>,
 }
@@ -42,7 +43,7 @@ impl CalcBridge {
         Self {
             model: template.instantiate(),
             formula_cells: template.static_formula_cells().to_vec(),
-            input_cells: Vec::new(),
+            input_values: Vec::new(),
             hyperlink_cells: template.hyperlink_cells().to_vec(),
         }
     }
@@ -258,9 +259,11 @@ impl CalcBridge {
         &self.formula_cells
     }
 
-    /// Returns all cells containing input values.
-    pub(crate) fn input_cells(&self) -> &[CellAddr] {
-        &self.input_cells
+    /// Returns all input values (address + original value).
+    ///
+    /// These are written directly to Excel without IronCalc readback.
+    pub(crate) fn input_values(&self) -> &[(CellAddr, CellValue)] {
+        &self.input_values
     }
 
     /// Returns hyperlink cell addresses.
@@ -323,7 +326,11 @@ impl CalcBridge {
         self.formula_cells.push(CellAddr::new(row, col));
     }
 
-    /// Sets a [`CellValue`] in IronCalc and tracks the cell address.
+    /// Sets a [`CellValue`] in IronCalc and stores the original for the writer.
+    ///
+    /// Values are set in IronCalc so formulas can reference them, but the
+    /// writer uses the stored originals (not IronCalc readback) to avoid
+    /// auto-parsing side effects (e.g. date strings → numbers).
     fn set_cell_value(&mut self, addr: CellAddr, value: &CellValue) {
         let ic_row = addr.row as i32 + 1;
         let ic_col = addr.col as i32 + 1;
@@ -332,7 +339,6 @@ impl CalcBridge {
             CellValue::Empty => {
                 // Empty cells don't need to be set in IronCalc,
                 // but we track them for the Excel output (blanks with format).
-                self.input_cells.push(addr);
             }
             CellValue::Text(s) | CellValue::Date(s) => {
                 self.model
@@ -340,18 +346,17 @@ impl CalcBridge {
                     .unwrap_or_else(|e| {
                         panic!("Failed to set text at ({}, {}): {}", addr.row, addr.col, e)
                     });
-                self.input_cells.push(addr);
             }
             CellValue::Number(n) => {
-                // Set numbers as strings (IronCalc parses the type automatically)
                 self.model
                     .set_user_input(SHEET, ic_row, ic_col, n.to_string())
                     .unwrap_or_else(|e| {
                         panic!("Failed to set number at ({}, {}): {}", addr.row, addr.col, e)
                     });
-                self.input_cells.push(addr);
             }
         }
+
+        self.input_values.push((addr, value.clone()));
     }
 }
 
@@ -557,8 +562,8 @@ mod tests {
         bridge.populate(&values, &layout, &footer_layout);
 
         assert!(
-            !bridge.input_cells().is_empty(),
-            "Should have input cells after populate"
+            !bridge.input_values().is_empty(),
+            "Should have input values after populate"
         );
     }
 }

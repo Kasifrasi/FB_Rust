@@ -463,10 +463,9 @@ fn write_cells_from_bridge(
     bridge: &CalcBridge,
     fmt: &FormatMatrix,
 ) -> Result<(), XlsxError> {
-    // 1. Write input cells (with their values, including empty ones as blanks)
-    for addr in bridge.input_cells() {
-        let value = bridge.get_value(addr.row, addr.col);
-        write_cell_value(ws, *addr, &value, fmt)?;
+    // 1. Write input values directly (no IronCalc readback — avoids auto-parsing)
+    for (addr, value) in bridge.input_values() {
+        write_cell_value(ws, *addr, value, fmt)?;
     }
 
     // 2. Write formula cells (with cached results)
