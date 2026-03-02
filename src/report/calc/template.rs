@@ -24,6 +24,8 @@ pub(crate) struct ModelTemplate {
     bytes: Vec<u8>,
     /// Adressen aller statischen Formel-Zellen (für write_cells_from_bridge)
     static_formula_cells: Vec<CellAddr>,
+    /// Hyperlink-Zellen: (Adresse, Excel-Formel) — separat, da IronCalc HYPERLINK nicht unterstützt
+    hyperlink_cells: Vec<(CellAddr, String)>,
 }
 
 impl ModelTemplate {
@@ -40,12 +42,14 @@ impl ModelTemplate {
 
         // Sheet 0: Alle statischen Formeln registrieren + Adressen sammeln
         let mut static_formula_cells = Vec::new();
-        register_static_formulas(&mut model, &mut static_formula_cells);
+        let mut hyperlink_cells = Vec::new();
+        register_static_formulas(&mut model, &mut static_formula_cells, &mut hyperlink_cells);
 
         let bytes = model.to_bytes();
         Self {
             bytes,
             static_formula_cells,
+            hyperlink_cells,
         }
     }
 
@@ -57,6 +61,15 @@ impl ModelTemplate {
     /// Gibt die Adressen aller statischen Formel-Zellen zurück.
     pub(crate) fn static_formula_cells(&self) -> &[CellAddr] {
         &self.static_formula_cells
+    }
+
+    /// Gibt die Hyperlink-Zellen zurück: (Adresse, Excel-Formel).
+    ///
+    /// Diese werden separat behandelt, da IronCalc `HYPERLINK()` nicht unterstützt.
+    /// Der innere VLOOKUP wird von IronCalc evaluiert, die HYPERLINK-Formel wird
+    /// direkt in Excel geschrieben.
+    pub(crate) fn hyperlink_cells(&self) -> &[(CellAddr, String)] {
+        &self.hyperlink_cells
     }
 }
 
@@ -89,7 +102,11 @@ fn populate_language_sheet(model: &mut Model) {
 /// Registriert alle statischen Formeln auf Sheet "Bericht" und sammelt deren Adressen.
 ///
 /// Übersetzt definitions.rs `register_formula_cells()` + `register_prebody_formulas()`.
-fn register_static_formulas(model: &mut Model, addrs: &mut Vec<CellAddr>) {
+fn register_static_formulas(
+    model: &mut Model,
+    addrs: &mut Vec<CellAddr>,
+    hyperlinks: &mut Vec<(CellAddr, String)>,
+) {
     // ========================================================================
     // VLOOKUP Text-Lookups
     // ========================================================================
@@ -106,8 +123,8 @@ fn register_static_formulas(model: &mut Model, addrs: &mut Vec<CellAddr>) {
     set_vlookup(model, 2, 1, 3, addrs); // B3
     set_vlookup(model, 2, 3, 28, addrs); // D3
 
-    // Row 3: J4 (Hyperlink)
-    set_hyperlink(model, 3, 9, 62, addrs); // J4
+    // Row 3: J4 (Hyperlink) — separat, da IronCalc HYPERLINK() nicht unterstützt
+    set_hyperlink(model, 3, 9, 62, hyperlinks); // J4
 
     // Row 4: B5 (Projektnummer Label)
     set_vlookup(model, 4, 1, 4, addrs); // B5
@@ -255,19 +272,33 @@ fn set_vlookup_default(
     set_formula(model, row, col, formula, addrs);
 }
 
-/// Setzt eine HYPERLINK-VLOOKUP-Formel
+/// Setzt eine HYPERLINK-VLOOKUP-Formel.
+///
+/// IronCalc unterstützt `HYPERLINK()` nicht (→ `#NAME?`).
+/// Stattdessen: nur den VLOOKUP in IronCalc setzen (evaluiert die URL),
+/// und die vollständige HYPERLINK-Formel für den Excel-Output merken.
 fn set_hyperlink(
     model: &mut Model,
     row: u32,
     col: u16,
     index: usize,
-    addrs: &mut Vec<CellAddr>,
+    hyperlinks: &mut Vec<(CellAddr, String)>,
 ) {
-    let formula = format!(
+    // Nur VLOOKUP in IronCalc (kann evaluiert werden → URL-String)
+    let vlookup = format!(
+        r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$CD,{},FALSE))"#,
+        index
+    );
+    model
+        .update_cell_with_formula(SHEET_BERICHT, row as i32 + 1, col as i32 + 1, vlookup)
+        .unwrap_or_else(|e| panic!("Failed to set hyperlink VLOOKUP at ({}, {}): {}", row, col, e));
+
+    // Vollständige HYPERLINK-Formel für Excel-Output
+    let excel_formula = format!(
         r#"=HYPERLINK(VLOOKUP($E$2,Sprachversionen!$B:$CD,{},FALSE))"#,
         index
     );
-    set_formula(model, row, col, formula, addrs);
+    hyperlinks.push((CellAddr::new(row, col), excel_formula));
 }
 
 /// Setzt eine Currency-or-Lookup Formel: =IF(E3="",VLOOKUP(...),E3)
