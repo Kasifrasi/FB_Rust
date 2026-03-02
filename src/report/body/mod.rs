@@ -8,7 +8,7 @@
 //!
 //! Schreib-Logik → `writer/structure.rs` (Merges/Blanks) und `writer/main.rs` (Zellwerte)
 
-mod config;
+pub(crate) mod config;
 mod layout;
 mod registration;
 

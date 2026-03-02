@@ -6,8 +6,10 @@ use super::layout::{self, setup_sheet};
 use super::structure::write_structure;
 use crate::report::api::{CellValue, ReportValues};
 use crate::report::body::{
-    register_body_formulas, register_footer_formulas, BodyConfig, BodyLayout, FooterLayout,
+    register_body_formulas, register_footer_formulas, BodyConfig, BodyLayout, CategoryMode,
+    FooterLayout,
 };
+use crate::report::body::config::BODY_START_ROW;
 use crate::report::core::{build_registry, CellAddr, CellKind, DynRegistry, EvalContext};
 use crate::report::options::SheetOptions;
 use crate::report::styles::{
@@ -162,6 +164,99 @@ fn extract_version_from_values(values: &ReportValues) -> String {
     values.version().unwrap_or("").to_string()
 }
 
+// ============================================================================
+// Print Setup: Druckbereich + Seitenumbrüche
+// ============================================================================
+
+/// Geschätzte Zeilen pro Druckseite (A4 Hochformat, fit_to_pages Breite=1).
+const MAX_ROWS_PER_PAGE: u32 = 80;
+
+/// Bestimmt den Sheet-Namen anhand der Spracheinstellung.
+///
+/// Gibt den lokalisierten Sheet-Namen zurück (z.B. "Finanzbericht", "Financial Report")
+/// oder "Sheet1" als Fallback.
+fn determine_sheet_name(values: &ReportValues) -> String {
+    values
+        .get(crate::report::api::ApiKey::Language)
+        .as_text()
+        .and_then(|lang_text| {
+            crate::lang::LANG_CONFIG
+                .get(lang_text)
+                .or_else(|| {
+                    crate::lang::LANG_CONFIG
+                        .values()
+                        .find(|c| c.lang_val.eq_ignore_ascii_case(lang_text))
+                })
+        })
+        .map(|c| c.fb_sheet.to_string())
+        .unwrap_or_else(|| "Sheet1".to_string())
+}
+
+/// Berechnet horizontale Seitenumbrüche an Kategorie-Grenzen.
+///
+/// Platziert Umbrüche VOR Kategorie-Headern, sobald die aktuelle Seite voll ist.
+/// Die erste Seite hat weniger Platz, da der Header-Abschnitt (Zeilen 0–25) verbraucht wird.
+fn compute_page_breaks(layout: &BodyLayout) -> Vec<u32> {
+    let mut breaks = Vec::new();
+    let mut rows_on_page = BODY_START_ROW;
+
+    for cat in &layout.categories {
+        let cat_start = match &cat.mode {
+            CategoryMode::HeaderInput { row } => *row,
+            CategoryMode::WithPositions { header_row, .. } => *header_row,
+        };
+        let cat_end = cat.sum_row();
+        let cat_rows = cat_end - cat_start + 1;
+
+        if rows_on_page + cat_rows > MAX_ROWS_PER_PAGE && cat_start > BODY_START_ROW {
+            breaks.push(cat_start);
+            rows_on_page = cat_rows;
+        } else {
+            rows_on_page += cat_rows;
+        }
+    }
+
+    breaks
+}
+
+/// Wendet Druckeinstellungen auf das Worksheet an (A4, Hochformat, Seitenumbrüche).
+fn apply_print_setup(ws: &mut Worksheet, body_result: &BodyResult) -> Result<(), XlsxError> {
+    ws.set_paper_size(9); // A4
+    ws.set_print_fit_to_pages(1, 0); // Breite = 1 Seite, Höhe unbegrenzt
+
+    let breaks = compute_page_breaks(&body_result.layout);
+    if !breaks.is_empty() {
+        ws.set_page_breaks(&breaks)?;
+    }
+
+    Ok(())
+}
+
+/// Setzt den Druckbereich als non-contiguous Print Area via `define_name`.
+///
+/// Bereich 1: B1:H{footer_end} (Hauptbericht — ggf. mehrere Seiten, Hochformat)
+/// Bereich 2: J1:V31 (Belegpanel — immer 1 Seite, Hochformat)
+fn setup_print_area(
+    workbook: &mut Workbook,
+    sheet_name: &str,
+    footer_end_row: u32,
+) -> Result<(), XlsxError> {
+    let footer_excel = footer_end_row + 1; // 0-indexed → 1-indexed
+    let q = format!("'{}'", sheet_name);
+
+    let name = format!("{}!_xlnm.Print_Area", q);
+    let range = format!(
+        "{}!$B$1:$H${},{}!$J$1:$V$31",
+        q, footer_excel, q
+    );
+    workbook.define_name(name, &range)?;
+    Ok(())
+}
+
+// ============================================================================
+// High-Level API: create_protected_report
+// ============================================================================
+
 /// Erstellt einen kompletten Finanzbericht mit optionalem Workbook-Schutz.
 ///
 /// Styles werden intern erzeugt. Workbook-Protection und Language-Sheet-Sichtbarkeit
@@ -175,26 +270,19 @@ pub(crate) fn create_protected_report(
     hide_language_sheet: bool,
 ) -> Result<(), crate::error::ReportError> {
     let output_path = output_path.as_ref();
+    let sheet_name = determine_sheet_name(values);
 
     let mut workbook = Workbook::new();
     let ws = workbook.add_worksheet();
-
-    if let Some(lang_text) = values.get(crate::report::api::ApiKey::Language).as_text() {
-        let config = crate::lang::LANG_CONFIG
-            .get(lang_text)
-            .or_else(|| {
-                crate::lang::LANG_CONFIG
-                    .values()
-                    .find(|c| c.lang_val.eq_ignore_ascii_case(lang_text))
-            });
-        if let Some(config) = config {
-            ws.set_name(config.fb_sheet)?;
-        }
-    }
+    ws.set_name(&sheet_name)?;
 
     setup_sheet(ws)?;
     let suffix = extract_version_from_values(values);
-    write_report_with_options(ws, &suffix, values, body_config, options)?;
+    let body_result = write_report_with_options(ws, &suffix, values, body_config, options)?;
+    let footer_layout = FooterLayout::compute(body_result.total_row);
+    apply_print_setup(ws, &body_result)?;
+
+    setup_print_area(&mut workbook, &sheet_name, footer_layout.end_row)?;
     crate::lang::build_sheet_with_visibility(&mut workbook, hide_language_sheet)?;
 
     if let Some(wb_prot) = wb_protection {
@@ -213,8 +301,8 @@ pub(crate) fn create_protected_report(
             &wb_prot.password,
             wb_prot.spin_count,
         )?;
-
-        tmp.persist(output_path)?;
+        // tmp wird beim Drop automatisch gelöscht — nicht persisten,
+        // da output_path bereits die geschützte Datei enthält.
     } else {
         workbook.save(output_path)?;
     }
@@ -235,26 +323,19 @@ pub(crate) fn create_protected_report_precomputed(
     hash: &crate::workbook_protection::PrecomputedHash,
 ) -> Result<(), crate::error::ReportError> {
     let output_path = output_path.as_ref();
+    let sheet_name = determine_sheet_name(values);
 
     let mut workbook = Workbook::new();
     let ws = workbook.add_worksheet();
-
-    if let Some(lang_text) = values.get(crate::report::api::ApiKey::Language).as_text() {
-        let config = crate::lang::LANG_CONFIG
-            .get(lang_text)
-            .or_else(|| {
-                crate::lang::LANG_CONFIG
-                    .values()
-                    .find(|c| c.lang_val.eq_ignore_ascii_case(lang_text))
-            });
-        if let Some(config) = config {
-            ws.set_name(config.fb_sheet)?;
-        }
-    }
+    ws.set_name(&sheet_name)?;
 
     setup_sheet(ws)?;
     let suffix = extract_version_from_values(values);
-    write_report_with_options(ws, &suffix, values, body_config, options)?;
+    let body_result = write_report_with_options(ws, &suffix, values, body_config, options)?;
+    let footer_layout = FooterLayout::compute(body_result.total_row);
+    apply_print_setup(ws, &body_result)?;
+
+    setup_print_area(&mut workbook, &sheet_name, footer_layout.end_row)?;
     crate::lang::build_sheet_with_visibility(&mut workbook, hide_language_sheet)?;
 
     let tmp = tempfile::NamedTempFile::new_in(
@@ -271,8 +352,8 @@ pub(crate) fn create_protected_report_precomputed(
         })?,
         hash,
     )?;
-
-    tmp.persist(output_path)?;
+    // tmp wird beim Drop automatisch gelöscht — nicht persistieren,
+    // da output_path bereits die geschützte Datei enthält.
     Ok(())
 }
 
