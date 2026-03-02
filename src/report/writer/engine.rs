@@ -196,6 +196,11 @@ fn determine_sheet_name(values: &ReportValues) -> String {
 ///
 /// Platziert Umbrüche VOR Kategorie-Headern, sobald die aktuelle Seite voll ist.
 /// Die erste Seite hat weniger Platz, da der Header-Abschnitt (Zeilen 0–25) verbraucht wird.
+///
+/// **Sonderfall übergroße Kategorie:** Wenn eine einzelne Kategorie zusammen mit dem
+/// bisherigen Seiteninhalt mehr als `MAX_ROWS_PER_PAGE` Zeilen belegt, wird zusätzlich
+/// innerhalb der Kategorie alle `MAX_ROWS_PER_PAGE` Zeilen hart umbrochen.
+/// Für nachfolgende Kategorien gilt wieder die normale Regel (Umbruch vor Header).
 fn compute_page_breaks(layout: &BodyLayout) -> Vec<u32> {
     let mut breaks = Vec::new();
     let mut rows_on_page = BODY_START_ROW;
@@ -208,11 +213,37 @@ fn compute_page_breaks(layout: &BodyLayout) -> Vec<u32> {
         let cat_end = cat.sum_row();
         let cat_rows = cat_end - cat_start + 1;
 
-        if rows_on_page + cat_rows > MAX_ROWS_PER_PAGE && cat_start > BODY_START_ROW {
-            breaks.push(cat_start);
-            rows_on_page = cat_rows;
-        } else {
+        if rows_on_page + cat_rows <= MAX_ROWS_PER_PAGE {
+            // Kategorie passt noch auf die aktuelle Seite
             rows_on_page += cat_rows;
+        } else if cat_start > BODY_START_ROW && rows_on_page < MAX_ROWS_PER_PAGE {
+            // Kategorie passt nicht mehr → Umbruch VOR dem Header
+            breaks.push(cat_start);
+
+            // Prüfen ob die Kategorie allein > MAX_ROWS_PER_PAGE ist
+            if cat_rows > MAX_ROWS_PER_PAGE {
+                // Harte Umbrüche innerhalb der Kategorie
+                let mut pos = cat_start + MAX_ROWS_PER_PAGE;
+                while pos <= cat_end {
+                    breaks.push(pos);
+                    pos += MAX_ROWS_PER_PAGE;
+                }
+                // Restzeilen auf neuer Seite
+                let last_break = *breaks.last().unwrap();
+                rows_on_page = cat_end - last_break + 1;
+            } else {
+                rows_on_page = cat_rows;
+            }
+        } else {
+            // Seite bereits voll oder erste Kategorie übergroß → harte Umbrüche
+            let page_remaining = MAX_ROWS_PER_PAGE.saturating_sub(rows_on_page);
+            let mut pos = cat_start + page_remaining;
+            while pos <= cat_end {
+                breaks.push(pos);
+                pos += MAX_ROWS_PER_PAGE;
+            }
+            let last_break = breaks.last().copied().unwrap_or(cat_start);
+            rows_on_page = cat_end - last_break + 1;
         }
     }
 
