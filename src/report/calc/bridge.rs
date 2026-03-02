@@ -27,8 +27,8 @@ pub(crate) struct CalcBridge {
     formula_cells: Vec<CellAddr>,
     /// Alle Zellen mit Input-Werten (für write_cells_from_bridge)
     input_cells: Vec<CellAddr>,
-    /// Hyperlink-Zellen: (Adresse, Excel-Formel) — IronCalc evaluiert nur den VLOOKUP
-    hyperlink_cells: Vec<(CellAddr, String)>,
+    /// Hyperlink-Zellen — IronCalc evaluiert den VLOOKUP, Writer schreibt nativen Hyperlink
+    hyperlink_cells: Vec<CellAddr>,
 }
 
 impl CalcBridge {
@@ -41,7 +41,7 @@ impl CalcBridge {
             model: template.instantiate(),
             formula_cells: template.static_formula_cells().to_vec(),
             input_cells: Vec::new(),
-            hyperlink_cells: template.hyperlink_cells().to_vec(),
+            hyperlink_cells: template.hyperlink_cells().to_vec(),  // Nur Adressen, Writer nutzt write_url
         }
     }
 
@@ -267,11 +267,11 @@ impl CalcBridge {
         &self.input_cells
     }
 
-    /// Gibt Hyperlink-Zellen zurück: (Adresse, Excel-Formel).
+    /// Gibt Hyperlink-Zellen zurück.
     ///
-    /// IronCalc evaluiert den inneren VLOOKUP (→ URL-String),
-    /// die HYPERLINK-Formel wird separat in Excel geschrieben.
-    pub(crate) fn hyperlink_cells(&self) -> &[(CellAddr, String)] {
+    /// IronCalc evaluiert den VLOOKUP (→ URL-String),
+    /// der Writer schreibt einen nativen Hyperlink via `write_url_with_format()`.
+    pub(crate) fn hyperlink_cells(&self) -> &[CellAddr] {
         &self.hyperlink_cells
     }
 

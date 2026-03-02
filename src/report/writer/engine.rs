@@ -494,18 +494,20 @@ fn write_cells_from_bridge(
         }
     }
 
-    // 3. Hyperlink-Zellen: Excel-Formel mit IronCalc-evaluiertem URL-Cache
-    //    IronCalc unterstützt HYPERLINK() nicht, daher: VLOOKUP → URL evaluiert,
-    //    HYPERLINK(VLOOKUP(...)) als Excel-Formel mit URL als Cache geschrieben.
-    for (addr, excel_formula) in bridge.hyperlink_cells() {
+    // 3. Hyperlink-Zellen: nativer Hyperlink via write_url_with_format
+    //    IronCalc evaluiert den VLOOKUP → URL-String, write_url erzeugt ein echtes
+    //    <hyperlink>-XML-Element — universell klickbar ohne Formel-Neuberechnung.
+    for addr in bridge.hyperlink_cells() {
         let url_value = bridge.get_value(addr.row, addr.col);
-        let formula = Formula::new(excel_formula).set_result(cell_value_to_string(&url_value));
-
+        let url = cell_value_to_string(&url_value);
+        if url.is_empty() {
+            continue;
+        }
         if let Some(format) = fmt.get_locked(addr.row, addr.col) {
-            ws.write_formula_with_format(addr.row, addr.col, formula, format)?;
+            ws.write_url_with_format(addr.row, addr.col, url.as_str(), format)?;
         } else {
             let locked = Format::new().set_locked();
-            ws.write_formula_with_format(addr.row, addr.col, formula, &locked)?;
+            ws.write_url_with_format(addr.row, addr.col, url.as_str(), &locked)?;
         }
     }
 
