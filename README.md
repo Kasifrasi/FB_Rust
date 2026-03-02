@@ -90,6 +90,7 @@ config.write_to("report.xlsx")?;
 ```
 
 > See [`examples/test_all_fields.rs`](examples/test_all_fields.rs) for a complete reference with all fields populated.
+> See [`examples/test_mixed_categories.rs`](examples/test_mixed_categories.rs) for mixed category modes (header-input vs. multi-row for categories 6–8).
 
 ## Project Structure
 
@@ -109,7 +110,7 @@ src/
     └── writer/             Excel writing (engine.rs, layout.rs, structure.rs)
 
 tests/
-└── serde_integration.rs    Serde JSON roundtrip tests (27 tests, feature-gated)
+└── serde_integration.rs    Serde JSON roundtrip tests (28 tests, feature-gated)
 
 examples/
 ├── test_all_fields.rs         All fields populated (complete reference example)
@@ -117,6 +118,7 @@ examples/
 ├── test_multilang_grouped.rs  Row grouping / collapsed sections
 ├── test_workbook_protection.rs  3 protection levels
 ├── test_parallel_protection.rs  Parallel protection benchmark (Rayon)
+├── test_mixed_categories.rs    Mixed category modes (header-input vs. multi-row for 6–8)
 ├── profile.rs                 Phase-level profiling
 └── verify_password.rs         Password hash verification
 ```
@@ -151,9 +153,9 @@ examples/
 ## Testing
 
 ```bash
-cargo test                                             # Unit tests (86 tests)
+cargo test                                             # Unit tests (94 tests)
 cargo test --features serde --test serde_integration   # Serde JSON tests (28 tests)
-cargo test --features serde                            # All tests (114 tests)
+cargo test --features serde                            # All tests (122 tests)
 cargo deny check                                       # License and security audit
 ```
 
