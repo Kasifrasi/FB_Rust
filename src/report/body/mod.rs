@@ -1,10 +1,9 @@
-//! Dynamischer Body-Bereich (Kostenkategorien) — Domänen-Logik
+//! Dynamic body area (cost categories) — domain logic
 //!
-//! Enthält:
-//! - `BodyConfig`: Konfiguration (Anzahl Positionen pro Kategorie)
-//! - `BodyLayout`: Berechnetes Layout (Zeilen-Positionen)
+//! - [`BodyConfig`]: number of position rows per category (1–8)
+//! - [`BodyLayout`]: computed row positions for all categories
 //!
-//! Schreib-Logik → `writer/structure.rs` (Merges/Blanks) und `writer/main.rs` (Zellwerte)
+//! Excel writing logic lives in `writer/sections/body.rs` and `writer/structure.rs`.
 
 pub(crate) mod config;
 mod layout;

@@ -1,59 +1,54 @@
-//! Body-Layout Berechnung
+//! Body layout computation
 //!
-//! Berechnet die Zeilen-Positionen basierend auf BodyConfig.
+//! Computes row positions for all 8 categories based on [`BodyConfig`].
 //!
-//! ## Layout-Modi
+//! ## Layout modes
 //!
-//! Jede Kategorie kann in einem von zwei Modi sein:
+//! Each category operates in one of two modes:
 //!
-//! ### Header-Eingabe-Modus (0 Positionen)
+//! ### Header-input mode (0 positions)
 //! ```text
 //! | B     | C (Label)      | D        | E        | F        | G     | H        |
 //! |-------|----------------|----------|----------|----------|-------|----------|
 //! | 6.    | VLOOKUP Label  | [Input]  | [Input]  | [Input]  | Ratio | [Input]  |
 //! ```
-//! - Nur eine Zeile
-//! - Label in C (VLOOKUP)
-//! - Eingabe direkt in D, E, F, H
-//! - API: `Position { category: 6, position: 0, field }` (position=0!)
+//! Single row — input directly in D, E, F, H.
+//! API: `Position { category: 6, position: 0, field }`
 //!
-//! ### Positions-Modus (1+ Positionen)
+//! ### Multi-row mode (1+ positions)
 //! ```text
 //! | B     | C              | D        | E        | F        | G     | H        |
 //! |-------|----------------|----------|----------|----------|-------|----------|
-//! | 1.    | VLOOKUP Label  |          |          |          |       |          | <- Header
-//! | 1.1   | [Input]        | [Input]  | [Input]  | [Input]  | Ratio | [Input]  | <- Position 1
-//! | 1.2   | [Input]        | [Input]  | [Input]  | [Input]  | Ratio | [Input]  | <- Position 2
+//! | 1.    | VLOOKUP Label  |          |          |          |       |          | ← Header
+//! | 1.1   | [Input]        | [Input]  | [Input]  | [Input]  | Ratio | [Input]  | ← Position 1
+//! | 1.2   | [Input]        | [Input]  | [Input]  | [Input]  | Ratio | [Input]  | ← Position 2
 //! | ...   | ...            | ...      | ...      | ...      | ...   | ...      |
-//! |       | VLOOKUP Sum    | SUM      | SUM      | SUM      | Ratio |        | <- Footer
+//! |       | VLOOKUP Sum    | SUM      | SUM      | SUM      | Ratio |          | ← Footer
 //! ```
-//! - Header-Zeile (Kategorie-Label, keine Eingabe)
-//! - N Positions-Zeilen (Eingabe)
-//! - Footer-Zeile (Summen)
-//! - API: `Position { category: 1, position: 1..N, field }` (position 1-basiert!)
+//! Header row (label) + N position rows (input) + footer row (sums).
+//! API: `Position { category: 1, position: 1..N, field }` (1-based)
 
 use super::config::{BodyConfig, ALL_CATEGORIES, BODY_START_ROW};
 use crate::report::api::PositionField;
 use crate::report::core::CellAddr;
 
-/// Kategorie-Metadaten (VLOOKUP-Indizes)
+/// Category metadata (VLOOKUP indices into the Sprachversionen sheet)
 #[derive(Debug, Clone, Copy)]
 pub struct CategoryMeta {
-    /// Kategorie-Nummer (1-8)
+    /// Category number (1–8)
     pub num: u8,
-    /// VLOOKUP-Index für Header/Kategorie-Label
+    /// VLOOKUP index for the header/category label
     pub label_index: usize,
-    /// VLOOKUP-Index für Footer/Sum-Label (nur bei Positions-Modus)
+    /// VLOOKUP index for the footer/subtotal label (multi-row mode only)
     pub sum_label_index: usize,
 }
 
-/// Alle Kategorie-Metadaten
-/// VLOOKUP-Indizes aus Sprachversionen-Sheet:
-/// - Kategorien 1-5: Label + Sum-Label Paare (29/30, 31/32, 33/34, 35/36, 37/38)
-/// - Kategorie 6 (Evaluierung): Label 39, Sum-Label 64
-/// - Kategorie 7 (Audit): Label 40, Sum-Label 65
-/// - Kategorie 8 (Reserve): Label 41, Sum-Label 66
-/// - Gesamt: Index 42
+/// VLOOKUP indices for all 8 categories (from Sprachversionen sheet):
+/// - Cat 1–5: label/subtotal pairs (29/30, 31/32, 33/34, 35/36, 37/38)
+/// - Cat 6 (Evaluierung): 39/64
+/// - Cat 7 (Audit): 40/65
+/// - Cat 8 (Reserve): 41/66
+/// - Total label: index 42
 pub const CATEGORY_META: [CategoryMeta; 8] = [
     CategoryMeta {
         num: 1,
@@ -83,77 +78,75 @@ pub const CATEGORY_META: [CategoryMeta; 8] = [
     CategoryMeta {
         num: 6,
         label_index: 39,
-        sum_label_index: 64, // Zwischensumme Evaluierung
+        sum_label_index: 64, // Subtotal Evaluierung
     },
     CategoryMeta {
         num: 7,
         label_index: 40,
-        sum_label_index: 65, // Zwischensumme Audit
+        sum_label_index: 65, // Subtotal Audit
     },
     CategoryMeta {
         num: 8,
         label_index: 41,
-        sum_label_index: 66, // Zwischensumme Reserve
+        sum_label_index: 66, // Subtotal Reserve
     },
 ];
 
-/// VLOOKUP-Index für "Gesamt" Label
+/// VLOOKUP index for the "Total" label
 pub const TOTAL_LABEL_INDEX: usize = 42;
 
-/// Berechnetes Body-Layout
+/// Computed body layout — row positions for all 8 categories plus the total row.
 #[derive(Debug, Clone)]
 pub struct BodyLayout {
-    /// Layout für jede Kategorie
+    /// Layout for each category (index 0 = cat 1, …, index 7 = cat 8)
     pub categories: Vec<CategoryLayout>,
-    /// Zeile der Gesamt-Summe
+    /// Row of the grand total
     pub total_row: u32,
-    /// Letzte beschriebene Zeile
+    /// Last written row
     pub last_row: u32,
 }
 
-/// Layout einer einzelnen Kategorie
+/// Layout of a single category
 #[derive(Debug, Clone)]
 pub struct CategoryLayout {
-    /// Kategorie-Metadaten
+    /// Category metadata (number, VLOOKUP indices)
     pub meta: CategoryMeta,
-    /// Modus der Kategorie
+    /// Operating mode (header-input or multi-row with positions)
     pub mode: CategoryMode,
 }
 
-/// Modus einer Kategorie
+/// Operating mode of a category
 #[derive(Debug, Clone)]
 pub enum CategoryMode {
-    /// Header-Eingabe-Modus (0 Positionen)
-    /// Die Header-Zeile ist gleichzeitig die Eingabezeile
+    /// Header-input mode (0 positions) — the header row is the input row
     HeaderInput {
-        /// Die Zeile (Header = Eingabe)
+        /// The single row (header = input)
         row: u32,
     },
-    /// Positions-Modus (1+ Positionen)
-    /// Header, N Positionen, Footer
+    /// Multi-row mode (1+ positions) — header + N positions + footer
     WithPositions {
-        /// Header-Zeile
+        /// Header row (category label, no input)
         header_row: u32,
-        /// Positions-Bereich
+        /// Range of position rows
         positions: PositionRange,
-        /// Footer-Zeile
+        /// Footer row (subtotals)
         footer_row: u32,
     },
 }
 
-/// Bereich der Positions-Zeilen
+/// Contiguous range of position rows within a category
 #[derive(Debug, Clone, Copy)]
 pub struct PositionRange {
-    /// Erste Positions-Zeile (0-basiert)
+    /// First position row (0-based)
     pub start_row: u32,
-    /// Letzte Positions-Zeile (0-basiert)
+    /// Last position row (0-based)
     pub end_row: u32,
-    /// Anzahl Positionen
+    /// Number of positions
     pub count: u16,
 }
 
 impl BodyLayout {
-    /// Berechnet das Layout aus der Konfiguration
+    /// Computes the layout from a [`BodyConfig`]
     pub fn compute(config: &BodyConfig) -> Self {
         let mut current_row = BODY_START_ROW;
         let mut categories = Vec::with_capacity(8);
@@ -163,14 +156,14 @@ impl BodyLayout {
             let num_positions = config.position_count(cat_num);
 
             if num_positions == 0 {
-                // Header-Eingabe-Modus: nur eine Zeile
+                // Header-input mode: single row
                 categories.push(CategoryLayout {
                     meta,
                     mode: CategoryMode::HeaderInput { row: current_row },
                 });
                 current_row += 1;
             } else {
-                // Positions-Modus: Header + N Positionen + Footer
+                // Multi-row mode: header + N positions + footer
                 let header_row = current_row;
                 current_row += 1;
 
@@ -205,12 +198,12 @@ impl BodyLayout {
         }
     }
 
-    /// Gibt das Layout für eine Kategorie zurück
+    /// Returns the layout for a category by number (1–8)
     pub fn category(&self, num: u8) -> Option<&CategoryLayout> {
         self.categories.iter().find(|c| c.meta.num == num)
     }
 
-    /// Gibt alle Footer-Zeilen zurück (für Gesamt-Summe)
+    /// Returns all footer rows (multi-row categories only), used for the grand total formula
     pub fn footer_rows(&self) -> Vec<u32> {
         self.categories
             .iter()
@@ -218,7 +211,7 @@ impl BodyLayout {
             .collect()
     }
 
-    /// Gibt alle Header-Input-Zeilen zurück (für Gesamt-Summe)
+    /// Returns all header-input rows, used for the grand total formula
     pub fn header_input_rows(&self) -> Vec<u32> {
         self.categories
             .iter()
@@ -226,7 +219,7 @@ impl BodyLayout {
             .collect()
     }
 
-    /// Gibt alle Zeilen zurück die eine Ratio-Formel brauchen
+    /// Returns all rows that need a ratio formula (col G)
     pub fn ratio_rows(&self) -> Vec<u32> {
         let mut rows = Vec::new();
 
@@ -240,46 +233,31 @@ impl BodyLayout {
                     footer_row,
                     ..
                 } => {
-                    // Positions-Zeilen
                     for row in positions.start_row..=positions.end_row {
                         rows.push(row);
                     }
-                    // Footer-Zeile
                     rows.push(*footer_row);
                 }
             }
         }
 
-        // Gesamt-Zeile
         rows.push(self.total_row);
-
         rows
     }
 
-    /// Gesamtanzahl der Zeilen im Body
+    /// Total number of rows in the body area
     pub fn row_count(&self) -> u32 {
         self.last_row - BODY_START_ROW + 1
     }
 
-    /// Berechnet die Zelladresse für ein Positions-Feld
+    /// Resolves a position field to a cell address
     ///
-    /// # Arguments
-    /// * `category` - Kategorie-Nummer (1-8)
-    /// * `position` - Position:
-    ///   - `0`: Header-Eingabe (nur bei Header-Input-Modus!)
-    ///   - `1..N`: Positions-Zeile (nur bei Positions-Modus!)
-    /// * `field` - Welches Feld der Position
-    ///
-    /// # Returns
-    /// `Some(CellAddr)` wenn gültig, `None` wenn:
-    /// - Kategorie nicht existiert
-    /// - position=0 aber Kategorie hat Positionen
-    /// - position>0 aber Kategorie ist Header-Input
-    /// - Position außerhalb des Bereichs
-    ///
-    /// # Hinweis zu PositionField::Description bei Header-Input
-    /// Bei Header-Input-Modus (position=0) gibt Description `None` zurück,
-    /// da Spalte C das VLOOKUP-Label enthält und nicht eingegeben werden kann.
+    /// Returns `None` if:
+    /// - category does not exist
+    /// - `position=0` but category has positions (use `1..N` instead)
+    /// - `position>0` but category is header-input (use `0`)
+    /// - position is out of range
+    /// - `Description` field at `position=0` (column C holds the VLOOKUP label)
     pub fn position_addr(
         &self,
         category: u8,
@@ -290,18 +268,15 @@ impl BodyLayout {
 
         match &cat.mode {
             CategoryMode::HeaderInput { row } => {
-                // Header-Input: nur position=0 erlaubt
                 if position != 0 {
                     return None;
                 }
-                // Description nicht erlaubt (C ist VLOOKUP-Label)
                 if matches!(field, PositionField::Description) {
                     return None;
                 }
                 Some(CellAddr::new(*row, field.col()))
             }
             CategoryMode::WithPositions { positions, .. } => {
-                // Positions-Modus: position muss 1..N sein
                 if position < 1 || position > positions.count {
                     return None;
                 }
@@ -313,7 +288,7 @@ impl BodyLayout {
 }
 
 impl CategoryLayout {
-    /// Gibt die Header-Zeile zurück (falls im Positions-Modus)
+    /// Returns the header row (multi-row mode only)
     pub fn header_row(&self) -> Option<u32> {
         match &self.mode {
             CategoryMode::WithPositions { header_row, .. } => Some(*header_row),
@@ -321,7 +296,7 @@ impl CategoryLayout {
         }
     }
 
-    /// Gibt die Footer-Zeile zurück (falls im Positions-Modus)
+    /// Returns the footer/subtotal row (multi-row mode only)
     pub fn footer_row(&self) -> Option<u32> {
         match &self.mode {
             CategoryMode::WithPositions { footer_row, .. } => Some(*footer_row),
@@ -329,7 +304,7 @@ impl CategoryLayout {
         }
     }
 
-    /// Gibt die Header-Input-Zeile zurück (falls im Header-Input-Modus)
+    /// Returns the header-input row (header-input mode only)
     pub fn header_input_row(&self) -> Option<u32> {
         match &self.mode {
             CategoryMode::HeaderInput { row } => Some(*row),
@@ -337,7 +312,7 @@ impl CategoryLayout {
         }
     }
 
-    /// Gibt den Positions-Bereich zurück (falls im Positions-Modus)
+    /// Returns the position range (multi-row mode only)
     pub fn positions(&self) -> Option<&PositionRange> {
         match &self.mode {
             CategoryMode::WithPositions { positions, .. } => Some(positions),
@@ -345,18 +320,18 @@ impl CategoryLayout {
         }
     }
 
-    /// Ist dies eine Header-Input-Kategorie?
+    /// Returns `true` if this category is in header-input mode
     pub fn is_header_input(&self) -> bool {
         matches!(self.mode, CategoryMode::HeaderInput { .. })
     }
 
-    /// Hat diese Kategorie Positionen?
+    /// Returns `true` if this category has position rows
     pub fn has_positions(&self) -> bool {
         matches!(self.mode, CategoryMode::WithPositions { .. })
     }
 
-    /// Gibt die "Summen-Zeile" zurück (Footer bei Positions-Modus, Header bei Header-Input)
-    /// Diese Zeile wird in der Gesamt-Summe referenziert.
+    /// Returns the row referenced by the grand total formula.
+    /// Footer row for multi-row categories, header row for header-input categories.
     pub fn sum_row(&self) -> u32 {
         match &self.mode {
             CategoryMode::HeaderInput { row } => *row,
@@ -365,35 +340,33 @@ impl CategoryLayout {
     }
 }
 
-/// Footer-Layout mit berechneten Zeilenpositionen
+/// Footer layout with computed row positions for the balance reconciliation section.
 #[derive(Debug, Clone)]
 pub struct FooterLayout {
-    /// Startzeile des Footers (0-indexed)
+    /// Start row of the footer area (0-based)
     pub start_row: u32,
-    /// Zeile für Saldo-Formel (E-Spalte)
+    /// Row for the balance difference formula (col E)
     pub saldo_row: u32,
-    /// Zeilen für Bank/Kasse/Sonstiges Input (E-Spalte)
+    /// Input rows for Bank / Cash / Other (col E)
     pub input_rows: [u32; 3],
-    /// Letzte Zeile des Footers
+    /// Last row of the footer area
     pub end_row: u32,
 }
 
 impl FooterLayout {
-    /// Berechnet das Footer-Layout basierend auf der Total-Zeile des Body
-    ///
-    /// Der Footer beginnt 3 Zeilen nach dem Total.
+    /// Computes the footer layout. The footer starts 3 rows after the body total row.
     pub fn compute(total_row: u32) -> Self {
-        let start_row = total_row + 3; // 3 Zeilen Abstand
+        let start_row = total_row + 3;
 
         Self {
             start_row,
-            saldo_row: start_row + 4, // Zeile 4: Saldo-Differenz
+            saldo_row: start_row + 4,  // row 4: balance difference
             input_rows: [
-                start_row + 7, // Zeile 7: Bank
-                start_row + 8, // Zeile 8: Kasse
-                start_row + 9, // Zeile 9: Sonstiges
+                start_row + 7, // row 7: Bank
+                start_row + 8, // row 8: Cash (Kasse)
+                start_row + 9, // row 9: Other (Sonstiges)
             ],
-            end_row: start_row + 20, // 21 Zeilen (0-20)
+            end_row: start_row + 20, // 21 rows (0–20)
         }
     }
 }
@@ -407,7 +380,7 @@ mod tests {
         let config = BodyConfig::default();
         let layout = BodyLayout::compute(&config);
 
-        // Kategorie 1: Positions-Modus (20 Positionen)
+        // Cat 1: multi-row (20 positions)
         let cat1 = layout.category(1).unwrap();
         assert!(cat1.has_positions());
         assert!(!cat1.is_header_input());
@@ -425,7 +398,7 @@ mod tests {
             assert_eq!(*footer_row, 47);
         }
 
-        // Kategorie 6: Header-Input-Modus (0 Positionen)
+        // Cat 6: header-input (0 positions)
         let cat6 = layout.category(6).unwrap();
         assert!(cat6.is_header_input());
         assert!(!cat6.has_positions());
@@ -436,15 +409,15 @@ mod tests {
         let config = BodyConfig::new()
             .with_positions(1, 5)
             .with_positions(2, 10)
-            .with_positions(6, 3); // Kategorie 6 jetzt mit Positionen!
+            .with_positions(6, 3); // cat 6 now with positions
 
         let layout = BodyLayout::compute(&config);
 
-        // Kategorie 1: 5 Positionen
+        // Cat 1: 5 positions
         let cat1 = layout.category(1).unwrap();
         assert_eq!(cat1.positions().unwrap().count, 5);
 
-        // Kategorie 6: jetzt mit 3 Positionen!
+        // Cat 6: now with 3 positions
         let cat6 = layout.category(6).unwrap();
         assert!(cat6.has_positions());
         assert_eq!(cat6.positions().unwrap().count, 3);
@@ -453,38 +426,38 @@ mod tests {
     #[test]
     fn test_header_input_mode() {
         let config = BodyConfig::new()
-            .with_positions(1, 0) // Kategorie 1 im Header-Input-Modus!
+            .with_positions(1, 0) // cat 1 in header-input mode
             .with_positions(2, 5);
 
         let layout = BodyLayout::compute(&config);
 
-        // Kategorie 1: Header-Input
+        // Cat 1: header-input
         let cat1 = layout.category(1).unwrap();
         assert!(cat1.is_header_input());
         assert_eq!(cat1.header_input_row(), Some(26));
 
-        // Kategorie 2: Positions-Modus, startet direkt nach Kategorie 1
+        // Cat 2: multi-row, starts right after cat 1
         let cat2 = layout.category(2).unwrap();
         assert!(cat2.has_positions());
-        assert_eq!(cat2.header_row(), Some(27)); // Direkt nach Kategorie 1
+        assert_eq!(cat2.header_row(), Some(27));
     }
 
     #[test]
     fn test_position_addr_header_input() {
         use PositionField::*;
 
-        let config = BodyConfig::new().with_positions(1, 0); // Header-Input
+        let config = BodyConfig::new().with_positions(1, 0);
         let layout = BodyLayout::compute(&config);
 
-        // position=0 bei Header-Input gibt Adresse zurück
+        // position=0 at header-input returns address
         let addr = layout.position_addr(1, 0, Approved).unwrap();
         assert_eq!(addr.row, 26);
         assert_eq!(addr.col, 3); // D
 
-        // Description nicht erlaubt bei Header-Input (C ist VLOOKUP)
+        // Description not available at header-input (C = VLOOKUP label)
         assert!(layout.position_addr(1, 0, Description).is_none());
 
-        // position>0 nicht erlaubt bei Header-Input
+        // position>0 not valid at header-input
         assert!(layout.position_addr(1, 1, Approved).is_none());
     }
 
@@ -495,10 +468,10 @@ mod tests {
         let config = BodyConfig::new().with_positions(1, 5);
         let layout = BodyLayout::compute(&config);
 
-        // position=0 nicht erlaubt bei Positions-Modus
+        // position=0 not valid in multi-row mode
         assert!(layout.position_addr(1, 0, Approved).is_none());
 
-        // position=1..5 erlaubt
+        // position=1..5 valid
         let addr = layout.position_addr(1, 1, Description).unwrap();
         assert_eq!(addr.row, 27);
         assert_eq!(addr.col, 2); // C
@@ -507,7 +480,7 @@ mod tests {
         assert_eq!(addr.row, 31);
         assert_eq!(addr.col, 5); // F
 
-        // position=6 nicht erlaubt (nur 5 Positionen)
+        // position=6 out of range (only 5 positions)
         assert!(layout.position_addr(1, 6, Approved).is_none());
     }
 
@@ -515,16 +488,16 @@ mod tests {
     fn test_sum_rows() {
         let config = BodyConfig::new()
             .with_positions(1, 2)
-            .with_positions(2, 0) // Header-Input
+            .with_positions(2, 0)
             .with_positions(3, 3);
 
         let layout = BodyLayout::compute(&config);
 
-        // Kategorie 1: Footer-Zeile ist Summen-Zeile
+        // Cat 1: footer row is the sum row
         let cat1 = layout.category(1).unwrap();
         assert_eq!(cat1.sum_row(), cat1.footer_row().unwrap());
 
-        // Kategorie 2: Header-Input-Zeile ist Summen-Zeile
+        // Cat 2: header-input row is the sum row
         let cat2 = layout.category(2).unwrap();
         assert_eq!(cat2.sum_row(), cat2.header_input_row().unwrap());
     }
@@ -533,8 +506,8 @@ mod tests {
     fn test_ratio_rows() {
         let config = BodyConfig::new()
             .with_positions(1, 2)
-            .with_positions(2, 0) // Header-Input
-            .with_positions(3, 0) // Header-Input
+            .with_positions(2, 0)
+            .with_positions(3, 0)
             .with_positions(4, 1)
             .with_positions(5, 0)
             .with_positions(6, 0)
@@ -544,13 +517,13 @@ mod tests {
         let layout = BodyLayout::compute(&config);
         let ratio_rows = layout.ratio_rows();
 
-        // Kat 1: 2 Positionen + 1 Footer = 3
-        // Kat 2: 1 Header-Input = 1
-        // Kat 3: 1 Header-Input = 1
-        // Kat 4: 1 Position + 1 Footer = 2
-        // Kat 5-8: je 1 Header-Input = 4
-        // + 1 Total = 1
-        // Gesamt: 3 + 1 + 1 + 2 + 4 + 1 = 12
+        // Cat 1: 2 positions + 1 footer = 3
+        // Cat 2: 1 header-input = 1
+        // Cat 3: 1 header-input = 1
+        // Cat 4: 1 position + 1 footer = 2
+        // Cat 5–8: 1 header-input each = 4
+        // + 1 total = 1
+        // Sum: 3 + 1 + 1 + 2 + 4 + 1 = 12
         assert_eq!(ratio_rows.len(), 12);
     }
 }

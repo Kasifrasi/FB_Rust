@@ -1,29 +1,24 @@
-//! Body-Konfiguration
+//! Body configuration
 //!
-//! Definiert die Anzahl der Positionen pro Kategorie.
+//! Defines the number of position rows per category (1–8).
 //!
-//! ## Konzept: Flexible Kategorien
+//! ## Flexible categories
 //!
-//! Jede Kategorie (1-8) kann flexibel konfiguriert werden:
+//! Each category can operate in one of two modes:
 //!
-//! - **0 Positionen**: Header-Zeile ist die Eingabezeile (wie Single-Row)
-//!   - Nur eine Zeile für die Kategorie
-//!   - Eingabe direkt im Header (Spalten D, E, F, H)
-//!   - Kein Footer
+//! - **0 positions** (header-input mode):
+//!   Single row — input directly in columns D, E, F, H. No footer.
 //!
-//! - **1+ Positionen**: Positionen unter dem Header
-//!   - Header-Zeile (Kategorie-Label)
-//!   - N Positions-Zeilen (Eingabe)
-//!   - Footer-Zeile (Summen)
+//! - **1+ positions** (multi-row mode):
+//!   Header row (category label) + N position rows (input) + footer row (sums).
 
 use crate::report::api::Category;
 use std::collections::HashMap;
 
-/// Start-Zeile für den dynamischen Body (0-basiert)
-/// Excel Row 27 = Index 26
+/// Start row of the dynamic body area (0-based). Excel row 27 = index 26.
 pub const BODY_START_ROW: u32 = 26;
 
-/// Alle Kategorien (1-8)
+/// All category numbers (1–8)
 pub const ALL_CATEGORIES: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
 
 /// Configuration for the dynamic body area.
@@ -56,20 +51,20 @@ pub const ALL_CATEGORIES: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(from = "HashMap<u8, u16>", into = "HashMap<u8, u16>"))]
 pub struct BodyConfig {
-    /// Anzahl Positionen pro Kategorie (0 = Header-Eingabe)
+    /// Number of position rows per category (`0` = header-input mode)
     positions: HashMap<u8, u16>,
 }
 
 impl BodyConfig {
-    /// Erstellt eine neue Konfiguration mit Standard-Werten
+    /// Creates a new configuration with default values
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Setzt die Anzahl Positionen für eine Kategorie
+    /// Sets the number of position rows for a category
     ///
-    /// - `count = 0`: Header-Eingabe (Single-Row-Modus)
-    /// - `count >= 1`: Positionen unter dem Header
+    /// - `count = 0`: header-input (single-row mode)
+    /// - `count >= 1`: multi-row mode with N positions under the header
     pub fn with_positions(mut self, category: u8, count: u16) -> Self {
         if ALL_CATEGORIES.contains(&category) {
             self.positions.insert(category, count);
@@ -77,34 +72,25 @@ impl BodyConfig {
         self
     }
 
-    /// Setzt die Anzahl Positionen typsicher mit Category enum
-    ///
-    /// # Beispiel
-    /// ```ignore
-    /// use fb_rust::report::types::Category;
-    ///
-    /// let config = BodyConfig::new()
-    ///     .with_cat_positions(Category::Personal, 10)
-    ///     .with_cat_positions(Category::Projektverwaltung, 0);  // Header-Eingabe
-    /// ```
+    /// Sets the number of position rows using the [`Category`] enum
     pub fn with_cat_positions(self, category: Category, count: u16) -> Self {
         self.with_positions(category.index(), count)
     }
 
-    /// Gibt die Anzahl Positionen für eine Kategorie zurück
+    /// Returns the number of position rows for a category
     ///
-    /// - `0`: Header-Eingabe (keine separaten Positions-Zeilen)
-    /// - `1+`: Anzahl der Positions-Zeilen unter dem Header
+    /// - `0`: header-input (no separate position rows)
+    /// - `1+`: number of position rows under the header
     pub fn position_count(&self, category: u8) -> u16 {
         *self.positions.get(&category).unwrap_or(&0)
     }
 
-    /// Prüft ob eine Kategorie im Header-Eingabe-Modus ist (0 Positionen)
+    /// Returns `true` if the category is in header-input mode (0 positions)
     pub fn is_header_input(&self, category: u8) -> bool {
         self.position_count(category) == 0
     }
 
-    /// Prüft ob eine Kategorie Positionen unter dem Header hat (1+ Positionen)
+    /// Returns `true` if the category has position rows (1+ positions)
     pub fn has_positions(&self, category: u8) -> bool {
         self.position_count(category) > 0
     }
@@ -119,7 +105,7 @@ impl Default for BodyConfig {
 }
 
 impl BodyConfig {
-    /// Gibt die Standard-Positions-Map zurück (Kategorien 1-5: 20/30 Zeilen, 6-8: Header-Eingabe)
+    /// Returns the default position counts (cat 1–5: 20/30 rows, cat 6–8: header-input)
     pub fn default_positions() -> HashMap<u8, u16> {
         HashMap::from([
             (1, 20),
@@ -127,9 +113,9 @@ impl BodyConfig {
             (3, 30),
             (4, 30),
             (5, 20),
-            (6, 0), // Header-Eingabe
-            (7, 0), // Header-Eingabe
-            (8, 0), // Header-Eingabe
+            (6, 0), // header-input
+            (7, 0), // header-input
+            (8, 0), // header-input
         ])
     }
 }
@@ -156,13 +142,13 @@ mod tests {
     fn test_default_config() {
         let config = BodyConfig::default();
 
-        // Multi-Row Kategorien
+        // Multi-row categories
         assert_eq!(config.position_count(1), 20);
         assert_eq!(config.position_count(3), 30);
         assert!(config.has_positions(1));
         assert!(!config.is_header_input(1));
 
-        // Header-Eingabe Kategorien (vormals Single-Row)
+        // Header-input categories
         assert_eq!(config.position_count(6), 0);
         assert_eq!(config.position_count(7), 0);
         assert_eq!(config.position_count(8), 0);
@@ -172,7 +158,9 @@ mod tests {
 
     #[test]
     fn test_custom_config() {
-        let config = BodyConfig::new().with_positions(1, 10).with_positions(6, 5); // Kategorie 6 jetzt mit Positionen!
+        let config = BodyConfig::new()
+            .with_positions(1, 10)
+            .with_positions(6, 5); // cat 6 now with positions
 
         assert_eq!(config.position_count(1), 10);
         assert_eq!(config.position_count(6), 5);
@@ -183,8 +171,8 @@ mod tests {
     #[test]
     fn test_header_input_mode() {
         let config = BodyConfig::new()
-            .with_positions(1, 0) // Kategorie 1 im Header-Eingabe-Modus!
-            .with_positions(2, 1); // Kategorie 2 mit 1 Position
+            .with_positions(1, 0) // cat 1 in header-input mode
+            .with_positions(2, 1); // cat 2 with 1 position
 
         assert!(config.is_header_input(1));
         assert!(!config.is_header_input(2));
@@ -193,12 +181,12 @@ mod tests {
 
     #[test]
     fn test_flexible_categories() {
-        // Alle Kategorien können zwischen Header-Eingabe und Positionen wechseln
+        // Any category can switch between header-input and multi-row mode
         let config = BodyConfig::new()
-            .with_positions(1, 0) // Normalerweise Multi-Row, jetzt Header-Eingabe
-            .with_positions(6, 10) // Normalerweise Header-Eingabe, jetzt Multi-Row
-            .with_positions(7, 1) // 1 Position
-            .with_positions(8, 0); // Header-Eingabe (Standard)
+            .with_positions(1, 0)  // normally multi-row → now header-input
+            .with_positions(6, 10) // normally header-input → now multi-row
+            .with_positions(7, 1)  // 1 position
+            .with_positions(8, 0); // header-input (default)
 
         assert!(config.is_header_input(1));
         assert!(config.has_positions(6));
