@@ -34,7 +34,7 @@ const BENCH_CURRENCIES: [Currency; 5] = [
     Currency::EUR, Currency::USD, Currency::GBP, Currency::CHF, Currency::BRL,
 ];
 const BENCH_PASSWORD: &str = "bench_protection_pw";
-const BENCH_SPIN_COUNT: u32 = 1_000;
+const BENCH_SPIN_COUNT: u32 = 100_000;
 
 /// Erstellt eine vollständig ausgefüllte ReportConfig.
 ///
