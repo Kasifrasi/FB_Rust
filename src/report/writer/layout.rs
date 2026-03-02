@@ -2,7 +2,7 @@
 //!
 //! Column widths, row heights, merge ranges, freeze panes, and page setup.
 
-use rust_xlsxwriter::{Worksheet, XlsxError};
+use rust_xlsxwriter::{Format, Worksheet, XlsxError};
 
 // ============================================================================
 // Merge range definition
@@ -48,32 +48,52 @@ pub fn setup_sheet(ws: &mut Worksheet) -> Result<(), XlsxError> {
     Ok(())
 }
 
+/// Column widths (A–Y) and default unlock for the first 50 columns.
+///
+/// All 50 columns (A–AX) are set to unlocked so that cells without an
+/// explicit format are editable when sheet protection is enabled. Formulas
+/// and static text override this with a locked format when they are written.
 fn setup_column_widths(ws: &mut Worksheet) -> Result<(), XlsxError> {
-    ws.set_column_width(0, 2.60)?; // A
-    ws.set_column_width(1, 4.10)?; // B
-    ws.set_column_width(2, 56.0)?; // C
-    ws.set_column_width(3, 20.0)?; // D
-    ws.set_column_width(4, 18.0)?; // E
-    ws.set_column_width(5, 18.0)?; // F
-    ws.set_column_width(6, 12.0)?; // G
-    ws.set_column_width(7, 18.0)?; // H
-    ws.set_column_width(8, 4.0)?; // I
-    ws.set_column_width(9, 4.0)?; // J
-    ws.set_column_width(10, 19.14)?; // K
-    ws.set_column_width(11, 10.85)?; // L
-    ws.set_column_width(12, 15.0)?; // M
-    ws.set_column_width(13, 15.0)?; // N
-    ws.set_column_width(14, 15.0)?; // O
-    ws.set_column_width(15, 5.0)?; // P
-    ws.set_column_width(16, 4.0)?; // Q
-    ws.set_column_width(17, 19.14)?; // R
-    ws.set_column_width(18, 10.85)?; // S
-    ws.set_column_width(19, 15.0)?; // T
-    ws.set_column_width(20, 15.0)?; // U
-    ws.set_column_width(21, 15.0)?; // V
-    ws.set_column_width(22, 4.0)?; // W
-    ws.set_column_width(23, 36.71)?; // X
-    ws.set_column_width(24, 10.85)?; // Y
+    let unlocked = Format::new().set_unlocked();
+
+    // Unlock first 50 columns (A–AX)
+    for col in 0u16..50 {
+        ws.set_column_format(col, &unlocked)?;
+    }
+
+    // Set explicit widths for report columns (A–Y)
+    let widths: &[(u16, f64)] = &[
+        (0, 2.60),   // A
+        (1, 4.10),   // B
+        (2, 56.0),   // C
+        (3, 20.0),   // D
+        (4, 18.0),   // E
+        (5, 18.0),   // F
+        (6, 12.0),   // G
+        (7, 18.0),   // H
+        (8, 4.0),    // I
+        (9, 4.0),    // J
+        (10, 19.14), // K
+        (11, 10.85), // L
+        (12, 15.0),  // M
+        (13, 15.0),  // N
+        (14, 15.0),  // O
+        (15, 5.0),   // P
+        (16, 4.0),   // Q
+        (17, 19.14), // R
+        (18, 10.85), // S
+        (19, 15.0),  // T
+        (20, 15.0),  // U
+        (21, 15.0),  // V
+        (22, 4.0),   // W
+        (23, 36.71), // X
+        (24, 10.85), // Y
+    ];
+
+    for &(col, width) in widths {
+        ws.set_column_width(col, width)?;
+    }
+
     Ok(())
 }
 

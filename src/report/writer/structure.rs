@@ -431,7 +431,7 @@ fn write_string(
     col: u16,
     value: &str,
 ) -> Result<(), XlsxError> {
-    if let Some(format) = fmt.get(row, col) {
+    if let Some(format) = fmt.get_locked(row, col) {
         ws.write_string_with_format(row, col, value, format)?;
     } else {
         ws.write_string(row, col, value)?;

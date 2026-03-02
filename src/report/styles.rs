@@ -870,6 +870,7 @@ pub fn build_format_matrix(styles: &ReportStyles, sec: &SectionStyles) -> Format
     m.set(7, 5, &sec.fmt_row7_base);
     m.set(7, 6, &sec.fmt_row7_date);
     m.set(7, 9, &sec.value_dotted);
+    m.set(7, 10, &sec.value_dotted); // K8: exchange rate label (VLOOKUP)
 
     // Row 8
     m.set(8, 1, &styles.left_center);
