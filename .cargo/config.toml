@@ -1,0 +1,7 @@
+# Prevents the NixOS clang wrapper from emitting LLVM LTO (bitcode) objects
+# when compiling C code (e.g. alloca, a transitive dep of criterion).
+# mold cannot link such objects without the LTO plugin → linker error.
+# -fno-lto overrides the wrapper-injected -flto=thin for C/C++ build scripts.
+[env]
+CFLAGS = "-fno-lto"
+CXXFLAGS = "-fno-lto"

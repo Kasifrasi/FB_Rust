@@ -33,19 +33,17 @@ cargo bench
 
 ## Usage
 
-### Simple API (recommended)
-
 `ReportConfig` is the main entry point — composed of four domain sub-structs:
 `ReportHeader`, `ReportBody`, `ReportFooter`, and `ReportOptions`.
 
-All structs support the Builder pattern via `derive_builder`:
+All structs use a hand-written fluent builder with infallible `.build()` — no `?` required:
 
 ```rust
 use fb_rust::*;
 
-let config = ReportConfigBuilder::default()
+let config = ReportConfig::builder()
     .header(
-        ReportHeaderBuilder::default()
+        ReportHeader::builder()
             .language(Language::Deutsch)
             .currency(Currency::EUR)
             .project_number("PROJ-2025-001")
@@ -54,73 +52,41 @@ let config = ReportConfigBuilder::default()
             .project_end("31.12.2027")
             .report_start("01.01.2025")
             .report_end("30.06.2025")
-            .build()?
+            .build()
     )
     .body(
-        ReportBodyBuilder::default()
-            .add_table_entry(
-                TableEntryBuilder::default()
-                    .index(0u8)
-                    .approved_budget(80000.0)
-                    .income_report(50000.0)
-                    .income_total(50000.0)
-                    .reason("1. Rate")
-                    .build()?
-            )
-            .add_position(
-                PositionEntryBuilder::default()
-                    .category(1u8)
-                    .position(1u16)
-                    .description("Projektleitung")
-                    .approved(18000.0)
-                    .income_report(9000.0)
-                    .income_total(9000.0)
-                    .build()?
-            )
-            .body_positions(
-                [(1u8, 5u16), (2, 3), (3, 4), (4, 3), (5, 2), (6, 0), (7, 0), (8, 0)]
-                    .into_iter().collect::<std::collections::HashMap<_, _>>()
-            )
-            .build()?
+        ReportBody::builder()
+            // Income table: five named rows (each can only be set once)
+            .kmw_mittel(  TableEntry::builder().approved_budget(80000.0).income_report(50000.0).income_total(50000.0).reason("1. Rate").build())
+            .eigenmittel( TableEntry::builder().approved_budget(15000.0).income_report( 8000.0).income_total( 8000.0).build())
+            .saldovortrag(TableEntry::builder().approved_budget( 2500.0).build())
+            // Cost positions (category → ordered rows; Vec length = row count per category)
+            .add_position(1, PositionEntry::builder().description("Projektleitung").approved(18000.0).income_report(9000.0).income_total(9000.0).build())
+            .add_position(1, PositionEntry::builder().description("Buchhaltung").approved(5000.0).build())
+            .skip_position_row(1)   // empty row
+            .add_position(2, PositionEntry::builder().description("Reisekosten").approved(3000.0).income_report(1500.0).build())
+            // Header-input categories (single aggregated value, no individual rows)
+            .set_header_input(6, PositionEntry::builder().approved(3000.0).remark("Verwaltung pauschal").build())
+            .build()
     )
     .footer(
-        ReportFooterBuilder::default()
+        ReportFooter::builder()
             .bank(8500.0)
             .kasse(1200.0)
             .sonstiges(300.0)
-            .build()?
+            .build()
     )
     .options(
-        ReportOptionsBuilder::default()
+        ReportOptions::builder()
             .sheet_password("blatt_geheim")
             .workbook_password("secret")
             .hide_columns_qv(true)
             .hide_language_sheet(true)
-            .build()?
+            .build()
     )
-    .build()?;
+    .build();  // infallible — no ? anywhere
 
 config.write_to("report.xlsx")?;
-```
-
-Or using struct literals directly:
-
-```rust
-use fb_rust::{Currency, Language, ReportConfig, ReportHeader, ReportOptions};
-
-let config = ReportConfig {
-    header: ReportHeader {
-        language: Language::Deutsch,
-        currency: Currency::EUR,
-        project_number: Some("PROJ-2025-001".to_string()),
-        ..ReportHeader::default()
-    },
-    options: ReportOptions {
-        sheet_password: Some("geheim".to_string()),
-        ..ReportOptions::default()
-    },
-    ..ReportConfig::default()
-};
 ```
 
 > See [`examples/test_all_fields.rs`](examples/test_all_fields.rs) for a complete reference with all fields populated.
@@ -185,9 +151,9 @@ examples/
 ## Testing
 
 ```bash
-cargo test                                             # Unit tests (77 tests)
-cargo test --features serde --test serde_integration   # Serde JSON tests (27 tests)
-cargo test --features serde                            # All tests (104 tests)
+cargo test                                             # Unit tests (86 tests)
+cargo test --features serde --test serde_integration   # Serde JSON tests (28 tests)
+cargo test --features serde                            # All tests (114 tests)
 cargo deny check                                       # License and security audit
 ```
 

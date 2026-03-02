@@ -154,9 +154,8 @@ pub use crate::lang::data::Currency;
 /// | `"Reserve"` | 8 | Reserve |
 ///
 /// **Note:** In [`ReportConfig`](crate::ReportConfig) JSON, categories are referenced
-/// by numeric keys (`"1"` – `"8"` in `body_positions`) and `u8` values
-/// (`category` field in [`PositionEntry`](crate::PositionEntry)). The `Category` enum
-/// is for the typed Rust API only.
+/// by numeric keys (`"1"` – `"8"`) as keys of the `positions` and `header_inputs` maps.
+/// The `Category` enum is for the typed Rust API only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Category {

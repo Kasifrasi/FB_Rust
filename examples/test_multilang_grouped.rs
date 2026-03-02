@@ -10,7 +10,7 @@
 //! - Audit: 0 Positionen (nur Header)
 //! - Reserve: 0 Positionen (nur Header)
 //!
-//! **Builder-Pattern** — kein `Some()`, kein `.to_string()`.
+//! **Builder-Pattern** — kein `Some()`, kein `.to_string()`, kein `?` beim Bauen.
 
 use fb_rust::*;
 
@@ -35,15 +35,14 @@ fn create_report(language: Language) -> Result<(), Box<dyn std::error::Error>> {
     //   Kat 5 (20 Pos): Header=134, Pos=135-154, Footer=155 → Gruppe 140-154 (letzte 15)
     //   Kat 6-8: je 1 Zeile (Header-Eingabe), keine Gruppierung
 
-    // body_positions entspricht dem Default (1:20, 2:20, 3:30, 4:30, 5:20, 6-8:0)
-    let config = ReportConfigBuilder::default()
+    let config = ReportConfig::builder()
         .header(
-            ReportHeaderBuilder::default()
+            ReportHeader::builder()
                 .language(language)
-                .build()?
+                .build(),
         )
         .options(
-            ReportOptionsBuilder::default()
+            ReportOptions::builder()
                 .hide_language_sheet(true)
                 .row_grouping(
                     RowGrouping::new()
@@ -51,11 +50,11 @@ fn create_report(language: Language) -> Result<(), Box<dyn std::error::Error>> {
                         .add_collapsed_group(54, 68)
                         .add_collapsed_group(83, 100)
                         .add_collapsed_group(115, 132)
-                        .add_collapsed_group(140, 154)
+                        .add_collapsed_group(140, 154),
                 )
-                .build()?
+                .build(),
         )
-        .build()?;
+        .build();
 
     let filename = format!("test_grouped_{}.xlsx", language);
     config.write_to(&filename)?;

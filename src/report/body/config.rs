@@ -48,8 +48,8 @@ pub const ALL_CATEGORIES: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
 /// Keys are category numbers (1–8) as strings, values are the number of position
 /// rows. `0` means header-input mode (single-row, no footer).
 ///
-/// **Note:** In [`ReportConfig`](crate::ReportConfig), this is the `body_positions`
-/// field (`HashMap<u8, u16>`), which uses the same JSON format.
+/// **Note:** In [`ReportConfig`](crate::ReportConfig), this is derived automatically
+/// from the `positions` and `header_inputs` fields — it is not exposed in the public API.
 ///
 /// Defaults: see [`BodyConfig::default_positions`].
 #[derive(Debug, Clone, PartialEq, Eq)]

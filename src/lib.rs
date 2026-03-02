@@ -10,10 +10,10 @@
 //! ```ignore
 //! use fb_rust::*;
 //!
-//! let config = ReportConfigBuilder::default()
-//!     .header(ReportHeaderBuilder::default().language(Language::Deutsch).currency(Currency::EUR).build()?)
-//!     .options(ReportOptionsBuilder::default().sheet_password("geheim").build()?)
-//!     .build()?;
+//! let config = ReportConfig::builder()
+//!     .header(ReportHeader::builder().language(Language::Deutsch).currency(Currency::EUR).build())
+//!     .options(ReportOptions::builder().sheet_password("geheim").build())
+//!     .build();  // infallible — no ? required
 //! config.write_to("report.xlsx")?;
 //! ```
 //!
@@ -84,6 +84,7 @@ pub use workbook_protection::{
 
 // Public API re-exports
 pub use config::{
+    IncomeTable,
     PanelEntry, PanelEntryBuilder, PositionEntry, PositionEntryBuilder,
     ReportBody, ReportBodyBuilder, ReportConfig, ReportConfigBuilder,
     ReportFooter, ReportFooterBuilder, ReportHeader, ReportHeaderBuilder,

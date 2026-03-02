@@ -8,8 +8,9 @@
 #![cfg(feature = "serde")]
 
 use fb_rust::{
-    BodyConfig, Category, Currency, Language, PanelEntry, PositionEntry, ReportBody, ReportConfig,
-    ReportDate, ReportFooter, ReportHeader, ReportOptions, RowGroup, RowGrouping, TableEntry,
+    BodyConfig, Category, Currency, IncomeTable, Language, PanelEntry, PositionEntry, ReportBody,
+    ReportConfig, ReportDate, ReportFooter, ReportHeader, ReportOptions, RowGroup, RowGrouping,
+    TableEntry,
 };
 use std::collections::HashMap;
 
@@ -31,46 +32,53 @@ fn test_report_config_full_roundtrip() {
             report_end: Some("30.06.2025".to_string()),
         },
         body: ReportBody {
-            table: vec![TableEntry {
-                index: 0,
-                approved_budget: Some(50000.0),
-                income_report: Some(25000.0),
-                income_total: Some(25000.0),
-                reason: Some("Spende".to_string()),
-            }],
-            left_panel: vec![PanelEntry {
-                index: 0,
+            table: IncomeTable {
+                kmw_mittel: Some(TableEntry {
+                    approved_budget: Some(50000.0),
+                    income_report: Some(25000.0),
+                    income_total: Some(25000.0),
+                    reason: Some("Spende".to_string()),
+                }),
+                ..IncomeTable::default()
+            },
+            left_panel: vec![Some(PanelEntry {
                 date: Some("15.01.2025".to_string()),
                 amount_euro: Some(1000.0),
                 amount_local: Some(1100.0),
-            }],
-            right_panel: vec![PanelEntry {
-                index: 0,
+            })],
+            right_panel: vec![Some(PanelEntry {
                 date: Some("20.02.2025".to_string()),
                 amount_euro: Some(500.0),
                 amount_local: None,
-            }],
-            positions: vec![
-                PositionEntry {
-                    category: 1,
-                    position: 1,
-                    description: Some("Personalkosten".to_string()),
-                    approved: Some(18000.0),
-                    income_report: Some(9000.0),
-                    income_total: Some(9000.0),
-                    remark: None,
-                },
-                PositionEntry {
-                    category: 6,
-                    position: 0,
-                    description: None,
-                    approved: Some(3000.0),
-                    income_report: Some(1500.0),
-                    income_total: Some(1500.0),
-                    remark: Some("Verwaltung".to_string()),
-                },
-            ],
-            body_positions: [(1u8, 10u16), (2, 5), (6, 0)].into_iter().collect(),
+            })],
+            positions: {
+                let mut m = HashMap::new();
+                m.insert(
+                    1u8,
+                    vec![Some(PositionEntry {
+                        description: Some("Personalkosten".to_string()),
+                        approved: Some(18000.0),
+                        income_report: Some(9000.0),
+                        income_total: Some(9000.0),
+                        remark: None,
+                    })],
+                );
+                m
+            },
+            header_inputs: {
+                let mut m = HashMap::new();
+                m.insert(
+                    6u8,
+                    Some(PositionEntry {
+                        description: None,
+                        approved: Some(3000.0),
+                        income_report: Some(1500.0),
+                        income_total: Some(1500.0),
+                        remark: Some("Verwaltung".to_string()),
+                    }),
+                );
+                m
+            },
         },
         footer: ReportFooter {
             bank: Some(8500.0),
@@ -123,34 +131,50 @@ fn test_report_config_full_roundtrip() {
     );
 
     // Table
-    assert_eq!(deserialized.body.table.len(), 1);
-    assert_eq!(deserialized.body.table[0].index, 0);
-    assert_eq!(deserialized.body.table[0].approved_budget, Some(50000.0));
-    assert_eq!(
-        deserialized.body.table[0].reason.as_deref(),
-        Some("Spende")
-    );
+    let t = deserialized.body.table.kmw_mittel.as_ref().unwrap();
+    assert_eq!(t.approved_budget, Some(50000.0));
+    assert_eq!(t.reason.as_deref(), Some("Spende"));
+    assert!(deserialized.body.table.saldovortrag.is_none());
+    assert!(deserialized.body.table.eigenmittel.is_none());
 
     // Panels
     assert_eq!(deserialized.body.left_panel.len(), 1);
-    assert_eq!(deserialized.body.left_panel[0].amount_euro, Some(1000.0));
+    assert_eq!(
+        deserialized.body.left_panel[0]
+            .as_ref()
+            .unwrap()
+            .amount_euro,
+        Some(1000.0)
+    );
     assert_eq!(deserialized.body.right_panel.len(), 1);
-    assert_eq!(deserialized.body.right_panel[0].amount_local, None);
+    assert!(
+        deserialized.body.right_panel[0]
+            .as_ref()
+            .unwrap()
+            .amount_local
+            .is_none()
+    );
 
     // Positions
-    assert_eq!(deserialized.body.positions.len(), 2);
-    assert_eq!(deserialized.body.positions[0].category, 1);
-    assert_eq!(deserialized.body.positions[0].position, 1);
+    assert_eq!(deserialized.body.positions.len(), 1);
+    let cat1 = deserialized.body.positions.get(&1u8).unwrap();
+    assert_eq!(cat1.len(), 1);
     assert_eq!(
-        deserialized.body.positions[0].description.as_deref(),
+        cat1[0].as_ref().unwrap().description.as_deref(),
         Some("Personalkosten")
     );
-    assert_eq!(deserialized.body.positions[1].position, 0);
 
-    // Body positions
-    assert_eq!(deserialized.body.body_positions[&1], 10);
-    assert_eq!(deserialized.body.body_positions[&2], 5);
-    assert_eq!(deserialized.body.body_positions[&6], 0);
+    // Header-inputs
+    assert_eq!(deserialized.body.header_inputs.len(), 1);
+    let hi6 = deserialized
+        .body
+        .header_inputs
+        .get(&6u8)
+        .unwrap()
+        .as_ref()
+        .unwrap();
+    assert_eq!(hi6.approved, Some(3000.0));
+    assert_eq!(hi6.remark.as_deref(), Some("Verwaltung"));
 
     // Footer
     assert_eq!(deserialized.footer.bank, Some(8500.0));
@@ -186,10 +210,15 @@ fn test_report_config_minimal_roundtrip() {
     assert_eq!(deserialized.header.language, Language::Deutsch);
     assert_eq!(deserialized.header.currency, Currency::EUR);
     assert!(deserialized.options.sheet_password.is_none());
-    assert!(deserialized.body.table.is_empty());
+    assert!(deserialized.body.table.saldovortrag.is_none());
+    assert!(deserialized.body.table.eigenmittel.is_none());
+    assert!(deserialized.body.table.drittmittel.is_none());
+    assert!(deserialized.body.table.kmw_mittel.is_none());
+    assert!(deserialized.body.table.zinsertraege.is_none());
     assert!(deserialized.body.left_panel.is_empty());
     assert!(deserialized.body.right_panel.is_empty());
     assert!(deserialized.body.positions.is_empty());
+    assert!(deserialized.body.header_inputs.is_empty());
     assert!(deserialized.header.project_number.is_none());
     assert!(deserialized.footer.bank.is_none());
     assert!(deserialized.options.row_grouping.is_none());
@@ -204,7 +233,8 @@ fn test_report_config_empty_json() {
     assert_eq!(config.header.language, Language::Deutsch);
     assert_eq!(config.header.currency, Currency::EUR);
     assert!(config.options.sheet_password.is_none());
-    assert!(config.body.table.is_empty());
+    assert!(config.body.table.kmw_mittel.is_none());
+    assert!(config.body.left_panel.is_empty());
 }
 
 #[test]
@@ -222,7 +252,7 @@ fn test_report_config_partial_json() {
     assert_eq!(config.header.language, Language::English);
     assert_eq!(config.header.currency, Currency::GBP);
     assert!(config.header.project_number.is_none());
-    assert!(config.body.table.is_empty());
+    assert!(config.body.table.kmw_mittel.is_none());
     assert!(config.footer.bank.is_none());
     assert!(config.options.sheet_password.is_none());
 }
@@ -432,7 +462,6 @@ fn test_body_config_roundtrip() {
 #[test]
 fn test_table_entry_roundtrip() {
     let entry = TableEntry {
-        index: 2,
         approved_budget: Some(100000.0),
         income_report: Some(50000.0),
         income_total: Some(50000.0),
@@ -442,12 +471,10 @@ fn test_table_entry_roundtrip() {
     let json = serde_json::to_string(&entry).expect("serialize");
     let back: TableEntry = serde_json::from_str(&json).expect("deserialize");
 
-    assert_eq!(back.index, 2);
     assert_eq!(back.approved_budget, Some(100000.0));
     assert_eq!(back.reason.as_deref(), Some("Spenden"));
 
     let entry_null = TableEntry {
-        index: 0,
         approved_budget: None,
         income_report: None,
         income_total: None,
@@ -456,7 +483,6 @@ fn test_table_entry_roundtrip() {
 
     let json = serde_json::to_string(&entry_null).expect("serialize null");
     let back: TableEntry = serde_json::from_str(&json).expect("deserialize null");
-    assert_eq!(back.index, 0);
     assert!(back.approved_budget.is_none());
     assert!(back.reason.is_none());
 }
@@ -464,7 +490,6 @@ fn test_table_entry_roundtrip() {
 #[test]
 fn test_panel_entry_roundtrip() {
     let entry = PanelEntry {
-        index: 5,
         date: Some("15.03.2025".to_string()),
         amount_euro: Some(750.25),
         amount_local: None,
@@ -473,7 +498,6 @@ fn test_panel_entry_roundtrip() {
     let json = serde_json::to_string(&entry).expect("serialize");
     let back: PanelEntry = serde_json::from_str(&json).expect("deserialize");
 
-    assert_eq!(back.index, 5);
     assert_eq!(back.date.as_deref(), Some("15.03.2025"));
     assert_eq!(back.amount_euro, Some(750.25));
     assert!(back.amount_local.is_none());
@@ -482,8 +506,6 @@ fn test_panel_entry_roundtrip() {
 #[test]
 fn test_position_entry_roundtrip() {
     let pos = PositionEntry {
-        category: 1,
-        position: 3,
         description: Some("Reisekosten".to_string()),
         approved: Some(5000.0),
         income_report: Some(2500.0),
@@ -493,13 +515,11 @@ fn test_position_entry_roundtrip() {
 
     let json = serde_json::to_string(&pos).expect("serialize");
     let back: PositionEntry = serde_json::from_str(&json).expect("deserialize");
-    assert_eq!(back.category, 1);
-    assert_eq!(back.position, 3);
     assert_eq!(back.description.as_deref(), Some("Reisekosten"));
+    assert_eq!(back.approved, Some(5000.0));
 
+    // Header-input style (no description)
     let header = PositionEntry {
-        category: 6,
-        position: 0,
         description: None,
         approved: Some(3000.0),
         income_report: Some(1500.0),
@@ -509,9 +529,53 @@ fn test_position_entry_roundtrip() {
 
     let json = serde_json::to_string(&header).expect("serialize header");
     let back: PositionEntry = serde_json::from_str(&json).expect("deserialize header");
-    assert_eq!(back.category, 6);
-    assert_eq!(back.position, 0);
+    assert_eq!(back.approved, Some(3000.0));
     assert!(back.description.is_none());
+}
+
+#[test]
+fn test_report_body_positions_map_roundtrip() {
+    // positions is HashMap<u8, Vec<Option<PositionEntry>>>
+    let body = ReportBody {
+        table: IncomeTable::default(),
+        left_panel: vec![],
+        right_panel: vec![],
+        positions: {
+            let mut m = HashMap::new();
+            m.insert(1u8, vec![
+                Some(PositionEntry { description: Some("A".to_string()), ..Default::default() }),
+                None,
+                Some(PositionEntry { description: Some("C".to_string()), ..Default::default() }),
+            ]);
+            m.insert(2u8, vec![
+                Some(PositionEntry { approved: Some(500.0), ..Default::default() }),
+            ]);
+            m
+        },
+        header_inputs: {
+            let mut m = HashMap::new();
+            m.insert(6u8, Some(PositionEntry { approved: Some(2000.0), ..Default::default() }));
+            m.insert(7u8, None);
+            m
+        },
+    };
+
+    let json = serde_json::to_string(&body).expect("serialize");
+    let back: ReportBody = serde_json::from_str(&json).expect("deserialize");
+
+    let cat1 = back.positions.get(&1u8).unwrap();
+    assert_eq!(cat1.len(), 3);
+    assert_eq!(cat1[0].as_ref().unwrap().description.as_deref(), Some("A"));
+    assert!(cat1[1].is_none());  // skip row preserved
+    assert_eq!(cat1[2].as_ref().unwrap().description.as_deref(), Some("C"));
+
+    let cat2 = back.positions.get(&2u8).unwrap();
+    assert_eq!(cat2.len(), 1);
+    assert_eq!(cat2[0].as_ref().unwrap().approved, Some(500.0));
+
+    let hi6 = back.header_inputs.get(&6u8).unwrap().as_ref().unwrap();
+    assert_eq!(hi6.approved, Some(2000.0));
+    assert!(back.header_inputs.get(&7u8).unwrap().is_none());
 }
 
 // ============================================================================
@@ -564,18 +628,23 @@ fn test_report_config_from_typescript_json() {
             "project_title": "Klimaschutzprojekt"
         },
         "body": {
-            "body_positions": { "1": 10, "2": 5 },
-            "positions": [
-                {
-                    "category": 1,
-                    "position": 1,
-                    "description": "Baukosten",
-                    "approved": 50000.0,
-                    "income_report": null,
-                    "income_total": null,
-                    "remark": null
-                }
-            ]
+            "table": {
+                "kmw_mittel": { "approved_budget": 80000.0, "income_report": 50000.0 }
+            },
+            "positions": {
+                "1": [
+                    {
+                        "description": "Baukosten",
+                        "approved": 50000.0,
+                        "income_report": null,
+                        "income_total": null,
+                        "remark": null
+                    }
+                ]
+            },
+            "header_inputs": {
+                "6": { "approved": 3000.0 }
+            }
         },
         "footer": {
             "bank": 12000.0,
@@ -598,19 +667,32 @@ fn test_report_config_from_typescript_json() {
         Some("Klimaschutzprojekt")
     );
     assert_eq!(config.options.sheet_password.as_deref(), Some("geheim"));
-    assert_eq!(config.body.body_positions[&1], 10);
-    assert_eq!(config.body.body_positions[&2], 5);
-    assert_eq!(config.body.positions.len(), 1);
-    assert_eq!(config.body.positions[0].approved, Some(50000.0));
+
+    // table.kmw_mittel
+    let kmw = config.body.table.kmw_mittel.as_ref().unwrap();
+    assert_eq!(kmw.approved_budget, Some(80000.0));
+    assert_eq!(kmw.income_report, Some(50000.0));
+    assert!(config.body.table.saldovortrag.is_none());
+
+    // positions["1"] has 1 entry
+    let cat1 = config.body.positions.get(&1u8).unwrap();
+    assert_eq!(cat1.len(), 1);
+    assert_eq!(cat1[0].as_ref().unwrap().approved, Some(50000.0));
     assert_eq!(
-        config.body.positions[0].description.as_deref(),
+        cat1[0].as_ref().unwrap().description.as_deref(),
         Some("Baukosten")
     );
+
+    // header_inputs["6"]
+    let hi6 = config.body.header_inputs.get(&6u8).unwrap().as_ref().unwrap();
+    assert_eq!(hi6.approved, Some(3000.0));
+
     assert_eq!(config.footer.bank, Some(12000.0));
     assert_eq!(config.footer.kasse, Some(500.0));
     assert!(config.footer.sonstiges.is_none());
-    // serde(default) fields that are missing → empty
-    assert!(config.body.table.is_empty());
+
+    // serde(default) fields that are missing → defaults
+    assert!(config.body.table.eigenmittel.is_none());
     assert!(config.body.left_panel.is_empty());
     assert!(config.body.right_panel.is_empty());
     assert!(config.options.row_grouping.is_none());
@@ -634,16 +716,25 @@ fn test_report_config_unknown_fields_rejected() {
         result.is_err(),
         "unknown header fields should be rejected"
     );
+
+    // body_positions no longer exists → rejected as unknown field
+    let json = r#"{ "body": { "body_positions": {"1": 5} } }"#;
+    let result = serde_json::from_str::<ReportConfig>(json);
+    assert!(
+        result.is_err(),
+        "body_positions is no longer a valid field and should be rejected"
+    );
 }
 
 #[test]
-fn test_body_positions_empty_map() {
+fn test_body_positions_empty_maps() {
     let json = r#"{
-        "body": { "body_positions": {} }
+        "body": { "positions": {}, "header_inputs": {} }
     }"#;
 
-    let config: ReportConfig = serde_json::from_str(json).expect("empty body_positions");
-    assert!(config.body.body_positions.is_empty());
+    let config: ReportConfig = serde_json::from_str(json).expect("empty body positions");
+    assert!(config.body.positions.is_empty());
+    assert!(config.body.header_inputs.is_empty());
 }
 
 #[test]
@@ -667,7 +758,7 @@ fn test_report_config_all_null_optionals() {
             "report_end": null
         },
         "body": {
-            "body_positions": {"1": 5}
+            "positions": {"1": [{"approved": 5000.0}]}
         },
         "footer": {
             "bank": null,
@@ -689,5 +780,7 @@ fn test_report_config_all_null_optionals() {
     assert!(config.header.project_title.is_none());
     assert!(config.footer.bank.is_none());
     assert!(config.options.workbook_password.is_none());
-    assert_eq!(config.body.body_positions[&1], 5);
+    let cat1 = config.body.positions.get(&1u8).unwrap();
+    assert_eq!(cat1.len(), 1);
+    assert_eq!(cat1[0].as_ref().unwrap().approved, Some(5000.0));
 }

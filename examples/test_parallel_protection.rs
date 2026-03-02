@@ -2,7 +2,7 @@
 //!
 //! Generiert eine Basis-Datei, erstellt Kopien und schützt sie parallel mit Rayon.
 //!
-//! **Builder-Pattern** — kein `Some()`, kein `.to_string()`.
+//! **Builder-Pattern** — kein `Some()`, kein `.to_string()`, kein `?` beim Bauen.
 //!
 //! Usage:
 //!   cargo run --example test_parallel_protection --release
@@ -23,21 +23,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 1. Basis-Datei generieren
     let base_file = dir.path().join("base.xlsx");
-    let config = ReportConfigBuilder::default()
+    let config = ReportConfig::builder()
         .header(
-            ReportHeaderBuilder::default()
+            ReportHeader::builder()
                 .language(Language::Deutsch)
                 .currency(Currency::EUR)
                 .project_number("BENCH-001")
                 .project_title("Protection Benchmark")
-                .build()?,
+                .build(),
         )
         .options(
-            ReportOptionsBuilder::default()
+            ReportOptions::builder()
                 .sheet_password("")
-                .build()?,
+                .build(),
         )
-        .build()?;
+        .build();
     config.write_to(&base_file)?;
     println!("Basis-Datei generiert: {:?}", base_file);
 

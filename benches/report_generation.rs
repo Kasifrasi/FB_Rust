@@ -10,9 +10,10 @@
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use fb_rust::{
-    precompute_hash_with_spin_count, Currency, Language, PanelEntry, PositionEntry, ReportBody,
-    ReportConfig, ReportFooter, ReportHeader, ReportOptions, RowGrouping, TableEntry,
+    precompute_hash_with_spin_count, Currency, IncomeTable, Language, PanelEntry, PositionEntry,
+    ReportBody, ReportConfig, ReportFooter, ReportHeader, ReportOptions, RowGrouping, TableEntry,
 };
+use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
 use std::thread;
@@ -53,79 +54,70 @@ fn build_config(index: usize) -> ReportConfig {
     let lang_idx = index % 5;
     let base = 1000.0 + (index as f64 * 7.3);
 
-    // 5 Table-Einträge
-    let table: Vec<TableEntry> = (0..5u8)
-        .map(|i| {
-            let factor = (i + 1) as f64;
-            TableEntry {
-                index: i,
-                approved_budget: Some(base * 10.0 * factor),
-                income_report: Some(base * 5.0 * factor),
-                income_total: Some(base * 5.0 * factor),
-                reason: Some(format!("Bewilligung Tranche {}", i + 1)),
-            }
-        })
-        .collect();
+    // Einnahmen-Tabelle (5 benannte Zeilen)
+    let table = IncomeTable {
+        kmw_mittel:   Some(TableEntry { approved_budget: Some(base * 10.0), income_report: Some(base * 5.0), income_total: Some(base * 5.0), reason: Some("KMW-Mittel".to_string()) }),
+        eigenmittel:  Some(TableEntry { approved_budget: Some(base * 20.0), income_report: Some(base * 10.0), income_total: Some(base * 10.0), reason: Some("Eigenmittel".to_string()) }),
+        drittmittel:  Some(TableEntry { approved_budget: Some(base * 30.0), income_report: Some(base * 15.0), income_total: Some(base * 15.0), reason: Some("Drittmittel".to_string()) }),
+        saldovortrag: Some(TableEntry { approved_budget: Some(base * 40.0), income_report: Some(base * 20.0), income_total: Some(base * 20.0), reason: Some("Saldovortrag".to_string()) }),
+        zinsertraege: Some(TableEntry { approved_budget: Some(base * 50.0), income_report: Some(base * 25.0), income_total: Some(base * 25.0), reason: Some("Zinserträge".to_string()) }),
+    };
 
     // 18 Panel-Einträge links (Kassenbuch Euro-Konto)
-    let left_panel: Vec<PanelEntry> = (0..18u8)
-        .map(|i| PanelEntry {
-            index: i,
-            date: Some(format!("{:02}.{:02}.2024", (i % 28) + 1, (i % 12) + 1)),
-            amount_euro: Some(base * (i + 1) as f64 * 0.5),
-            amount_local: Some(base * (i + 1) as f64 * 0.6),
+    let left_panel: Vec<Option<PanelEntry>> = (0..18u8)
+        .map(|i| {
+            Some(PanelEntry {
+                date: Some(format!("{:02}.{:02}.2024", (i % 28) + 1, (i % 12) + 1)),
+                amount_euro: Some(base * (i + 1) as f64 * 0.5),
+                amount_local: Some(base * (i + 1) as f64 * 0.6),
+            })
         })
         .collect();
 
     // 18 Panel-Einträge rechts (Kassenbuch Lokal-Konto)
-    let right_panel: Vec<PanelEntry> = (0..18u8)
-        .map(|i| PanelEntry {
-            index: i,
-            date: Some(format!("{:02}.{:02}.2024", (i % 28) + 1, (i % 12) + 1)),
-            amount_euro: Some(base * (i + 1) as f64 * 0.3),
-            amount_local: Some(base * (i + 1) as f64 * 0.4),
+    let right_panel: Vec<Option<PanelEntry>> = (0..18u8)
+        .map(|i| {
+            Some(PanelEntry {
+                date: Some(format!("{:02}.{:02}.2024", (i % 28) + 1, (i % 12) + 1)),
+                amount_euro: Some(base * (i + 1) as f64 * 0.3),
+                amount_local: Some(base * (i + 1) as f64 * 0.4),
+            })
         })
         .collect();
 
     // Body: Kat. 1–5 je 10 Positionen, Kat. 6–8 Header-Input
-    let cat_counts: [(u8, u16); 8] = [
-        (1, 10),
-        (2, 10),
-        (3, 10),
-        (4, 10),
-        (5, 10),
-        (6, 0),
-        (7, 0),
-        (8, 0),
-    ];
+    let normal_cats: [(u8, u16); 5] = [(1, 10), (2, 10), (3, 10), (4, 10), (5, 10)];
+    let header_cats: [u8; 3] = [6, 7, 8];
 
-    let mut positions = Vec::new();
-    for &(cat, count) in &cat_counts {
-        if count == 0 {
-            // Header-Input Modus
-            positions.push(PositionEntry {
-                category: cat,
-                position: 0,
-                description: None,
-                approved: Some(base * cat as f64 * 2.0),
-                income_report: Some(base * cat as f64),
-                income_total: Some(base * cat as f64),
-                remark: Some(format!("Pauschal Kat. {}", cat)),
-            });
-        } else {
-            for pos in 1..=count {
+    let mut positions: HashMap<u8, Vec<Option<PositionEntry>>> = HashMap::new();
+    for &(cat, count) in &normal_cats {
+        let rows = (1..=count)
+            .map(|pos| {
                 let cost = base * (cat as f64) * (pos as f64 / 3.0);
-                positions.push(PositionEntry {
-                    category: cat,
-                    position: pos,
+                Some(PositionEntry {
                     description: Some(format!("Kostenposition {}.{}", cat, pos)),
                     approved: Some(cost * 2.0),
                     income_report: Some(cost),
                     income_total: Some(cost),
                     remark: Some(format!("Bemerkung {}.{}", cat, pos)),
-                });
-            }
-        }
+                })
+            })
+            .collect();
+        positions.insert(cat, rows);
+    }
+
+    let mut header_inputs: HashMap<u8, Option<PositionEntry>> = HashMap::new();
+    for &cat in &header_cats {
+        header_inputs.insert(
+            cat,
+            Some(PositionEntry {
+                description: None,
+                approved: Some(base * cat as f64 * 2.0),
+                income_report: Some(base * cat as f64),
+                income_total: Some(base * cat as f64),
+                remark: Some(format!("Pauschal Kat. {}", cat)),
+            }),
+        );
     }
 
     ReportConfig {
@@ -144,8 +136,8 @@ fn build_config(index: usize) -> ReportConfig {
             left_panel,
             right_panel,
             positions,
-            body_positions: cat_counts.into_iter().collect(),
-        },
+            header_inputs,
+        }, // table is now IncomeTable (named fields, no Vec)
         footer: ReportFooter {
             bank: Some(base * 8.0),
             kasse: Some(base * 1.5),
