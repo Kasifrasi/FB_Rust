@@ -3,6 +3,7 @@ target/
 **/*.rs.bk
 *.pdb
 
+run_all_and_copy.rs
 # IDEs
 .idea/
 .vscode/
