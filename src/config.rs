@@ -430,8 +430,8 @@ impl ReportHeaderBuilder {
 
 /// Body data: income table, cash book panels, and cost positions.
 ///
-/// Row positions are derived from insertion order; no manual indices or
-/// `body_positions` map required. The income table uses named fields instead
+/// Row positions are derived from insertion order — no manual indices required.
+/// The income table uses named fields instead
 /// of a positional array, preventing duplicates and overflow at the type level.
 ///
 /// ## JSON
@@ -490,27 +490,27 @@ pub struct ReportBodyBuilder {
 impl ReportBodyBuilder {
     // --- Income table (5 named rows — each can only be set once) ---
 
-    /// Row 1: Saldovortrag (carry-forward balance from previous period)
+    /// Row 1: Carry-forward balance from previous period (Saldovortrag)
     pub fn saldovortrag(mut self, e: TableEntry) -> Self {
         self.table.saldovortrag = Some(e);
         self
     }
-    /// Row 2: Eigenmittel (own funds / equity contribution)
+    /// Row 2: Own funds / equity contribution (Eigenmittel)
     pub fn eigenmittel(mut self, e: TableEntry) -> Self {
         self.table.eigenmittel = Some(e);
         self
     }
-    /// Row 3: Drittmittel (third-party funds)
+    /// Row 3: Third-party funds (Drittmittel)
     pub fn drittmittel(mut self, e: TableEntry) -> Self {
         self.table.drittmittel = Some(e);
         self
     }
-    /// Row 4: KMW-Mittel (KMW grant funds)
+    /// Row 4: KMW grant funds (KMW-Mittel)
     pub fn kmw_mittel(mut self, e: TableEntry) -> Self {
         self.table.kmw_mittel = Some(e);
         self
     }
-    /// Row 5: Zinserträge (interest income)
+    /// Row 5: Interest income (Zinserträge)
     pub fn zinsertraege(mut self, e: TableEntry) -> Self {
         self.table.zinsertraege = Some(e);
         self
