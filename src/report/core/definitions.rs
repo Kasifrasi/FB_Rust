@@ -253,13 +253,13 @@ fn register_formula_cells(registry: &mut DynRegistry) -> Result<(), RegistryErro
     for i in 0..18u8 {
         let row = 13 + i as u32;
 
-        // K-Spalte (Col 10): =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,23,FALSE))
+        // K-Spalte (Col 10): =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$CD,23,FALSE))
         register_text_lookup(registry, CellAddr::new(row, 10), 23)?;
 
         // O-Spalte (Col 14): =IF(M{row}="","",N{row}/M{row})
         register_right_panel_calc(registry, CellAddr::new(row, 14), 12, 13)?;
 
-        // R-Spalte (Col 17): =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,23,FALSE))
+        // R-Spalte (Col 17): =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$CD,23,FALSE))
         register_text_lookup(registry, CellAddr::new(row, 17), 23)?;
 
         // V-Spalte (Col 21): =IF(T{row}="","",U{row}/T{row})
@@ -302,7 +302,7 @@ fn register_prebody_formulas(registry: &mut DynRegistry) -> Result<(), RegistryE
 // Formula Registration Helpers
 // ============================================================================
 
-/// Registriert eine TextLookup Formel: =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,index,FALSE))
+/// Registriert eine TextLookup Formel: =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$CD,index,FALSE))
 fn register_text_lookup(
     registry: &mut DynRegistry,
     addr: CellAddr,
@@ -310,7 +310,7 @@ fn register_text_lookup(
 ) -> Result<(), RegistryError> {
     let excel = Box::leak(
         format!(
-            r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))"#,
+            r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$CD,{},FALSE))"#,
             index
         )
         .into_boxed_str(),
@@ -336,7 +336,7 @@ fn register_text_lookup_default(
 ) -> Result<(), RegistryError> {
     let excel = Box::leak(
         format!(
-            r#"=IF($E$2="","{}",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))"#,
+            r#"=IF($E$2="","{}",VLOOKUP($E$2,Sprachversionen!$B:$CD,{},FALSE))"#,
             default, index
         )
         .into_boxed_str(),
@@ -361,7 +361,7 @@ fn register_hyperlink_lookup(
 ) -> Result<(), RegistryError> {
     let excel = Box::leak(
         format!(
-            r#"=HYPERLINK(VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))"#,
+            r#"=HYPERLINK(VLOOKUP($E$2,Sprachversionen!$B:$CD,{},FALSE))"#,
             index
         )
         .into_boxed_str(),
@@ -384,7 +384,7 @@ fn register_currency_or_lookup(
     addr: CellAddr,
     index: usize,
 ) -> Result<(), RegistryError> {
-    let excel: &'static str = r#"=IF(E3="",VLOOKUP($E$2,Sprachversionen!$B:$BN,28,FALSE),E3)"#;
+    let excel: &'static str = r#"=IF(E3="",VLOOKUP($E$2,Sprachversionen!$B:$CD,28,FALSE),E3)"#;
 
     let (addr, formula) = FormulaBuilder::new(addr, excel)
         .inputs(Inputs::many(vec![addr::E2, addr::E3]))
@@ -562,7 +562,7 @@ fn find_language_index(language: &str) -> Option<usize> {
         .position(|row| !row.is_empty() && row[0].eq_ignore_ascii_case(language))
 }
 
-/// Evaluiert: =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,index,FALSE))
+/// Evaluiert: =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$CD,index,FALSE))
 fn evaluate_text_lookup(ctx: &EvalContext, index: usize) -> CellValue {
     let language = match ctx.cell(addr::E2).as_text() {
         Some(lang) if !lang.is_empty() => lang,

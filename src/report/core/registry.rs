@@ -115,7 +115,7 @@ impl SheetRef {
 
     /// Standard-Referenz auf Sprachversionen
     pub const fn lang_table() -> Self {
-        Self::new("Sprachversionen", "$B:$BN")
+        Self::new("Sprachversionen", "$B:$CD")
     }
 }
 
@@ -989,7 +989,7 @@ mod tests {
 
         let (addr, formula) = FormulaBuilder::new(
             CellAddr::new(0, 1),
-            r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,2,FALSE))"#,
+            r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$CD,2,FALSE))"#,
         )
         .inputs(Inputs::one(addr::E2))
         .statics(Statics::index(2))

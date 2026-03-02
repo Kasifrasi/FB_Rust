@@ -1,7 +1,7 @@
 //! Statische Sprachdaten: Textmatrix und Währungen
 //!
 //! Enthält:
-//! - [`TEXT_MATRIX`]: 76 UI-Begriffe × 5 Sprachen (Deutsch, Englisch, Französisch, Spanisch,
+//! - [`TEXT_MATRIX`]: 66 UI-Begriffe × 5 Sprachen (Deutsch, Englisch, Französisch, Spanisch,
 //!   Portugiesisch)
 //! - [`Currency`]: ISO-4217-Enum mit allen 153 unterstützten Währungscodes
 
@@ -75,6 +75,9 @@ pub static TEXT_MATRIX: LazyLock<Vec<Vec<&'static str>>> = LazyLock::new(|| {
             "Bitte nutzen Sie zum ausfüllen des Finanzberichts unsere Ausfüllhilfe auf unserer Webseite:",
             "https://www.kindermissionswerk.org/fuer-partner/service",
             "Euro",
+            "     Zwischensumme Evaluierung",
+            "     Zwischensumme Audit",
+            "     Zwischensumme Reserve",
         ],
         vec![
             "english",
@@ -140,6 +143,9 @@ pub static TEXT_MATRIX: LazyLock<Vec<Vec<&'static str>>> = LazyLock::new(|| {
             "Please use our completion guide on our website to fill out the financial report.",
             "https://www.kindermissionswerk.org/en/partners/service",
             "Euro",
+            "Subtotal Evaluation",
+            "Subtotal Audit",
+            "Subtotal Contingency Reserve",
         ],
         vec![
             "français",
@@ -205,6 +211,9 @@ pub static TEXT_MATRIX: LazyLock<Vec<Vec<&'static str>>> = LazyLock::new(|| {
             "Veuillez utiliser notre aide à la saisie disponible sur notre site web pour remplir le rapport financier:",
             "https://www.kindermissionswerk.org/fr/pour-les-partenaires/services",
             "Euro",
+            "     Sous-total Évaluation",
+            "     Sous-total Audit",
+            "     Sous-total Réserve",
         ],
         vec![
             "español",
@@ -270,6 +279,9 @@ pub static TEXT_MATRIX: LazyLock<Vec<Vec<&'static str>>> = LazyLock::new(|| {
             "Por favor, utilice nuestra guía para completar el informe financiero, disponible en nuestro sitio web:",
             "https://www.kindermissionswerk.org/es/para-contrapartes-de-proyectos/servicios",
             "Euro",
+            "Subtotal Evaluación",
+            "Subtotal Auditoría Externa",
+            "Subtotal Reserva",
         ],
         vec![
             "português",
@@ -335,6 +347,9 @@ pub static TEXT_MATRIX: LazyLock<Vec<Vec<&'static str>>> = LazyLock::new(|| {
             "Por favor, utilize nosso guia de preenchimento disponível em nosso site para preencher o relatório financeiro:",
             "https://www.kindermissionswerk.org/pt/para-os-parceiros/servico",
             "Euro",
+            "Subtotal Avaliação",
+            "Subtotal Auditoria Externa",
+            "Subtotal Reserva",
         ],
     ]
 });

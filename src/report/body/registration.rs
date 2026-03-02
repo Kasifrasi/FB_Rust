@@ -191,7 +191,7 @@ fn register_vlookup_formula(
 ) -> Result<(), RegistryError> {
     let excel = Box::leak(
         format!(
-            r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$BN,{},FALSE))"#,
+            r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$CD,{},FALSE))"#,
             index
         )
         .into_boxed_str(),

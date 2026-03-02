@@ -49,9 +49,10 @@ pub struct CategoryMeta {
 
 /// Alle Kategorie-Metadaten
 /// VLOOKUP-Indizes aus Sprachversionen-Sheet:
-/// - Kategorien 1-6: Label + Sum-Label Paare (29/30, 31/32, 33/34, 35/36, 37/38, 39/-)
-/// - Kategorie 7 (Audit): Index 40
-/// - Kategorie 8 (Reserve): Index 41
+/// - Kategorien 1-5: Label + Sum-Label Paare (29/30, 31/32, 33/34, 35/36, 37/38)
+/// - Kategorie 6 (Evaluierung): Label 39, Sum-Label 64
+/// - Kategorie 7 (Audit): Label 40, Sum-Label 65
+/// - Kategorie 8 (Reserve): Label 41, Sum-Label 66
 /// - Gesamt: Index 42
 pub const CATEGORY_META: [CategoryMeta; 8] = [
     CategoryMeta {
@@ -82,17 +83,17 @@ pub const CATEGORY_META: [CategoryMeta; 8] = [
     CategoryMeta {
         num: 6,
         label_index: 39,
-        sum_label_index: 39, // Kategorie 6 hat kein separates Sum-Label
+        sum_label_index: 64, // Zwischensumme Evaluierung
     },
     CategoryMeta {
         num: 7,
-        label_index: 40, // Audit
-        sum_label_index: 40,
+        label_index: 40,
+        sum_label_index: 65, // Zwischensumme Audit
     },
     CategoryMeta {
         num: 8,
-        label_index: 41, // Reserve
-        sum_label_index: 41,
+        label_index: 41,
+        sum_label_index: 66, // Zwischensumme Reserve
     },
 ];
 
