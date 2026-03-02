@@ -31,10 +31,13 @@ pub(crate) struct CalcBridge {
 
 impl CalcBridge {
     /// Erstellt eine Bridge aus einem Template.
+    ///
+    /// Übernimmt die statischen Formel-Adressen aus dem Template,
+    /// damit `write_cells_from_bridge()` sie in die Excel-Datei schreibt.
     pub(crate) fn from_template(template: &ModelTemplate) -> Self {
         Self {
             model: template.instantiate(),
-            formula_cells: Vec::new(),
+            formula_cells: template.static_formula_cells().to_vec(),
             input_cells: Vec::new(),
         }
     }

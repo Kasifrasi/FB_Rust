@@ -22,6 +22,8 @@ const SHEET_LANG: u32 = 1;
 /// für jeden Report als Basis geklont.
 pub(crate) struct ModelTemplate {
     bytes: Vec<u8>,
+    /// Adressen aller statischen Formel-Zellen (für write_cells_from_bridge)
+    static_formula_cells: Vec<CellAddr>,
 }
 
 impl ModelTemplate {
@@ -36,16 +38,25 @@ impl ModelTemplate {
             .expect("Failed to add Sprachversionen sheet");
         populate_language_sheet(&mut model);
 
-        // Sheet 0: Alle statischen Formeln registrieren
-        register_static_formulas(&mut model);
+        // Sheet 0: Alle statischen Formeln registrieren + Adressen sammeln
+        let mut static_formula_cells = Vec::new();
+        register_static_formulas(&mut model, &mut static_formula_cells);
 
         let bytes = model.to_bytes();
-        Self { bytes }
+        Self {
+            bytes,
+            static_formula_cells,
+        }
     }
 
     /// Erstellt ein frisches Model aus dem Template.
     pub(crate) fn instantiate(&self) -> Model<'static> {
         Model::from_bytes(&self.bytes, "en").expect("Failed to deserialize template")
+    }
+
+    /// Gibt die Adressen aller statischen Formel-Zellen zurück.
+    pub(crate) fn static_formula_cells(&self) -> &[CellAddr] {
+        &self.static_formula_cells
     }
 }
 
@@ -75,75 +86,75 @@ fn populate_language_sheet(model: &mut Model) {
 // Statische Formeln
 // ============================================================================
 
-/// Registriert alle statischen Formeln auf Sheet "Bericht".
+/// Registriert alle statischen Formeln auf Sheet "Bericht" und sammelt deren Adressen.
 ///
 /// Übersetzt definitions.rs `register_formula_cells()` + `register_prebody_formulas()`.
-fn register_static_formulas(model: &mut Model) {
+fn register_static_formulas(model: &mut Model, addrs: &mut Vec<CellAddr>) {
     // ========================================================================
     // VLOOKUP Text-Lookups
     // ========================================================================
 
     // Row 0: B1 (Titel), J1 (Ausfüllbare Felder Info)
-    set_vlookup(model, 0, 1, 2); // B1
-    set_vlookup(model, 0, 9, 60); // J1
+    set_vlookup(model, 0, 1, 2, addrs); // B1
+    set_vlookup(model, 0, 9, 60, addrs); // J1
 
     // Row 1: D2 (Sprache Label mit Default), J2 (Tipp)
-    set_vlookup_default(model, 1, 3, 27, "Chose your language"); // D2
-    set_vlookup(model, 1, 9, 61); // J2
+    set_vlookup_default(model, 1, 3, 27, "Chose your language", addrs); // D2
+    set_vlookup(model, 1, 9, 61, addrs); // J2
 
     // Row 2: B3 (Übersicht), D3 (Lokalwährung Label)
-    set_vlookup(model, 2, 1, 3); // B3
-    set_vlookup(model, 2, 3, 28); // D3
+    set_vlookup(model, 2, 1, 3, addrs); // B3
+    set_vlookup(model, 2, 3, 28, addrs); // D3
 
     // Row 3: J4 (Hyperlink)
-    set_hyperlink(model, 3, 9, 62); // J4
+    set_hyperlink(model, 3, 9, 62, addrs); // J4
 
     // Row 4: B5 (Projektnummer Label)
-    set_vlookup(model, 4, 1, 4); // B5
+    set_vlookup(model, 4, 1, 4, addrs); // B5
 
     // Row 5: B6 (Projekttitel Label)
-    set_vlookup(model, 5, 1, 26); // B6
+    set_vlookup(model, 5, 1, 26, addrs); // B6
 
     // Row 7: B8 (Projektlaufzeit), D8 (von), F8 (bis)
-    set_vlookup(model, 7, 1, 5); // B8
-    set_vlookup(model, 7, 3, 7); // D8
-    set_vlookup(model, 7, 5, 8); // F8
+    set_vlookup(model, 7, 1, 5, addrs); // B8
+    set_vlookup(model, 7, 3, 7, addrs); // D8
+    set_vlookup(model, 7, 5, 8, addrs); // F8
 
     // Row 8: B9 (Berichtszeitraum), D9 (von), F9 (bis), K8 (WK Label)
-    set_vlookup(model, 8, 1, 6); // B9
-    set_vlookup(model, 8, 3, 7); // D9
-    set_vlookup(model, 8, 5, 8); // F9
-    set_vlookup(model, 7, 10, 59); // K8
+    set_vlookup(model, 8, 1, 6, addrs); // B9
+    set_vlookup(model, 8, 3, 7, addrs); // D9
+    set_vlookup(model, 8, 5, 8, addrs); // F9
+    set_vlookup(model, 7, 10, 59, addrs); // K8
 
     // Row 10: Tabellenkopf
-    set_vlookup(model, 10, 9, 19); // J11
-    set_vlookup(model, 10, 16, 19); // Q11
-    set_vlookup(model, 10, 3, 11); // D11
-    set_vlookup(model, 10, 4, 12); // E11
-    set_vlookup(model, 10, 5, 13); // F11
-    set_vlookup(model, 10, 6, 14); // G11
-    set_vlookup(model, 10, 7, 15); // H11
+    set_vlookup(model, 10, 9, 19, addrs); // J11
+    set_vlookup(model, 10, 16, 19, addrs); // Q11
+    set_vlookup(model, 10, 3, 11, addrs); // D11
+    set_vlookup(model, 10, 4, 12, addrs); // E11
+    set_vlookup(model, 10, 5, 13, addrs); // F11
+    set_vlookup(model, 10, 6, 14, addrs); // G11
+    set_vlookup(model, 10, 7, 15, addrs); // H11
 
     // Row 11: B12 (EINNAHMEN)
-    set_vlookup(model, 11, 1, 9); // B12
+    set_vlookup(model, 11, 1, 9, addrs); // B12
 
     // Row 12: B13, Panel Headers
-    set_vlookup(model, 12, 1, 10); // B13
-    set_vlookup(model, 12, 11, 22); // L13: Datum
-    set_vlookup(model, 12, 12, 63); // M13: Euro
-    set_currency_or_lookup(model, 12, 13, 28); // N13: Währung
-    set_vlookup(model, 12, 14, 58); // O13: Wechselkurs
-    set_vlookup(model, 12, 18, 22); // S13: Datum
-    set_vlookup(model, 12, 19, 63); // T13: Euro
-    set_currency_or_lookup(model, 12, 20, 28); // U13: Währung
-    set_vlookup(model, 12, 21, 58); // V13: Wechselkurs
+    set_vlookup(model, 12, 1, 10, addrs); // B13
+    set_vlookup(model, 12, 11, 22, addrs); // L13: Datum
+    set_vlookup(model, 12, 12, 63, addrs); // M13: Euro
+    set_currency_or_lookup(model, 12, 13, 28, addrs); // N13: Währung
+    set_vlookup(model, 12, 14, 58, addrs); // O13: Wechselkurs
+    set_vlookup(model, 12, 18, 22, addrs); // S13: Datum
+    set_vlookup(model, 12, 19, 63, addrs); // T13: Euro
+    set_currency_or_lookup(model, 12, 20, 28, addrs); // U13: Währung
+    set_vlookup(model, 12, 21, 58, addrs); // V13: Wechselkurs
 
     // Row 14-18: B15-B19 (Tabellen-Labels)
-    set_vlookup(model, 14, 1, 16); // B15: Saldovortrag
-    set_vlookup(model, 15, 1, 17); // B16: Lokale Eigenleistung
-    set_vlookup(model, 16, 1, 18); // B17: Beiträge dritter Seite
-    set_vlookup(model, 17, 1, 19); // B18: Zuschuss-Mittel
-    set_vlookup(model, 18, 1, 20); // B19: Zinserträge
+    set_vlookup(model, 14, 1, 16, addrs); // B15: Saldovortrag
+    set_vlookup(model, 15, 1, 17, addrs); // B16: Lokale Eigenleistung
+    set_vlookup(model, 16, 1, 18, addrs); // B17: Beiträge dritter Seite
+    set_vlookup(model, 17, 1, 19, addrs); // B18: Zuschuss-Mittel
+    set_vlookup(model, 18, 1, 20, addrs); // B19: Zinserträge
 
     // ========================================================================
     // IFERROR Division (G16-G19)
@@ -151,23 +162,23 @@ fn register_static_formulas(model: &mut Model) {
 
     for i in 1..5u32 {
         let row = 14 + i; // rows 15-18
-        set_iferror_division(model, row, 6, row, 5, row, 3); // G = IFERROR(F/D, 0)
+        set_iferror_division(model, row, 6, row, 5, row, 3, addrs); // G = IFERROR(F/D, 0)
     }
 
     // ========================================================================
     // Row 19: B20 (GESAMT), D20-G20
     // ========================================================================
 
-    set_vlookup(model, 19, 1, 21); // B20
+    set_vlookup(model, 19, 1, 21, addrs); // B20
 
     // D20: =SUM(D15:D19)
-    set_sum_range(model, 19, 3, 14, 18, 3); // D20
+    set_sum_range(model, 19, 3, 14, 18, 3, addrs); // D20
     // E20: =SUM(E15:E19)
-    set_sum_range(model, 19, 4, 14, 18, 4); // E20
+    set_sum_range(model, 19, 4, 14, 18, 4, addrs); // E20
     // F20: =SUM(F15:F19)
-    set_sum_range(model, 19, 5, 14, 18, 5); // F20
+    set_sum_range(model, 19, 5, 14, 18, 5, addrs); // F20
     // G20: =IFERROR(F20/D20,0) — depends on formula cells
-    set_iferror_division(model, 19, 6, 19, 5, 19, 3); // G20
+    set_iferror_division(model, 19, 6, 19, 5, 19, 3, addrs); // G20
 
     // ========================================================================
     // Right Panel Body (Rows 13-30)
@@ -178,7 +189,7 @@ fn register_static_formulas(model: &mut Model) {
         let excel_row = row + 1;
 
         // K-Spalte (Col 10): VLOOKUP(23)
-        set_vlookup(model, row, 10, 23);
+        set_vlookup(model, row, 10, 23, addrs);
 
         // O-Spalte (Col 14): =IF(M{row}="","",N{row}/M{row})
         set_formula(
@@ -186,10 +197,11 @@ fn register_static_formulas(model: &mut Model) {
             row,
             14,
             format!(r#"=IF(M{}="","",N{}/M{})"#, excel_row, excel_row, excel_row),
+            addrs,
         );
 
         // R-Spalte (Col 17): VLOOKUP(23)
-        set_vlookup(model, row, 17, 23);
+        set_vlookup(model, row, 17, 23, addrs);
 
         // V-Spalte (Col 21): =IF(T{row}="","",U{row}/T{row})
         set_formula(
@@ -197,6 +209,7 @@ fn register_static_formulas(model: &mut Model) {
             row,
             21,
             format!(r#"=IF(T{}="","",U{}/T{})"#, excel_row, excel_row, excel_row),
+            addrs,
         );
     }
 
@@ -204,13 +217,13 @@ fn register_static_formulas(model: &mut Model) {
     // Pre-Body Formeln (Rows 22-24)
     // ========================================================================
 
-    set_vlookup(model, 22, 3, 11); // D23
-    set_vlookup(model, 22, 4, 25); // E23
-    set_vlookup(model, 22, 5, 55); // F23
-    set_vlookup(model, 22, 6, 56); // G23
-    set_vlookup(model, 22, 7, 15); // H23
-    set_vlookup(model, 23, 1, 24); // B24
-    set_vlookup(model, 24, 1, 10); // B25
+    set_vlookup(model, 22, 3, 11, addrs); // D23
+    set_vlookup(model, 22, 4, 25, addrs); // E23
+    set_vlookup(model, 22, 5, 55, addrs); // F23
+    set_vlookup(model, 22, 6, 56, addrs); // G23
+    set_vlookup(model, 22, 7, 15, addrs); // H23
+    set_vlookup(model, 23, 1, 24, addrs); // B24
+    set_vlookup(model, 24, 1, 10, addrs); // B25
 }
 
 // ============================================================================
@@ -218,37 +231,56 @@ fn register_static_formulas(model: &mut Model) {
 // ============================================================================
 
 /// Setzt eine VLOOKUP-Formel: =IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$CD,{index},FALSE))
-fn set_vlookup(model: &mut Model, row: u32, col: u16, index: usize) {
+fn set_vlookup(model: &mut Model, row: u32, col: u16, index: usize, addrs: &mut Vec<CellAddr>) {
     let formula = format!(
         r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$CD,{},FALSE))"#,
         index
     );
-    set_formula(model, row, col, formula);
+    set_formula(model, row, col, formula, addrs);
 }
 
 /// Setzt eine VLOOKUP-Formel mit Default-Wert
-fn set_vlookup_default(model: &mut Model, row: u32, col: u16, index: usize, default: &str) {
+fn set_vlookup_default(
+    model: &mut Model,
+    row: u32,
+    col: u16,
+    index: usize,
+    default: &str,
+    addrs: &mut Vec<CellAddr>,
+) {
     let formula = format!(
         r#"=IF($E$2="","{}",VLOOKUP($E$2,Sprachversionen!$B:$CD,{},FALSE))"#,
         default, index
     );
-    set_formula(model, row, col, formula);
+    set_formula(model, row, col, formula, addrs);
 }
 
 /// Setzt eine HYPERLINK-VLOOKUP-Formel
-fn set_hyperlink(model: &mut Model, row: u32, col: u16, index: usize) {
+fn set_hyperlink(
+    model: &mut Model,
+    row: u32,
+    col: u16,
+    index: usize,
+    addrs: &mut Vec<CellAddr>,
+) {
     let formula = format!(
         r#"=HYPERLINK(VLOOKUP($E$2,Sprachversionen!$B:$CD,{},FALSE))"#,
         index
     );
-    set_formula(model, row, col, formula);
+    set_formula(model, row, col, formula, addrs);
 }
 
 /// Setzt eine Currency-or-Lookup Formel: =IF(E3="",VLOOKUP(...),E3)
-fn set_currency_or_lookup(model: &mut Model, row: u32, col: u16, _index: usize) {
+fn set_currency_or_lookup(
+    model: &mut Model,
+    row: u32,
+    col: u16,
+    _index: usize,
+    addrs: &mut Vec<CellAddr>,
+) {
     let formula =
         r#"=IF(E3="",VLOOKUP($E$2,Sprachversionen!$B:$CD,28,FALSE),E3)"#.to_string();
-    set_formula(model, row, col, formula);
+    set_formula(model, row, col, formula, addrs);
 }
 
 /// Setzt eine IFERROR Division Formel: =IFERROR(num/denom,0)
@@ -260,11 +292,12 @@ fn set_iferror_division(
     num_col: u16,
     denom_row: u32,
     denom_col: u16,
+    addrs: &mut Vec<CellAddr>,
 ) {
     let num = CellAddr::new(num_row, num_col).to_excel();
     let denom = CellAddr::new(denom_row, denom_col).to_excel();
     let formula = format!("=IFERROR({}/{},0)", num, denom);
-    set_formula(model, target_row, target_col, formula);
+    set_formula(model, target_row, target_col, formula, addrs);
 }
 
 /// Setzt eine SUM-Formel für einen zusammenhängenden Bereich
@@ -275,18 +308,26 @@ fn set_sum_range(
     start_row: u32,
     end_row: u32,
     col: u16,
+    addrs: &mut Vec<CellAddr>,
 ) {
     let start = CellAddr::new(start_row, col).to_excel();
     let end = CellAddr::new(end_row, col).to_excel();
     let formula = format!("=SUM({}:{})", start, end);
-    set_formula(model, target_row, target_col, formula);
+    set_formula(model, target_row, target_col, formula, addrs);
 }
 
-/// Low-level: Setzt eine Formel in IronCalc (konvertiert 0-basiert → 1-basiert)
-fn set_formula(model: &mut Model, row: u32, col: u16, formula: String) {
+/// Low-level: Setzt eine Formel in IronCalc und trackt die Adresse.
+fn set_formula(
+    model: &mut Model,
+    row: u32,
+    col: u16,
+    formula: String,
+    addrs: &mut Vec<CellAddr>,
+) {
     model
         .update_cell_with_formula(SHEET_BERICHT, row as i32 + 1, col as i32 + 1, formula)
         .unwrap_or_else(|e| panic!("Failed to set formula at ({}, {}): {}", row, col, e));
+    addrs.push(CellAddr::new(row, col));
 }
 
 // ============================================================================
@@ -302,6 +343,30 @@ mod tests {
     fn test_template_creation() {
         let template = ModelTemplate::new();
         assert!(!template.bytes.is_empty());
+    }
+
+    #[test]
+    fn test_template_static_formula_cells_tracked() {
+        let template = ModelTemplate::new();
+        // ~80 statische Formeln sollten getrackt sein
+        assert!(
+            template.static_formula_cells().len() > 70,
+            "Expected >70 static formula cells, got {}",
+            template.static_formula_cells().len()
+        );
+
+        // Bekannte Zellen prüfen
+        let addrs = template.static_formula_cells();
+        assert!(addrs.contains(&CellAddr::new(0, 1)), "B1 should be tracked");
+        assert!(addrs.contains(&CellAddr::new(1, 3)), "D2 should be tracked");
+        assert!(
+            addrs.contains(&CellAddr::new(19, 3)),
+            "D20 (SUM) should be tracked"
+        );
+        assert!(
+            addrs.contains(&CellAddr::new(15, 6)),
+            "G16 (ratio) should be tracked"
+        );
     }
 
     #[test]
