@@ -1,6 +1,8 @@
-//! IronCalc-Bridge: Dynamische Formeln, Input-Population, Evaluation
+//! IronCalc bridge: dynamic formulas, input population, evaluation
 //!
-//! Ersetzt `CellRegistry` + `evaluate_all_cells()` + `write_cells_from_registry()`.
+//! Per-report instance that wraps an IronCalc [`Model`]. Responsible for
+//! registering dynamic body/footer formulas, populating input values from
+//! [`ReportValues`], triggering evaluation, and exposing results for the writer.
 
 use super::template::ModelTemplate;
 use crate::report::api::{ApiKey, CellValue, FooterField, PositionField, ReportValues};
@@ -11,53 +13,51 @@ use crate::report::core::CellAddr;
 use ironcalc_base::cell::CellValue as IcCellValue;
 use ironcalc_base::Model;
 
-/// Sheet-Index für den Bericht
+/// Sheet index for "Bericht" (the report sheet)
 const SHEET: u32 = 0;
 
-/// Bridge zwischen ReportValues und IronCalc Model.
+/// Bridge between [`ReportValues`] and the IronCalc [`Model`].
 ///
-/// Verantwortlich für:
-/// 1. Dynamische Formeln hinzufügen (Body, Footer)
-/// 2. Input-Werte setzen
-/// 3. Evaluation triggern
-/// 4. Ergebnisse auslesen
+/// Responsible for:
+/// 1. Adding dynamic formulas (body, footer)
+/// 2. Populating input values
+/// 3. Triggering evaluation
+/// 4. Reading computed results
 pub(crate) struct CalcBridge {
     model: Model<'static>,
-    /// Alle Zellen mit Formeln (für write_cells_from_bridge)
+    /// All cells containing formulas (consumed by `write_cells_from_bridge`)
     formula_cells: Vec<CellAddr>,
-    /// Alle Zellen mit Input-Werten (für write_cells_from_bridge)
+    /// All cells containing input values (consumed by `write_cells_from_bridge`)
     input_cells: Vec<CellAddr>,
-    /// Hyperlink-Zellen — IronCalc evaluiert den VLOOKUP, Writer schreibt nativen Hyperlink
+    /// Hyperlink cells — IronCalc evaluates the VLOOKUP (→ URL), writer uses `write_url_with_format()`
     hyperlink_cells: Vec<CellAddr>,
 }
 
 impl CalcBridge {
-    /// Erstellt eine Bridge aus einem Template.
+    /// Creates a bridge from a template.
     ///
-    /// Übernimmt die statischen Formel-Adressen aus dem Template,
-    /// damit `write_cells_from_bridge()` sie in die Excel-Datei schreibt.
+    /// Copies the static formula addresses from the template so that
+    /// `write_cells_from_bridge()` can write them into the Excel output.
     pub(crate) fn from_template(template: &ModelTemplate) -> Self {
         Self {
             model: template.instantiate(),
             formula_cells: template.static_formula_cells().to_vec(),
             input_cells: Vec::new(),
-            hyperlink_cells: template.hyperlink_cells().to_vec(),  // Nur Adressen, Writer nutzt write_url
+            hyperlink_cells: template.hyperlink_cells().to_vec(),
         }
     }
 
     // ========================================================================
-    // Dynamische Body-Formeln
+    // Dynamic body formulas
     // ========================================================================
 
-    /// Fügt dynamische Body-Formeln hinzu basierend auf Layout.
-    ///
-    /// Ersetzt: registration.rs `register_body_formulas()`
+    /// Registers dynamic body formulas based on the computed layout.
     pub(crate) fn register_body_formulas(&mut self, layout: &BodyLayout) {
-        // 1. VLOOKUP-Formeln für Labels
+        // 1. VLOOKUP formulas for category labels
         for cat in &layout.categories {
             match &cat.mode {
                 CategoryMode::HeaderInput { row } => {
-                    // C-Spalte: VLOOKUP für Kategorie-Label
+                    // Col C: VLOOKUP for category label
                     self.add_vlookup(*row, 2, cat.meta.label_index);
                 }
                 CategoryMode::WithPositions {
@@ -65,23 +65,23 @@ impl CalcBridge {
                     footer_row,
                     ..
                 } => {
-                    // Header: C-Spalte
+                    // Header: col C
                     self.add_vlookup(*header_row, 2, cat.meta.label_index);
-                    // Footer: B-Spalte
+                    // Footer: col B
                     self.add_vlookup(*footer_row, 1, cat.meta.sum_label_index);
                 }
             }
         }
 
-        // Total: B-Spalte
+        // Total: col B
         self.add_vlookup(layout.total_row, 1, TOTAL_LABEL_INDEX);
 
-        // 2. Ratio-Formeln (G-Spalte)
+        // 2. Ratio formulas (col G)
         for row in layout.ratio_rows() {
             self.add_ratio(row);
         }
 
-        // 3. SUM-Formeln für Footer-Zeilen (D, E, F)
+        // 3. SUM formulas for category footer rows (cols D, E, F)
         for cat in &layout.categories {
             if let CategoryMode::WithPositions {
                 positions,
@@ -95,7 +95,7 @@ impl CalcBridge {
             }
         }
 
-        // 4. SUM-Formeln für Total-Zeile (D, E, F)
+        // 4. SUM formulas for the total row (cols D, E, F)
         let sum_rows: Vec<u32> = layout
             .categories
             .iter()
@@ -107,37 +107,35 @@ impl CalcBridge {
     }
 
     // ========================================================================
-    // Dynamische Footer-Formeln
+    // Dynamic footer formulas
     // ========================================================================
 
-    /// Fügt dynamische Footer-Formeln hinzu.
-    ///
-    /// Ersetzt: registration.rs `register_footer_formulas()`
+    /// Registers dynamic footer formulas (labels, check formulas, balance).
     pub(crate) fn register_footer_formulas(
         &mut self,
         footer_layout: &FooterLayout,
         income_row: u32,
     ) {
         let s = footer_layout.start_row;
-        let total_row = s - 3; // Footer startet 3 Zeilen nach Total
+        let total_row = s - 3; // Footer starts 3 rows after Total
 
-        // VLOOKUP-Labels
-        self.add_vlookup(s, 4, 44); // E(s): "Saldo für den Berichtszeitraum"
-        self.add_vlookup(s + 1, 1, 43); // B(s+1): "ABSCHLUSS"
-        self.add_vlookup(s + 2, 4, 10); // E(s+2): Währung
-        self.add_vlookup(s + 4, 1, 45); // B(s+4): "Saldo..."
-        self.add_vlookup(s + 6, 1, 46); // B(s+6): "Saldenabstimmung:"
+        // VLOOKUP labels
+        self.add_vlookup(s, 4, 44); // E(s): "Balance for reporting period"
+        self.add_vlookup(s + 1, 1, 43); // B(s+1): "CLOSING"
+        self.add_vlookup(s + 2, 4, 10); // E(s+2): currency
+        self.add_vlookup(s + 4, 1, 45); // B(s+4): "Balance..."
+        self.add_vlookup(s + 6, 1, 46); // B(s+6): "Balance reconciliation:"
         self.add_vlookup(s + 7, 1, 47); // B(s+7): "Bank"
-        self.add_vlookup(s + 8, 1, 48); // B(s+8): "Kasse"
-        self.add_vlookup(s + 9, 1, 49); // B(s+9): "Sonstiges"
-        self.add_vlookup(s + 13, 1, 50); // B(s+13): Bestätigung 1
-        self.add_vlookup(s + 14, 1, 54); // B(s+14): Bestätigung 2
-        self.add_vlookup(s + 19, 1, 51); // B(s+19): "Ort, Datum..."
-        self.add_vlookup(s + 19, 3, 52); // D(s+19): "Unterschrift..."
-        self.add_vlookup(s + 20, 3, 53); // D(s+20): "Funktion..."
+        self.add_vlookup(s + 8, 1, 48); // B(s+8): "Cash"
+        self.add_vlookup(s + 9, 1, 49); // B(s+9): "Other"
+        self.add_vlookup(s + 13, 1, 50); // B(s+13): confirmation text 1
+        self.add_vlookup(s + 14, 1, 54); // B(s+14): confirmation text 2
+        self.add_vlookup(s + 19, 1, 51); // B(s+19): "Place, date..."
+        self.add_vlookup(s + 19, 3, 52); // D(s+19): "Signature..."
+        self.add_vlookup(s + 20, 3, 53); // D(s+20): "Function..."
 
-        // Check-Formeln
-        // D(s+4): =IF(ROUND(E_saldo,2)=(ROUND(F_income-F_total,2)),"✓","")
+        // Check formulas
+        // D(s+4): =IF(ROUND(E_balance,2)=(ROUND(F_income-F_total,2)),"✓","")
         let saldo_row_excel = s + 4 + 1;
         let income_row_excel = income_row + 1;
         let total_row_excel = total_row + 1;
@@ -150,14 +148,14 @@ impl CalcBridge {
             ),
         );
 
-        // E(s+4): Differenz = E_income - E_total
+        // E(s+4): difference = E_income - E_total
         self.add_formula(
             s + 4,
             4,
             format!("=E{}-E{}", income_row_excel, total_row_excel),
         );
 
-        // E(s+6): =IF(E_saldo=SUM(E_bank:E_sonstiges),"OK","")
+        // E(s+6): =IF(E_balance=SUM(E_bank:E_other),"OK","")
         let bank_row_excel = footer_layout.input_rows[0] + 1;
         let sonstiges_row_excel = footer_layout.input_rows[2] + 1;
         self.add_formula(
@@ -171,19 +169,17 @@ impl CalcBridge {
     }
 
     // ========================================================================
-    // Input-Population
+    // Input population
     // ========================================================================
 
-    /// Setzt alle Input-Werte aus ReportValues.
-    ///
-    /// Ersetzt: evaluate_all_cells() Phase 1 (API-Werte eintragen)
+    /// Populates all input values from [`ReportValues`] into the IronCalc model.
     pub(crate) fn populate(
         &mut self,
         values: &ReportValues,
         layout: &BodyLayout,
         footer_layout: &FooterLayout,
     ) {
-        // Statische API-Keys (Header, Table, Panel)
+        // Static API keys (header, table, panel)
         for key in ApiKey::all_static_keys() {
             let value = values.get(key);
             if let Some(addr) = key.static_addr() {
@@ -191,7 +187,7 @@ impl CalcBridge {
             }
         }
 
-        // Dynamische Position-Keys (Body)
+        // Dynamic position keys (body)
         for cat in &layout.categories {
             match &cat.mode {
                 CategoryMode::HeaderInput { row } => {
@@ -223,7 +219,7 @@ impl CalcBridge {
             }
         }
 
-        // Footer-Keys (Bank, Kasse, Sonstiges)
+        // Footer keys (bank, cash, other)
         for field in FooterField::all() {
             let key = ApiKey::Footer(field);
             let addr = CellAddr::new(footer_layout.input_rows[field.index()], field.col());
@@ -231,16 +227,16 @@ impl CalcBridge {
         }
     }
 
-    /// Evaluiert alle Formeln.
+    /// Evaluates all formulas in the model.
     pub(crate) fn evaluate(&mut self) {
         self.model.evaluate();
     }
 
     // ========================================================================
-    // Ergebnis-Zugriff
+    // Result access
     // ========================================================================
 
-    /// Liest einen berechneten Zellwert (konvertiert IronCalc → CellValue).
+    /// Reads a computed cell value (converts IronCalc → CellValue).
     pub(crate) fn get_value(&self, row: u32, col: u16) -> CellValue {
         let ic_val = self
             .model
@@ -249,7 +245,7 @@ impl CalcBridge {
         convert_cell_value(ic_val)
     }
 
-    /// Liest einen Formel-String (None wenn keine Formel).
+    /// Reads a formula string (`None` if the cell has no formula).
     pub(crate) fn get_formula(&self, row: u32, col: u16) -> Option<String> {
         self.model
             .get_cell_formula(SHEET, row as i32 + 1, col as i32 + 1)
@@ -257,29 +253,29 @@ impl CalcBridge {
             .flatten()
     }
 
-    /// Gibt alle Zellen mit Formeln zurück.
+    /// Returns all cells containing formulas.
     pub(crate) fn formula_cells(&self) -> &[CellAddr] {
         &self.formula_cells
     }
 
-    /// Gibt alle Zellen mit Input-Werten zurück.
+    /// Returns all cells containing input values.
     pub(crate) fn input_cells(&self) -> &[CellAddr] {
         &self.input_cells
     }
 
-    /// Gibt Hyperlink-Zellen zurück.
+    /// Returns hyperlink cell addresses.
     ///
-    /// IronCalc evaluiert den VLOOKUP (→ URL-String),
-    /// der Writer schreibt einen nativen Hyperlink via `write_url_with_format()`.
+    /// IronCalc evaluates the VLOOKUP (→ URL string),
+    /// the writer writes a native hyperlink via `write_url_with_format()`.
     pub(crate) fn hyperlink_cells(&self) -> &[CellAddr] {
         &self.hyperlink_cells
     }
 
     // ========================================================================
-    // Private Helpers
+    // Private helpers
     // ========================================================================
 
-    /// Setzt eine VLOOKUP-Formel und trackt die Position.
+    /// Sets a VLOOKUP formula and tracks the cell address.
     fn add_vlookup(&mut self, row: u32, col: u16, index: usize) {
         let formula = format!(
             r#"=IF($E$2="","",VLOOKUP($E$2,Sprachversionen!$B:$CD,{},FALSE))"#,
@@ -288,14 +284,14 @@ impl CalcBridge {
         self.add_formula(row, col, formula);
     }
 
-    /// Setzt eine Ratio-Formel: =IFERROR(F{row}/D{row},0)
+    /// Sets a ratio formula: `=IFERROR(F{row}/D{row},0)`
     fn add_ratio(&mut self, row: u32) {
         let excel_row = row + 1;
         let formula = format!("=IFERROR(F{}/D{},0)", excel_row, excel_row);
         self.add_formula(row, 6, formula);
     }
 
-    /// Setzt eine SUM-Range-Formel: =SUM(D{start}:D{end})
+    /// Sets a SUM range formula: `=SUM(D{start}:D{end})`
     fn add_sum_range(&mut self, target_row: u32, col: u16, start_row: u32, end_row: u32) {
         let col_letter = CellAddr::col_to_letter(col);
         let formula = format!(
@@ -308,7 +304,7 @@ impl CalcBridge {
         self.add_formula(target_row, col, formula);
     }
 
-    /// Setzt eine SUM-Formel über einzelne Zellen: =SUM(D47+D69+...)
+    /// Sets a SUM formula over individual cells: `=SUM(D47+D69+...)`
     fn add_sum_cells(&mut self, target_row: u32, col: u16, source_rows: &[u32]) {
         let col_letter = CellAddr::col_to_letter(col);
         let refs: Vec<String> = source_rows
@@ -319,7 +315,7 @@ impl CalcBridge {
         self.add_formula(target_row, col, formula);
     }
 
-    /// Low-level: Setzt eine Formel und trackt die Position.
+    /// Low-level: sets a formula in IronCalc and tracks the cell address.
     fn add_formula(&mut self, row: u32, col: u16, formula: String) {
         self.model
             .update_cell_with_formula(SHEET, row as i32 + 1, col as i32 + 1, formula)
@@ -327,15 +323,15 @@ impl CalcBridge {
         self.formula_cells.push(CellAddr::new(row, col));
     }
 
-    /// Setzt einen CellValue in IronCalc und trackt die Position.
+    /// Sets a [`CellValue`] in IronCalc and tracks the cell address.
     fn set_cell_value(&mut self, addr: CellAddr, value: &CellValue) {
         let ic_row = addr.row as i32 + 1;
         let ic_col = addr.col as i32 + 1;
 
         match value {
             CellValue::Empty => {
-                // Leere Zellen brauchen wir in IronCalc nicht zu setzen,
-                // aber wir tracken sie für die Excel-Ausgabe (Blanks mit Format).
+                // Empty cells don't need to be set in IronCalc,
+                // but we track them for the Excel output (blanks with format).
                 self.input_cells.push(addr);
             }
             CellValue::Text(s) | CellValue::Date(s) => {
@@ -347,7 +343,7 @@ impl CalcBridge {
                 self.input_cells.push(addr);
             }
             CellValue::Number(n) => {
-                // Zahlen als String setzen (IronCalc parsed den Typ automatisch)
+                // Set numbers as strings (IronCalc parses the type automatically)
                 self.model
                     .set_user_input(SHEET, ic_row, ic_col, n.to_string())
                     .unwrap_or_else(|e| {
@@ -359,7 +355,7 @@ impl CalcBridge {
     }
 }
 
-/// Konvertiert IronCalc CellValue → Project CellValue
+/// Converts IronCalc [`IcCellValue`] → project [`CellValue`].
 fn convert_cell_value(ic: IcCellValue) -> CellValue {
     match ic {
         IcCellValue::None => CellValue::Empty,
@@ -408,7 +404,7 @@ mod tests {
         bridge.register_body_formulas(&layout);
         bridge.register_footer_formulas(&footer_layout, 19);
 
-        // Werte setzen
+        // Set values
         let values = ReportValues::new()
             .with_language("deutsch")
             .with_project_number("2025-001")
@@ -417,14 +413,14 @@ mod tests {
         bridge.populate(&values, &layout, &footer_layout);
         bridge.evaluate();
 
-        // B1 sollte den VLOOKUP-Titel haben
+        // B1 should have the VLOOKUP title
         let b1 = bridge.get_value(0, 1);
         assert_eq!(
             b1,
             CellValue::Text("F I N A N Z B E R I C H T".to_string())
         );
 
-        // D5 sollte die Projektnummer sein
+        // D5 should contain the project number
         let d5 = bridge.get_value(4, 3);
         assert_eq!(d5, CellValue::Text("2025-001".to_string()));
     }
@@ -449,7 +445,7 @@ mod tests {
         bridge.register_body_formulas(&layout);
         bridge.register_footer_formulas(&footer_layout, 19);
 
-        // Positionen für Kategorie 1 setzen
+        // Set positions for category 1
         let mut values = ReportValues::new().with_language("deutsch");
         values.set_position(1, 1, PositionField::Approved, 1000.0);
         values.set_position(1, 1, PositionField::IncomeTotal, 500.0);
@@ -461,7 +457,7 @@ mod tests {
         bridge.populate(&values, &layout, &footer_layout);
         bridge.evaluate();
 
-        // Footer-Zeile für Kategorie 1: SUM(D27:D29) = 1000 + 2000 + 3000 = 6000
+        // Footer row for category 1: SUM(D27:D29) = 1000 + 2000 + 3000 = 6000
         let cat1_footer_row = layout.category(1).unwrap().footer_row().unwrap();
         let d_sum = bridge.get_value(cat1_footer_row, 3);
         assert_eq!(d_sum, CellValue::Number(6000.0));
@@ -488,7 +484,7 @@ mod tests {
 
         bridge.register_body_formulas(&layout);
 
-        // VLOOKUP-Formel für Kategorie 1 Header (C27)
+        // VLOOKUP formula for category 1 header (C27)
         let formula = bridge.get_formula(26, 2);
         assert!(formula.is_some(), "Should have formula at C27");
         let f = formula.unwrap();
@@ -515,14 +511,14 @@ mod tests {
         bridge.register_body_formulas(&layout);
         bridge.register_footer_formulas(&footer_layout, 19);
 
-        // Einnahmen-Tabelle: Gesamteinnahmen (F20)
+        // Income table: total income (F20)
         let mut values = ReportValues::new().with_language("deutsch");
         values.set(ApiKey::IncomeTotal(0), 1000.0); // F15
 
-        // Body: Kategorie 1, Position 1 Ausgaben
+        // Body: category 1, position 1 expenses
         values.set_position(1, 1, PositionField::IncomeTotal, 800.0);
 
-        // Footer: Saldenabstimmung
+        // Footer: balance reconciliation
         values
             .set_footer_bank(200.0)
             .set_footer_kasse(0.0)
@@ -531,7 +527,7 @@ mod tests {
         bridge.populate(&values, &layout, &footer_layout);
         bridge.evaluate();
 
-        // Die Differenz E(s+4) = E_income(20) - E_total
+        // Difference E(s+4) = E_income(20) - E_total
         let diff = bridge.get_value(footer_layout.start_row + 4, 4);
         assert!(
             matches!(diff, CellValue::Number(_)),

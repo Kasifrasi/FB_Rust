@@ -1,13 +1,10 @@
-//! IronCalc-basierte Formel-Engine
+//! IronCalc-based formula engine
 //!
-//! Ersetzt die manuelle `CellRegistry` + `DynEvaluator` Architektur durch
-//! eine IronCalc Spreadsheet-Engine. Formeln werden einmal definiert und
-//! sowohl für Berechnung als auch Excel-Export verwendet.
+//! Single source of truth for all formulas — IronCalc evaluates them,
+//! the writer copies formulas + cached values into the Excel output.
 //!
-//! ## Module
-//!
-//! - `template`: `ModelTemplate` — Master-Modell mit statischen Formeln + Sprachversionen
-//! - `bridge`: `CalcBridge` — Dynamische Formeln, Input-Population, Evaluation
+//! - [`ModelTemplate`]: master model with static formulas + language sheet (created once)
+//! - [`CalcBridge`]: per-report instance — dynamic formulas, input population, evaluation
 
 mod bridge;
 mod template;
