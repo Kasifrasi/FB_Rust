@@ -1,4 +1,4 @@
-//! Report writer with registry-based formula evaluation.
+//! Report writer with IronCalc-based formula evaluation.
 //!
 //! Die Haupt-API ist `write_report_with_options()`.
 
@@ -6,19 +6,23 @@ use super::layout::{self, setup_sheet};
 use super::structure::write_structure;
 use crate::report::api::{CellValue, ReportValues};
 use crate::report::body::config::BODY_START_ROW;
-use crate::report::body::{
-    register_body_formulas, register_footer_formulas, BodyConfig, BodyLayout, CategoryMode,
-    FooterLayout,
-};
-use crate::report::core::{build_registry, CellAddr, CellKind, DynRegistry, EvalContext};
+use crate::report::body::{BodyConfig, BodyLayout, CategoryMode, FooterLayout};
+use crate::report::calc::{CalcBridge, ModelTemplate};
+use crate::report::core::CellAddr;
 use crate::report::options::SheetOptions;
 use crate::report::styles::{
     build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,
     extend_format_matrix_with_prebody, FormatMatrix, ReportStyles, SectionStyles,
 };
 use rust_xlsxwriter::{Format, Formula, Workbook, Worksheet, XlsxError};
-use std::collections::HashMap;
 use std::path::Path;
+use std::sync::LazyLock;
+
+/// Globales Master-Template: Einmal erstellt, für alle Reports wiederverwendet.
+///
+/// Enthält alle statischen Formeln + Sprachversionen-Daten.
+/// Wird beim ersten Zugriff initialisiert (LazyLock).
+static MASTER_TEMPLATE: LazyLock<ModelTemplate> = LazyLock::new(ModelTemplate::new);
 
 /// Ergebnis der Body-Generierung
 #[derive(Debug, Clone)]
@@ -46,23 +50,21 @@ fn write_report_with_body(
     // Standardwert für Formel-Ergebnisse auf "" setzen (statt 0)
     ws.set_formula_result_default("");
 
-    // 1. Registry erstellen (statische Zellen)
-    let mut registry = build_registry()
-        .map_err(|e| XlsxError::ParameterError(format!("Registry error: {}", e)))?;
+    // 1. CalcBridge aus Template erstellen (enthält statische Formeln + Sprachversionen)
+    let mut bridge = CalcBridge::from_template(&MASTER_TEMPLATE);
 
     // 2. Layouts berechnen
     let body_layout = BodyLayout::compute(body_config);
     let footer_layout = FooterLayout::compute(body_layout.total_row);
     let income_row = 19u32;
 
-    // 3. Dynamische Registrierung (Body + Footer Formeln + API-Zellen)
-    register_body_formulas(&mut registry, &body_layout)
-        .map_err(|e| XlsxError::ParameterError(format!("Body registry error: {}", e)))?;
-    register_footer_formulas(&mut registry, &footer_layout, income_row)
-        .map_err(|e| XlsxError::ParameterError(format!("Footer registry error: {}", e)))?;
+    // 3. Dynamische Formeln registrieren (Body + Footer)
+    bridge.register_body_formulas(&body_layout);
+    bridge.register_footer_formulas(&footer_layout, income_row);
 
-    // 4. Alle Zellen evaluieren (statisch + dynamisch, topologisch sortiert)
-    let computed = evaluate_all_cells(&registry, values)?;
+    // 4. Input-Werte setzen + Evaluation
+    bridge.populate(values, &body_layout, &footer_layout);
+    bridge.evaluate();
 
     // 5. FormatMatrix vollständig aufbauen (statisch + body + footer)
     let sec = SectionStyles::new(&styles);
@@ -75,21 +77,17 @@ fn write_report_with_body(
     let lang = values.language().unwrap_or("");
     write_structure(ws, &fmt, &body_layout, &footer_layout, suffix, lang)?;
 
-    // 7. ALLE Zellen aus Registry schreiben (Formeln + API-Werte)
-    write_cells_from_registry(ws, &registry, &computed, &fmt)?;
+    // 7. ALLE Zellen aus Bridge schreiben (Formeln + Input-Werte)
+    write_cells_from_bridge(ws, &bridge, &fmt)?;
 
     // 8. Freeze Pane
     layout::setup_freeze_panes(ws, 9)?;
 
-    // BodyResult aus computed
+    // BodyResult
     let last_row = body_layout.last_row;
     let total_row = body_layout.total_row;
-    let e_total = computed
-        .get(&CellAddr::new(total_row, 4))
-        .and_then(|v| v.as_number());
-    let f_total = computed
-        .get(&CellAddr::new(total_row, 5))
-        .and_then(|v| v.as_number());
+    let e_total = bridge.get_value(total_row, 4).as_number();
+    let f_total = bridge.get_value(total_row, 5).as_number();
 
     Ok(BodyResult {
         layout: body_layout,
@@ -466,71 +464,25 @@ fn apply_row_grouping(
     Ok(())
 }
 
-/// Evaluates all cells and returns computed values.
-///
-/// Verwendet topologische Sortierung (Kahn's Algorithmus) um sicherzustellen,
-/// dass Formel-Dependencies vor ihren Abhängigen evaluiert werden.
-fn evaluate_all_cells(
-    registry: &DynRegistry,
-    values: &ReportValues,
-) -> Result<HashMap<CellAddr, CellValue>, XlsxError> {
-    let mut computed: HashMap<CellAddr, CellValue> = HashMap::new();
-
-    // 1. API-Werte eintragen
-    for addr in registry.api_cells() {
-        if let Some(CellKind::Api(api)) = registry.get(*addr) {
-            let value = get_api_value(values, api.key);
-            computed.insert(*addr, value);
-        }
-    }
-
-    // 2. Formeln evaluieren (in topologischer Reihenfolge)
-    let eval_order = registry
-        .get_eval_order()
-        .map_err(|e| XlsxError::ParameterError(format!("Eval order error: {}", e)))?;
-
-    for addr in eval_order {
-        if let Some(CellKind::Formula(f)) = registry.get(addr) {
-            let ctx = EvalContext {
-                computed: &computed,
-                api_values: values,
-            };
-            let result = (f.eval)(&ctx);
-            computed.insert(addr, result);
-        }
-    }
-
-    Ok(computed)
-}
-
-/// Holt API-Wert aus ReportValues
-///
-/// Verwendet `get_owned()` um alle Keys inkl. Footer-Keys zu unterstützen.
-fn get_api_value(values: &ReportValues, key: crate::report::api::ApiKey) -> CellValue {
-    values.get_owned(key)
-}
-
-/// Schreibt alle Zellen aus der Registry (API-Werte und Formeln mit Cache)
-fn write_cells_from_registry(
+/// Schreibt alle Zellen aus der CalcBridge (Input-Werte und Formeln mit Cache)
+fn write_cells_from_bridge(
     ws: &mut Worksheet,
-    registry: &DynRegistry,
-    computed: &HashMap<CellAddr, CellValue>,
+    bridge: &CalcBridge,
     fmt: &FormatMatrix,
 ) -> Result<(), XlsxError> {
-    // 1. API-Zellen schreiben (mit ihren berechneten Werten, auch leere als Blanks)
-    for addr in registry.api_cells() {
-        if let Some(value) = computed.get(addr) {
-            write_cell_value(ws, *addr, value, fmt)?;
-        }
+    // 1. Input-Zellen schreiben (mit ihren Werten, auch leere als Blanks)
+    for addr in bridge.input_cells() {
+        let value = bridge.get_value(addr.row, addr.col);
+        write_cell_value(ws, *addr, &value, fmt)?;
     }
 
     // 2. Formel-Zellen schreiben (mit gecachten Ergebnissen)
-    for addr in registry.formula_cells() {
-        if let Some(CellKind::Formula(f)) = registry.get(*addr) {
-            let result = computed.get(addr).cloned().unwrap_or(CellValue::Empty);
+    for addr in bridge.formula_cells() {
+        if let Some(formula_str) = bridge.get_formula(addr.row, addr.col) {
+            let result = bridge.get_value(addr.row, addr.col);
 
             // Formula mit Result erstellen (Cache für Excel)
-            let formula = Formula::new(f.excel).set_result(cell_value_to_string(&result));
+            let formula = Formula::new(&formula_str).set_result(cell_value_to_string(&result));
 
             // Mit Format schreiben (locked)
             if let Some(format) = fmt.get_locked(addr.row, addr.col) {

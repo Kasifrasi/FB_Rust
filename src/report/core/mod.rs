@@ -1,14 +1,7 @@
-//! Kern-Logik für die Formel-Evaluierung
+//! Kern-Typen für den Report
 //!
-//! Dieses Modul enthält die interne Logik:
-//! - `registry`: `CellRegistry`, `CellAddr` — zentrale Zellverwaltung mit topologischer Sortierung
-//! - `definitions`: `build_registry()` — Registry-Builder und VLOOKUP-Evaluierung
+//! Enthält `CellAddr` — die zentrale Zelladresse (0-basiert).
 
-mod definitions;
-mod registry;
+mod addr;
 
-pub(crate) use definitions::build_registry;
-pub(crate) use registry::{
-    CellAddr, CellKind, CellRegistry, DynRegistry, EvalContext,
-    FormulaCell, FormulaCellDeps, FormulaDeps, Inputs, RegistryError, Sheets, Statics,
-};
+pub(crate) use addr::CellAddr;

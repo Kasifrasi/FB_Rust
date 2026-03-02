@@ -9,6 +9,6 @@ mod keys;
 mod types;
 mod values;
 
-pub use keys::{register_all_api_cells, ApiKey, FooterField, PositionField};
+pub use keys::{ApiKey, FooterField, PositionField};
 pub use types::{Category, Currency, DateError, Language, ReportDate};
 pub use values::{CellValue, ReportValues};

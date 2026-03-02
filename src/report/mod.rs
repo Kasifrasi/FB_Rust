@@ -11,6 +11,7 @@
 
 pub mod api;
 pub mod body;
+pub(crate) mod calc;
 pub mod core;
 pub mod options;
 pub(crate) mod styles;
@@ -18,7 +19,7 @@ pub mod writer;
 
 // Re-exports for convenient access
 pub use api::{
-    register_all_api_cells, ApiKey, Category, CellValue, Currency, DateError, FooterField,
+    ApiKey, Category, CellValue, Currency, DateError, FooterField,
     Language, PositionField, ReportDate, ReportValues,
 };
 pub use body::{BodyConfig, BodyLayout, CategoryMode};

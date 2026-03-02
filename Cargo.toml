@@ -26,6 +26,7 @@ base64 = "0.22"
 getrandom = "0.4.1"
 byteorder = "1.5"
 tempfile = "3"
+ironcalc_base = "0.7.1"
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }

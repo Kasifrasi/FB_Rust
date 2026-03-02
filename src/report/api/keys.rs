@@ -24,7 +24,7 @@
 //!   - Eingabe in separaten Positions-Zeilen
 //!   - Alle Felder verfügbar (C, D, E, F, H)
 
-use crate::report::core::{CellAddr, CellRegistry, RegistryError};
+use crate::report::core::CellAddr;
 
 // =============================================================================
 // PositionField - Felder einer Kostenposition
@@ -100,7 +100,6 @@ impl PositionField {
 /// Generiert:
 /// - `ApiKey` enum
 /// - `ApiKey::addr()` Methode
-/// - `register_all_api_cells()` Funktion
 /// - `ApiKey::all_keys()` Iterator
 macro_rules! define_api_cells {
     (
@@ -201,24 +200,6 @@ macro_rules! define_api_cells {
 
         }
 
-        /// Registriert alle statischen API-Zellen in der Registry
-        ///
-        /// Position-Keys werden separat über `register_body_api_cells()` registriert.
-        pub fn register_all_api_cells<E>(
-            registry: &mut CellRegistry<E>
-        ) -> Result<(), RegistryError> {
-            // Einzelzellen registrieren
-            $( registry.register_api(ApiKey::$single_name)?; )*
-
-            // Bereichszellen registrieren
-            $(
-                for i in 0..$range_count as u8 {
-                    registry.register_api(ApiKey::$range_name(i))?;
-                }
-            )*
-
-            Ok(())
-        }
     };
 }
 
