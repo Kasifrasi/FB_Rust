@@ -86,11 +86,13 @@ fn write_report_with_body(
     // 7. Write ALL cells from bridge (formulas + input values)
     write_cells_from_bridge(ws, &bridge, &fmt)?;
 
-    // 8. Write HYPERLINK formula at J4 (Excel evaluates, not IronCalc)
+    // 8. Write HYPERLINK formula at J4 with evaluated VLOOKUP result as cache
+    //    IronCalc evaluates the inner VLOOKUP → URL string; we wrap it in HYPERLINK()
+    let hyperlink_cache = cell_value_to_string(&bridge.get_value(3, 9));
     let hyperlink_formula = Formula::new(
         r#"=HYPERLINK(VLOOKUP($E$2,Sprachversionen!$B:$BN,62,FALSE))"#,
     )
-    .set_result("");
+    .set_result(&hyperlink_cache);
     if let Some(format) = fmt.get_locked(3, 9) {
         ws.write_formula_with_format(3, 9, hyperlink_formula, format)?;
     } else {
@@ -504,6 +506,10 @@ fn write_cells_from_bridge(
 
     // 2. Write formula cells (with cached results)
     for addr in bridge.formula_cells() {
+        // Skip J4 — VLOOKUP evaluated here, but written as HYPERLINK() formula by engine
+        if addr.row == 3 && addr.col == 9 {
+            continue;
+        }
         if let Some(formula_str) = bridge.get_formula(addr.row, addr.col) {
             let result = bridge.get_value(addr.row, addr.col);
 

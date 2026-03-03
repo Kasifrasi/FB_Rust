@@ -104,7 +104,8 @@ fn register_static_formulas(model: &mut Model, addrs: &mut Vec<CellAddr>) {
     set_vlookup(model, 2, 1, 3, addrs); // B3
     set_vlookup(model, 2, 3, 28, addrs); // D3
 
-    // Row 3: J4 (hyperlink) — written directly as Excel HYPERLINK() formula in engine.rs
+    // Row 3: J4 — VLOOKUP evaluated here (URL), wrapped in HYPERLINK() by engine.rs
+    set_vlookup(model, 3, 9, 62, addrs); // J4
 
     // Row 4: B5 (project number label)
     set_vlookup(model, 4, 1, 4, addrs); // B5
