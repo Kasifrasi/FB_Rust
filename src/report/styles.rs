@@ -457,7 +457,7 @@ impl SectionStyles {
             .clone()
             .set_background_color(s.fill_input)
             .set_align(FormatAlign::Left)
-            .set_align(FormatAlign::Top)
+            .set_align(FormatAlign::Bottom)
             .set_text_wrap()
             .set_border_bottom(s.border_thin);
 
