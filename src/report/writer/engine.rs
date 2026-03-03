@@ -86,10 +86,21 @@ fn write_report_with_body(
     // 7. Write ALL cells from bridge (formulas + input values)
     write_cells_from_bridge(ws, &bridge, &fmt)?;
 
-    // 8. Insert logo in header area (mid-F to mid-H, starting at mid-row-0)
+    // 8. Write HYPERLINK formula at J4 (Excel evaluates, not IronCalc)
+    let hyperlink_formula = Formula::new(
+        r#"=HYPERLINK(VLOOKUP($E$2,Sprachversionen!$B:$BN,62,FALSE))"#,
+    )
+    .set_result("");
+    if let Some(format) = fmt.get_locked(3, 9) {
+        ws.write_formula_with_format(3, 9, hyperlink_formula, format)?;
+    } else {
+        ws.write_formula_with_format(3, 9, hyperlink_formula, &Format::new().set_locked())?;
+    }
+
+    // 9. Insert logo in header area (mid-F to mid-H, starting at mid-row-0)
     insert_logo(ws)?;
 
-    // 9. Freeze pane
+    // 10. Freeze pane
     layout::setup_freeze_panes(ws, 9)?;
 
     // BodyResult
@@ -509,22 +520,7 @@ fn write_cells_from_bridge(
         }
     }
 
-    // 3. Hyperlink cells: native hyperlink via write_url_with_format
-    //    IronCalc evaluates the VLOOKUP → URL string, write_url creates a real
-    //    <hyperlink> XML element — universally clickable without formula recalculation.
-    for addr in bridge.hyperlink_cells() {
-        let url_value = bridge.get_value(addr.row, addr.col);
-        let url = cell_value_to_string(&url_value);
-        if url.is_empty() {
-            continue;
-        }
-        if let Some(format) = fmt.get_locked(addr.row, addr.col) {
-            ws.write_url_with_format(addr.row, addr.col, url.as_str(), format)?;
-        } else {
-            let locked = Format::new().set_locked();
-            ws.write_url_with_format(addr.row, addr.col, url.as_str(), &locked)?;
-        }
-    }
+
 
     Ok(())
 }

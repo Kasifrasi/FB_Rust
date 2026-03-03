@@ -30,8 +30,6 @@ pub(crate) struct CalcBridge {
     /// Input values with their original data — written directly to Excel without
     /// IronCalc readback (IronCalc's `set_user_input` may auto-parse strings).
     input_values: Vec<(CellAddr, CellValue)>,
-    /// Hyperlink cells — IronCalc evaluates the VLOOKUP (→ URL), writer uses `write_url_with_format()`
-    hyperlink_cells: Vec<CellAddr>,
 }
 
 impl CalcBridge {
@@ -44,7 +42,6 @@ impl CalcBridge {
             model: template.instantiate(),
             formula_cells: template.static_formula_cells().to_vec(),
             input_values: Vec::new(),
-            hyperlink_cells: template.hyperlink_cells().to_vec(),
         }
     }
 
@@ -264,14 +261,6 @@ impl CalcBridge {
     /// These are written directly to Excel without IronCalc readback.
     pub(crate) fn input_values(&self) -> &[(CellAddr, CellValue)] {
         &self.input_values
-    }
-
-    /// Returns hyperlink cell addresses.
-    ///
-    /// IronCalc evaluates the VLOOKUP (→ URL string),
-    /// the writer writes a native hyperlink via `write_url_with_format()`.
-    pub(crate) fn hyperlink_cells(&self) -> &[CellAddr] {
-        &self.hyperlink_cells
     }
 
     // ========================================================================
