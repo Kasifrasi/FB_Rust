@@ -66,12 +66,12 @@ fn write_report_with_body(
     bridge.populate(values, &body_layout, &footer_layout);
     bridge.evaluate();
 
-    // 5. Build complete FormatMatrix (static + body + footer)
+    // 5. Build complete FormatMatrix: static (header + prebody), then dynamic (body + footer)
     let sec = SectionStyles::new(&styles);
     let mut fmt = build_format_matrix(&styles, &sec);
+    extend_format_matrix_with_prebody(&mut fmt, &sec);
     extend_format_matrix_with_body(&mut fmt, &styles, &body_layout);
     extend_format_matrix_with_footer(&mut fmt, &styles, &sec, footer_layout.start_row);
-    extend_format_matrix_with_prebody(&mut fmt, &sec);
 
     // 6. Write complete structure (merges, blanks, static strings)
     let lang = values.language().unwrap_or("");

@@ -18,14 +18,16 @@ pub fn write_structure(
     suffix: &str,
     language: &str,
 ) -> Result<(), XlsxError> {
-    // Static sections
+    // Static header area (rows 0–25): header, income table, right panel, pre-body
     write_header(ws, fmt, suffix, language)?;
     write_table(ws, fmt)?;
     write_panel(ws, fmt)?;
     write_prebody(ws, fmt)?;
 
-    // Dynamic sections
+    // Dynamic body area (row 26+): cost categories
     write_body(ws, fmt, body_layout)?;
+
+    // Dynamic footer area: balance reconciliation
     write_footer(ws, fmt, footer_layout)?;
 
     Ok(())

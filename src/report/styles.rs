@@ -101,11 +101,11 @@ pub struct ReportStyles {
     pub body_pct: Format,
     pub body_right: Format,
 
-    // --- Summary Row ---
-    pub summary_label: Format,
-    pub summary_value: Format,
-    pub summary_pct: Format,
-    pub summary_right: Format,
+    // --- Table Income Total (Row 19) ---
+    pub table_total_label: Format,
+    pub table_total_value: Format,
+    pub table_total_pct: Format,
+    pub table_total_right: Format,
 
     // --- Right Panel Base ---
     pub rp_index: Format,
@@ -232,8 +232,8 @@ impl ReportStyles {
             .set_background_color(fill_input)
             .set_border_right(border_medium);
 
-        // Summary Styles
-        let summary_label = base
+        // Table Income Total (Row 19) — aggregate row closing the 5-row static income table
+        let table_total_label = base
             .clone()
             .set_background_color(fill_summary)
             .set_bold()
@@ -243,21 +243,21 @@ impl ReportStyles {
             .set_border_top(border_thin)
             .set_border_bottom(border_medium);
 
-        let summary_value = base
+        let table_total_value = base
             .clone()
             .set_background_color(fill_summary)
             .set_border(border_thin)
             .set_border_bottom(border_medium)
             .set_num_format("#,##0.00");
 
-        let summary_pct = base
+        let table_total_pct = base
             .clone()
             .set_background_color(fill_summary)
             .set_border(border_thin)
             .set_border_bottom(border_medium)
             .set_num_format("0%");
 
-        let summary_right = base
+        let table_total_right = base
             .clone()
             .set_background_color(fill_summary)
             .set_border(border_thin)
@@ -326,10 +326,10 @@ impl ReportStyles {
             body_calc,
             body_pct,
             body_right,
-            summary_label,
-            summary_value,
-            summary_pct,
-            summary_right,
+            table_total_label,
+            table_total_value,
+            table_total_pct,
+            table_total_right,
             rp_index,
             rp_text,
             rp_date,
@@ -933,15 +933,15 @@ pub fn build_format_matrix(styles: &ReportStyles, sec: &SectionStyles) -> Format
     }
 
     // ========================================================================
-    // SUMMARY ROW (Row 19)
+    // TABLE INCOME TOTAL (Row 19)
     // ========================================================================
 
-    m.set(19, 1, &styles.summary_label);
-    m.set(19, 3, &styles.summary_value);
-    m.set(19, 4, &styles.summary_value);
-    m.set(19, 5, &styles.summary_value);
-    m.set(19, 6, &styles.summary_pct);
-    m.set(19, 7, &styles.summary_right);
+    m.set(19, 1, &styles.table_total_label);
+    m.set(19, 3, &styles.table_total_value);
+    m.set(19, 4, &styles.table_total_value);
+    m.set(19, 5, &styles.table_total_value);
+    m.set(19, 6, &styles.table_total_pct);
+    m.set(19, 7, &styles.table_total_right);
 
     // ========================================================================
     // RIGHT PANEL (Row 10-30, Cols J-O and Q-V)
