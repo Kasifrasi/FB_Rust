@@ -14,7 +14,9 @@ use crate::report::styles::{
     build_format_matrix, extend_format_matrix_with_body, extend_format_matrix_with_footer,
     extend_format_matrix_with_prebody, FormatMatrix, ReportStyles, SectionStyles,
 };
-use rust_xlsxwriter::{ExcelDateTime, Format, Formula, Workbook, Worksheet, XlsxError};
+use rust_xlsxwriter::{
+    ExcelDateTime, Format, Formula, Image, ObjectMovement, Workbook, Worksheet, XlsxError,
+};
 use std::path::Path;
 use std::sync::LazyLock;
 
@@ -23,6 +25,10 @@ use std::sync::LazyLock;
 /// Contains all static formulas + language sheet data.
 /// Initialized on first access (`LazyLock`).
 static MASTER_TEMPLATE: LazyLock<ModelTemplate> = LazyLock::new(ModelTemplate::new);
+
+/// Kindermissionswerk logo, embedded in the binary.
+const LOGO_BYTES: &[u8] =
+    include_bytes!("../../../assets/Logo_transparent.png");
 
 /// Result of the body generation step.
 #[derive(Debug, Clone)]
@@ -80,7 +86,10 @@ fn write_report_with_body(
     // 7. Write ALL cells from bridge (formulas + input values)
     write_cells_from_bridge(ws, &bridge, &fmt)?;
 
-    // 8. Freeze pane
+    // 8. Insert logo in header area (mid-F to mid-H, starting at mid-row-0)
+    insert_logo(ws)?;
+
+    // 9. Freeze pane
     layout::setup_freeze_panes(ws, 9)?;
 
     // BodyResult
@@ -454,6 +463,20 @@ fn apply_row_grouping(
         }
     }
 
+    Ok(())
+}
+
+/// Inserts the Kindermissionswerk logo into the header area.
+///
+/// Positioned from 1/3 of column F to 2/3 of column H, starting at mid-row-0.
+fn insert_logo(ws: &mut Worksheet) -> Result<(), XlsxError> {
+    let logo = Image::new_from_buffer(LOGO_BYTES)?
+        .set_scale_to_size(263, 500, true)
+        .set_object_movement(ObjectMovement::MoveButDontSizeWithCells)
+        .set_alt_text("Die Sternsinger - Kindermissionswerk");
+
+    // Cell F1 (row 0, col 5), offset to 1/3 of column F / middle of row 0 (~20px high → 10px)
+    ws.insert_image_with_offset(0, 5, &logo, 44, 10)?;
     Ok(())
 }
 
