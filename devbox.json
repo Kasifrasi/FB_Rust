@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.16.0/.schema/devbox.schema.json",
+  "packages": [
+    "path:./prek.nix",
+    "rust-bin.stable.latest.default",
+    "cargo-expand@latest",
+    "cargo-license@latest",
+    "cargo-about@latest",
+    "cargo-llvm-cov@latest",
+    "cargo-audit@latest",
+    "cargo-nextest@latest",
+    "cargo-deny@latest",
+    "cargo-cyclonedx@latest",
+    "cargo-edit@latest",
+    "pkg-config@latest",
+    "mold@latest",
+    "clang@latest",
+    "sccache@latest",
+    "bacon@latest",
+    "uv@latest"
+  ],
+  "env": {
+    "CC": "clang",
+    "CXX": "clang++",
+    "CFLAGS": "-fno-lto",
+    "CXXFLAGS": "-fno-lto",
+    "RUSTC_WRAPPER": "sccache",
+    "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER": "clang",
+    "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS": "-C link-arg=-fuse-ld=mold"
+  },
+  "shell": {
+    "init_hook": [
+      "if [ ! -d '.venv' ]; then uv venv; fi",
+      "source .venv/bin/activate",
+      "if [ -d '.git' ]; then prek install; fi",
+      "echo '🦀 Rust Dev | 🛡️ prek Hooks geladen via Devbox'"
+    ],
+    "scripts": {
+      "test": "cargo nextest run",
+      "lint": "cargo clippy",
+      "fmt": "cargo fmt"
+    }
+  }
+}
