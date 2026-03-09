@@ -15,6 +15,7 @@ run_all_and_copy.rs
 .devenv/
 .claude/
 .venv
+.devbox
 
 
 # OS
