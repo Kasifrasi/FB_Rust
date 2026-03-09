@@ -1,8 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.16.0/.schema/devbox.schema.json",
   "packages": [
-    "path:./prek.nix",
-    "rust-bin.stable.latest.default",
+    "path:.#default",
     "cargo-expand@latest",
     "cargo-license@latest",
     "cargo-about@latest",
@@ -20,12 +19,12 @@
     "uv@latest"
   ],
   "env": {
-    "CC": "clang",
-    "CXX": "clang++",
-    "CFLAGS": "-fno-lto",
-    "CXXFLAGS": "-fno-lto",
-    "RUSTC_WRAPPER": "sccache",
-    "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER": "clang",
+    "CC":                                              "clang",
+    "CXX":                                             "clang++",
+    "CFLAGS":                                          "-fno-lto",
+    "CXXFLAGS":                                        "-fno-lto",
+    "RUSTC_WRAPPER":                                   "sccache",
+    "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER":    "clang",
     "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS": "-C link-arg=-fuse-ld=mold"
   },
   "shell": {
@@ -38,7 +37,7 @@
     "scripts": {
       "test": "cargo nextest run",
       "lint": "cargo clippy",
-      "fmt": "cargo fmt"
+      "fmt":  "cargo fmt"
     }
   }
 }

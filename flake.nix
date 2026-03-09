@@ -1,54 +1,45 @@
 {
-  inputs = {
-    # 1. Stabiler Channel für minimale Downloads und einen warmen Cache
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
-    flake-utils.url = "github:numtide/flake-utils";
-    devenv.url = "github:cachix/devenv";
-    
-    # 2. Prek direkt vom Git-Master ohne Flake-Support
-    prek.url = "github:j178/prek";
-    prek.flake = false; 
+  description = "Prek tool - standalone build";
 
-    rust-overlay.url = "github:oxalica/rust-overlay";
-    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
-    
-    dagger.url = "github:dagger/nix";
-    dagger.inputs.nixpkgs.follows = "nixpkgs";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
-  outputs = { self, nixpkgs, flake-utils, devenv, prek, ... } @ inputs:
-      flake-utils.lib.eachDefaultSystem (system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-            config.allowUnfree = true;
-            overlays = [ 
-              (import inputs.rust-overlay) 
-              
-              # NEU: Das Overlay! Es überschreibt das Standard-Prek im gesamten System
-              (final: prev: {
-                prek = prev.rustPlatform.buildRustPackage {
-                  pname = "prek";
-                  version = "latest-git";
-                  src = prek;
-                  cargoLock.lockFile = "${prek}/Cargo.lock";
-                  doCheck = false; # Tests überspringen
-                };
-              })
-            ];
+  outputs = { self, nixpkgs }:
+    let
+      # Unterstützung für Linux und macOS
+      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
+    in
+    {
+      # Hier definieren wir das Paket direkt
+      packages = forAllSystems (pkgs: {
+        default = pkgs.rustPlatform.buildRustPackage {
+          pname = "prek";
+          version = "0.3.5";
+
+          src = pkgs.fetchFromGitHub {
+            owner = "j178";
+            repo = "prek";
+            rev = "v0.3.5"; # Wir nutzen den Tag passend zur Version
+            # DEINE HASHES
+            hash = "sha256-XWUotVd6DGk8IfE5UT2NjgSB6FL/HDEBr/wBFqOMe0I=";
           };
-  
-        in {
-          formatter = pkgs.nixpkgs-fmt;
-  
-          devShells = {
-            default = devenv.lib.mkShell {
-              inherit pkgs inputs; 
-              modules = [
-                ({ ... }: { _module.args.self = self; })
-                ./devenv.nix
-              ];
-            };
+
+          cargoHash = "sha256-ZIkbA6rfS+8YhfP0YE4v9Me9FeRvLVLGRBUZnoA9ids=";
+
+          nativeBuildInputs = [ pkgs.pkg-config ];
+
+          # Wir deaktivieren die Tests, da sie oft Netzwerkzugriff brauchen
+          doCheck = false;
+
+          meta = {
+            description = "Better pre-commit, re-engineered in Rust";
+            homepage = "https://github.com/j178/prek";
+            license = pkgs.lib.licenses.mit;
+            mainProgram = "prek";
           };
-        });
+        };
+      });
+    };
 }
