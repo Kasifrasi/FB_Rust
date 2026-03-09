@@ -533,6 +533,34 @@
       "last_modified": "2026-03-08T08:02:12Z",
       "resolved": "github:NixOS/nixpkgs/608d0cadfed240589a7eea422407a547ad626a14?lastModified=1772956932&narHash=sha256-M0yS4AafhKxPPmOHGqIV0iKxgNO8bHDWdl1kOwGBwRY%3D"
     },
+    "libiconv@latest": {
+      "last_modified": "2026-02-23T15:40:43Z",
+      "resolved": "github:NixOS/nixpkgs/80d901ec0377e19ac3f7bb8c035201e2e098cc97#libiconv",
+      "source": "devbox-search",
+      "version": "2.42",
+      "systems": {
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/d9rrgkc56k3adxngwsmhmlsmgxl8srhq-glibc-iconv-2.42",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/d9rrgkc56k3adxngwsmhmlsmgxl8srhq-glibc-iconv-2.42"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/p73x5sdhi1wgas4d6mm8yxbzawih2yp2-glibc-iconv-2.42",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/p73x5sdhi1wgas4d6mm8yxbzawih2yp2-glibc-iconv-2.42"
+        }
+      }
+    },
     "mold@latest": {
       "last_modified": "2026-02-23T15:40:43Z",
       "resolved": "github:NixOS/nixpkgs/80d901ec0377e19ac3f7bb8c035201e2e098cc97#mold",

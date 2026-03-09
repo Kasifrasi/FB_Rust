@@ -15,7 +15,8 @@
     "clang@latest",
     "sccache@latest",
     "bacon@latest",
-    "rustup@latest"
+    "rustup@latest",
+    "libiconv@latest"
   ],
   "env": {
     "CC":                                              "clang",
