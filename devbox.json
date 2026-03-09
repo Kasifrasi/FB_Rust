@@ -15,7 +15,7 @@
     "clang@latest",
     "sccache@latest",
     "bacon@latest",
-    "uv@latest"
+    "rustup@latest"
   ],
   "env": {
     "CC":                                              "clang",
@@ -28,9 +28,9 @@
   },
   "shell": {
     "init_hook": [
-      "if [ ! -d '.venv' ]; then uv venv; fi",
-      "source .venv/bin/activate",
-      "if [ -d '.git' ]; then prek install; fi",
+      "rustup default stable",
+      "rustup component add rust-src rust-analyzer",
+      "[ -d '.git' ] && prek install || true",
       "echo '🦀 Rust Dev | 🛡️ prek Hooks geladen via Devbox'"
     ],
     "scripts": {

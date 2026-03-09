@@ -125,7 +125,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .options(
             ReportOptions::builder()
-                .sheet_password("blatt_geheim")
+                .sheet_protection(SheetProtection::from_defaults().with_password("blatt_geheim"))
                 .workbook_password("wb_geheim")
                 .hide_columns_qv(true)
                 .hide_language_sheet(true)

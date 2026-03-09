@@ -11,7 +11,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use fb_rust::{
     precompute_hash_with_spin_count, Currency, IncomeTable, Language, PanelEntry, PositionEntry,
-    ReportBody, ReportConfig, ReportFooter, ReportHeader, ReportOptions, RowGrouping, TableEntry,
+    ReportBody, ReportConfig, ReportFooter, ReportHeader, ReportOptions, RowGrouping,
+    SheetProtection, TableEntry,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -145,7 +146,7 @@ fn build_config(index: usize) -> ReportConfig {
             sonstiges: Some(base * 0.3),
         },
         options: ReportOptions {
-            sheet_password: Some("bench_pw".to_string()),
+            sheet_protection: Some(SheetProtection::from_defaults().with_password("bench_pw")),
             hide_columns_qv: true,
             hide_language_sheet: true,
             row_grouping: Some(

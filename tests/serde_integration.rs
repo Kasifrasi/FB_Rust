@@ -10,7 +10,7 @@
 use fb_rust::{
     BodyConfig, Category, Currency, IncomeTable, Language, PanelEntry, PositionEntry, ReportBody,
     ReportConfig, ReportDate, ReportFooter, ReportHeader, ReportOptions, RowGroup, RowGrouping,
-    TableEntry,
+    SheetProtection, TableEntry,
 };
 use std::collections::HashMap;
 
@@ -87,7 +87,7 @@ fn test_report_config_full_roundtrip() {
             sonstiges: None,
         },
         options: ReportOptions {
-            sheet_password: Some("blatt_pw".to_string()),
+            sheet_protection: Some(SheetProtection::from_defaults().with_password("blatt_pw")),
             workbook_password: Some("geheim".to_string()),
             hide_columns_qv: true,
             hide_language_sheet: true,
@@ -189,6 +189,10 @@ fn test_report_config_full_roundtrip() {
     );
     assert!(deserialized.options.hide_columns_qv);
     assert!(deserialized.options.hide_language_sheet);
+    assert_eq!(
+        deserialized.options.sheet_protection.as_ref().and_then(|p| p.password.as_deref()),
+        Some("blatt_pw")
+    );
 
     // Row Grouping
     let rg = deserialized.options.row_grouping.as_ref().unwrap();
@@ -210,7 +214,7 @@ fn test_report_config_minimal_roundtrip() {
 
     assert_eq!(deserialized.header.language, Language::Deutsch);
     assert_eq!(deserialized.header.currency, Currency::EUR);
-    assert!(deserialized.options.sheet_password.is_none());
+    assert!(deserialized.options.sheet_protection.is_none());
     assert!(deserialized.body.table.saldovortrag.is_none());
     assert!(deserialized.body.table.eigenmittel.is_none());
     assert!(deserialized.body.table.drittmittel.is_none());
@@ -233,7 +237,7 @@ fn test_report_config_empty_json() {
 
     assert_eq!(config.header.language, Language::Deutsch);
     assert_eq!(config.header.currency, Currency::EUR);
-    assert!(config.options.sheet_password.is_none());
+    assert!(config.options.sheet_protection.is_none());
     assert!(config.body.table.kmw_mittel.is_none());
     assert!(config.body.left_panel.is_empty());
 }
@@ -255,7 +259,7 @@ fn test_report_config_partial_json() {
     assert!(config.header.project_number.is_none());
     assert!(config.body.table.kmw_mittel.is_none());
     assert!(config.footer.bank.is_none());
-    assert!(config.options.sheet_password.is_none());
+    assert!(config.options.sheet_protection.is_none());
 }
 
 // ============================================================================
@@ -652,7 +656,7 @@ fn test_report_config_from_typescript_json() {
             "kasse": 500.0
         },
         "options": {
-            "sheet_password": "geheim",
+            "sheet_protection": { "password": "geheim" },
             "hide_columns_qv": false,
             "hide_language_sheet": false
         }
@@ -667,7 +671,10 @@ fn test_report_config_from_typescript_json() {
         config.header.project_title.as_deref(),
         Some("Klimaschutzprojekt")
     );
-    assert_eq!(config.options.sheet_password.as_deref(), Some("geheim"));
+    assert_eq!(
+        config.options.sheet_protection.as_ref().and_then(|p| p.password.as_deref()),
+        Some("geheim")
+    );
 
     // table.kmw_mittel
     let kmw = config.body.table.kmw_mittel.as_ref().unwrap();
@@ -784,4 +791,51 @@ fn test_report_config_all_null_optionals() {
     let cat1 = config.body.positions.get(&1u8).unwrap();
     assert_eq!(cat1.len(), 1);
     assert_eq!(cat1[0].as_ref().unwrap().approved, Some(5000.0));
+}
+
+// ============================================================================
+// Group 10: SheetProtection serde
+// ============================================================================
+
+#[test]
+fn test_sheet_protection_roundtrip() {
+    let prot = SheetProtection::from_defaults()
+        .with_password("secret")
+        .allow_sort(true)
+        .allow_format_cells(true);
+
+    let opts = ReportOptions {
+        sheet_protection: Some(prot),
+        ..ReportOptions::default()
+    };
+
+    let json = serde_json::to_string(&opts).expect("serialize");
+    let deserialized: ReportOptions = serde_json::from_str(&json).expect("deserialize");
+
+    let prot_back = deserialized.sheet_protection.as_ref().unwrap();
+    assert_eq!(prot_back.password.as_deref(), Some("secret"));
+    assert!(prot_back.sort);
+    assert!(prot_back.format_cells);
+    assert!(!prot_back.insert_rows);
+    assert!(prot_back.select_locked_cells);
+    assert!(prot_back.select_unlocked_cells);
+}
+
+#[test]
+fn test_sheet_protection_partial_json() {
+    // Only "sort" provided inside sheet_protection — all other flags default via SheetProtection::default()
+    let json = r#"{
+        "hide_columns_qv": false,
+        "hide_language_sheet": false,
+        "sheet_protection": {"sort": true}
+    }"#;
+    let opts: ReportOptions = serde_json::from_str(json).expect("deserialize partial protection");
+
+    let prot = opts.sheet_protection.as_ref().unwrap();
+    assert!(prot.sort);
+    assert!(!prot.format_cells);
+    assert!(!prot.insert_rows);
+    assert!(prot.select_locked_cells);
+    assert!(prot.select_unlocked_cells);
+    assert!(prot.password.is_none());
 }

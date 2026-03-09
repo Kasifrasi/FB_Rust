@@ -12,7 +12,7 @@
 //!
 //! let config = ReportConfig::builder()
 //!     .header(ReportHeader::builder().language(Language::Deutsch).currency(Currency::EUR).build())
-//!     .options(ReportOptions::builder().sheet_password("geheim").build())
+//!     .options(ReportOptions::builder().sheet_protection(SheetProtection::from_defaults().with_password("geheim")).build())
 //!     .build();  // infallible — no ? required
 //! config.write_to("report.xlsx")?;
 //! ```
@@ -44,7 +44,7 @@
 //!     "project_number": "2025-001",
 //!     "project_title": "Klimaschutzprojekt"
 //!   },
-//!   "options": { "sheet_password": "geheim" }
+//!   "options": { "sheet_protection": { "password": "geheim" } }
 //! }
 //! ```
 //!

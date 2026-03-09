@@ -305,7 +305,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             )
             .options(
                 ReportOptions::builder()
-                    .sheet_password("test")
+                    .sheet_protection(SheetProtection::from_defaults().with_password("test"))
                     .build(),
             )
             .build();

@@ -32,6 +32,7 @@ use rust_xlsxwriter::{
     DataValidation, DataValidationErrorStyle, DataValidationRule, Formula, IntoDataValidationValue,
 };
 use std::collections::HashSet;
+use std::default;
 
 // ============================================================================
 // Sheet Protection
@@ -41,7 +42,9 @@ use std::collections::HashSet;
 ///
 /// Maps directly to rust_xlsxwriter's ProtectionOptions with a builder API.
 /// By default, all editing is locked; use `allow_*` methods to enable specific actions.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct SheetProtection {
     /// Optional password (weak protection - easily bypassed)
     pub password: Option<String>,
@@ -77,6 +80,8 @@ pub struct SheetProtection {
     pub edit_objects: bool,
     /// Allow editing scenarios (default: false)
     pub edit_scenarios: bool,
+    /// Protect contents of locked cells (default: false)
+    pub contents: bool,
 }
 
 impl Default for SheetProtection {
@@ -98,6 +103,7 @@ impl Default for SheetProtection {
             pivot_tables: false,
             edit_objects: false,
             edit_scenarios: false,
+            contents: false,
         }
     }
 }
@@ -127,6 +133,7 @@ impl SheetProtection {
             pivot_tables: true,
             edit_objects: false,
             edit_scenarios: true,
+            contents: false,
         }
     }
 
@@ -213,6 +220,11 @@ impl SheetProtection {
         self
     }
 
+    pub fn allow_contents(mut self, allow: bool) -> Self {
+        self.contents = allow;
+        self
+    }
+
     /// Converts to rust_xlsxwriter ProtectionOptions
     pub fn to_protection_options(&self) -> rust_xlsxwriter::ProtectionOptions {
         rust_xlsxwriter::ProtectionOptions {
@@ -231,7 +243,7 @@ impl SheetProtection {
             use_pivot_tables: self.pivot_tables,
             edit_objects: self.edit_objects,
             edit_scenarios: self.edit_scenarios,
-            // Note: objects field maps to edit_objects in newer versions
+            contents: self.contents,
             ..Default::default()
         }
     }

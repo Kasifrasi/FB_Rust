@@ -31,7 +31,7 @@
 //!             header_inputs: { "6": { "approved": 3000.0 } },
 //!         },
 //!         footer: { "bank": 12000.0, "kasse": 500.0 },
-//!         options: { "sheet_password": "geheim" },
+//!         options: { "sheet_protection": { "password": "geheim" } },
 //!     },
 //!     outputPath: "/home/user/report.xlsx"
 //! });
@@ -658,7 +658,11 @@ impl ReportFooterBuilder {
 ///
 /// ```json
 /// {
-///   "sheet_password": "sheet_secret",
+///   "sheet_protection": {
+///     "password": "sheet_secret",
+///     "sort": true,
+///     "format_cells": true
+///   },
 ///   "hide_columns_qv": true,
 ///   "hide_language_sheet": false,
 ///   "workbook_password": "wb_secret",
@@ -672,8 +676,11 @@ impl ReportFooterBuilder {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct ReportOptions {
-    /// Sheet protection password (`None` = no protection, `""` = protection without password)
-    pub sheet_password: Option<String>,
+    /// Sheet protection settings (`None` = no protection).
+    /// Use [`SheetProtection`] to configure which operations are allowed/blocked.
+    /// The `password` field inside [`SheetProtection`] sets the sheet password.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub sheet_protection: Option<SheetProtection>,
     /// Hide helper columns Q-V
     pub hide_columns_qv: bool,
     /// Hide language sheet
@@ -694,7 +701,7 @@ impl ReportOptions {
 /// Builder for [`ReportOptions`].
 #[derive(Default)]
 pub struct ReportOptionsBuilder {
-    sheet_password: Option<String>,
+    sheet_protection: Option<SheetProtection>,
     hide_columns_qv: bool,
     hide_language_sheet: bool,
     workbook_password: Option<String>,
@@ -702,8 +709,8 @@ pub struct ReportOptionsBuilder {
 }
 
 impl ReportOptionsBuilder {
-    pub fn sheet_password(mut self, v: impl Into<String>) -> Self {
-        self.sheet_password = Some(v.into());
+    pub fn sheet_protection(mut self, prot: SheetProtection) -> Self {
+        self.sheet_protection = Some(prot);
         self
     }
     pub fn workbook_password(mut self, v: impl Into<String>) -> Self {
@@ -724,7 +731,7 @@ impl ReportOptionsBuilder {
     }
     pub fn build(self) -> ReportOptions {
         ReportOptions {
-            sheet_password: self.sheet_password,
+            sheet_protection: self.sheet_protection,
             hide_columns_qv: self.hide_columns_qv,
             hide_language_sheet: self.hide_language_sheet,
             workbook_password: self.workbook_password,
@@ -762,7 +769,7 @@ impl ReportOptionsBuilder {
 ///             .build()
 ///     )
 ///     .footer(ReportFooter::builder().bank(8500.0).build())
-///     .options(ReportOptions::builder().sheet_password("geheim").build())
+///     .options(ReportOptions::builder().sheet_protection(SheetProtection::from_defaults().with_password("geheim")).build())
 ///     .build();
 /// config.write_to("report.xlsx")?;
 /// ```
@@ -1093,11 +1100,7 @@ impl ReportConfig {
     }
 
     fn build_sheet_options(&self) -> SheetOptions {
-        let mut opts = if let Some(ref pw) = self.options.sheet_password {
-            let mut prot = SheetProtection::from_defaults();
-            if !pw.is_empty() {
-                prot = prot.with_password(pw);
-            }
+        let mut opts = if let Some(prot) = self.options.sheet_protection.clone() {
             SheetOptions::new().with_protection(prot)
         } else {
             SheetOptions::new()
@@ -1433,7 +1436,7 @@ mod tests {
             .footer(ReportFooter::builder().bank(8_000.0).build())
             .options(
                 ReportOptions::builder()
-                    .sheet_password("secret")
+                    .sheet_protection(SheetProtection::from_defaults().with_password("secret"))
                     .hide_columns_qv(true)
                     .build(),
             )

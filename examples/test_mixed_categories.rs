@@ -274,7 +274,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             )
             .options(
                 ReportOptions::builder()
-                    .sheet_password("geheim")
+                    .sheet_protection(SheetProtection::from_defaults().with_password("geheim"))
                     .hide_columns_qv(true)
                     .hide_language_sheet(true)
                     .build(),

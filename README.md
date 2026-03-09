@@ -96,7 +96,7 @@ let config = ReportConfig::builder()
     // ── Options: protection & visibility ─────────────────────────────
     .options(
         ReportOptions::builder()
-            .sheet_password("blatt_geheim")    // sheet protection (formulas locked)
+            .sheet_protection(SheetProtection::from_defaults().with_password("blatt_geheim"))  // sheet protection
             .workbook_password("wb_geheim")    // workbook structure lock (SHA-512)
             .hide_columns_qv(true)             // hide columns Q:V
             .hide_language_sheet(true)          // hide language sheet

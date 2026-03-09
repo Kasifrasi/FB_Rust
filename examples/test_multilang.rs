@@ -96,7 +96,7 @@ fn create_report(
         )
         .options(
             ReportOptions::builder()
-                .sheet_password("sheet_pw")
+                .sheet_protection(SheetProtection::from_defaults().with_password("sheet_pw"))
                 .workbook_password("wb_pw")
                 .hide_columns_qv(true)
                 .build(),
